@@ -166,13 +166,13 @@ var SceneManager = new Class({
             return;
         }
 
-        for (i = 0; i < queueLength; i++)
+        for (i = 0; i < this._queue.length; i++)
         {
             entry = this._queue[i];
 
             this[entry.op](entry.keyA, entry.keyB);
         }
-        
+
         this._queue.length = 0;
     },
 
@@ -278,7 +278,7 @@ var SceneManager = new Class({
         if (scene.sys.load)
         {
             loader = scene.sys.load;
-                
+
             loader.reset();
         }
 
@@ -362,6 +362,26 @@ var SceneManager = new Class({
             {
                 sys.step(time, delta);
             }
+        }
+    },
+
+    /**
+     * [description]
+     *
+     * @method Phaser.Scenes.SceneManager#resize
+     * @since 3.2.0
+     *
+     * @param {number} width - The new width of the game.
+     * @param {number} height - The new height of the game.
+     */
+    resize: function (width, height)
+    {
+        //  Loop through the scenes in forward order
+        for (var i = 0; i < this.scenes.length; i++)
+        {
+            var sys = this.scenes[i].sys;
+
+            sys.resize(width, height);
         }
     },
 
@@ -852,7 +872,7 @@ var SceneManager = new Class({
                     return this;
                 }
             }
-            
+
             this.bootScene(scene);
         }
 
