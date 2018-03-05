@@ -4,7 +4,9 @@
 
 ### New Features
 
+* The new Render Texture Game Object is now available. You can clear, fill and draw texture frames to it. The Render Texture itself can be displayed in-game with its own transform, or you can use it as a Bitmap Mask for another Game Object.
 * Game.resize allows you to resize the game config, renderer and input system in one call.
+* When Game.resize is called it causes all Scene.Systems to have their resize method called. This is turn emits a `resize` event which your Scene can respond to. It will be sent the new width and height of the canvas as the only two parameters.
 * InputManager.resize allows you to update the bounds def and input scale in one call.
 * Game.Config.roundPixels property added to prevent sub-pixel interpolation during rendering of Game Objects in WebGL and Canvas.
 * Load.plugin now accepts a class as an argument as well as a URL string (thanks @nkholski)
@@ -15,6 +17,10 @@
 * The SceneManager has a new method: `remove` which allows you to remove and destroy a Scene, freeing up the Scene key for use by future scenes and potentially clearing the Scene from active memory for gc.
 * SceneManager.moveAbove will move a Scene to be directly above another Scene in the Scenes list. This is also exposed in the ScenePlugin.
 * SceneManager.moveBelow will move a Scene to be directly below another Scene in the Scenes list. This is also exposed in the ScenePlugin.
+* Quadratic Bezier Interpolation has been added to the Math.Interpolation functions (thanks @RiCoTeRoX)
+* A new Quadratic Bezier Curve class has been added, expanding the available Curve types (thanks @RiCoTeRoX)
+* Path.quadraticBezierTo allows you to add a Quadratic Bezier Curve into your Path.
+* Loader.multiatlas now supports Texture Packers new JSON atlas format which exports one combined atlas for all image files. This is available if you use the new Phaser 3 Export from within Texture Packer (thanks @CodeAndWeb)
 
 ### Bug Fixes
 
@@ -28,6 +34,11 @@
 * InputPlugin.clear now properly removes a Game Object from all internal arrays, not just the _list.
 * InputPlugin.processOverOut no longer considers an item as being 'out' if it's in the internal `_drag` array.
 * When a Game Object is scaled, its Arcade Physics body was still calculating its position based on its original size instead of scaled one (thanks @pixelpicosean)
+* The RandomDataGenerator classes randomness has been improved thanks to the correct caching of a class property. Fix #3289 (thanks @migiyubi)
+* The RandomDataGenerator `sign` property had a method collision. Fix #3323 (thanks @vinerz and @samme)
+* In Arcade Physics World if you collided a group with itself it would call a missing method (`collideGroupVsSelf`), it now calls `collideGroupVsGroup` correctly (thanks @patrickgalbraith)
+* The HTML5 Sound Manager would unlock the Sound API on a touch event but only if the audio files were loaded in the first Scene, if they were loaded in a subsequent Scene the audio system would never unlock. It now unlocks only if there are audio files in the cache. Fix #3311 (thanks @chancezeus)
+* The Text.lineSpacing value was not taken into account when rendering the Text. Fix #3215 (thanks @sftsk)
 
 ### Updates
 
@@ -42,8 +53,10 @@
 * The `setFrame` method of the Texture component has been updated so that it will now automatically reset the `width` and `height` of a Game Object to match that of the new Frame. Related, it will also adjust the display origin values, because they are size based. If the Frame has a custom pivot it will set the origin to match the custom pivot instead.
 * ScenePlugin.swapPosition now allows you to use it to swap the positions of any two Scenes. Before the change it only allowed you to swap the position of the calling Scene and another one, but a new optional `keyB` argument opens this up.
 * The SceneManager no longer renders a Scene unless it is visible AND either running or paused. This now skips Scenes that are in an `init` state.
-* Documentation updates: thanks to @melissaelopez @samme
-
+* The Keyboard Manager will now no longer emit `keydown` events if you keep holding a key down. Fix #3239 (thanks @squaresun)
+* The SceneManager now employs a new queue for all pending Scenes, creating them and booting them in strict sequence. This should prevent errors where Scenes were unable to reference other Scenes further down the boot list in their create functions. Fix #3314 (thanks @max1701 @rblopes)
+* Phaser is now running Travis CI build testing again (thanks @vpmedia)
+* Documentation updates: thanks to @melissaelopez @samme @jblang94 
 
 ## Version 3.1.2 - 23rd February 2018
 
