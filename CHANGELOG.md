@@ -1,6 +1,16 @@
 # Change Log
 
-## Version 3.2.0 - In Development
+## Version 3.2.1 - In Development
+
+### New Features
+
+### Bug Fixes
+
+### Updates
+
+
+
+## Version 3.2.0 - Kaori - 5th March 2018
 
 ### New Features
 
@@ -21,6 +31,7 @@
 * A new Quadratic Bezier Curve class has been added, expanding the available Curve types (thanks @RiCoTeRoX)
 * Path.quadraticBezierTo allows you to add a Quadratic Bezier Curve into your Path.
 * Loader.multiatlas now supports Texture Packers new JSON atlas format which exports one combined atlas for all image files. This is available if you use the new Phaser 3 Export from within Texture Packer (thanks @CodeAndWeb)
+* Modified WebGLPipeline to make it easier to extend and easier to create custom rendering passes.
 
 ### Bug Fixes
 
@@ -39,6 +50,7 @@
 * In Arcade Physics World if you collided a group with itself it would call a missing method (`collideGroupVsSelf`), it now calls `collideGroupVsGroup` correctly (thanks @patrickgalbraith)
 * The HTML5 Sound Manager would unlock the Sound API on a touch event but only if the audio files were loaded in the first Scene, if they were loaded in a subsequent Scene the audio system would never unlock. It now unlocks only if there are audio files in the cache. Fix #3311 (thanks @chancezeus)
 * The Text.lineSpacing value was not taken into account when rendering the Text. Fix #3215 (thanks @sftsk)
+* InputPlugin.update now takes the totals from the drag and pointerup events into consideration when deciding to fall through to the Scene below. Fix #3333 (thanks @chancezeus)
 
 ### Updates
 
@@ -55,6 +67,10 @@
 * The SceneManager no longer renders a Scene unless it is visible AND either running or paused. This now skips Scenes that are in an `init` state.
 * The Keyboard Manager will now no longer emit `keydown` events if you keep holding a key down. Fix #3239 (thanks @squaresun)
 * The SceneManager now employs a new queue for all pending Scenes, creating them and booting them in strict sequence. This should prevent errors where Scenes were unable to reference other Scenes further down the boot list in their create functions. Fix #3314 (thanks @max1701 @rblopes)
+* Game.preBoot and Game.postBoot callbacks now pass an instance of the game to the callback (thanks @rblopes)
+* Graphics.arc in WebGL mode now works more like arc does in Canvas (thanks @Twilrom)
+* GameObjects now emit a 'destroy' event when they are destroyed, which you can use to perform any additional processing you require. Fix #3251 (thanks @rexrainbow)
+* If an HTML5AudioSound sound fails to play it will now issue a console.warn (thanks @samme)
 * Phaser is now running Travis CI build testing again (thanks @vpmedia)
 * Documentation updates: thanks to @melissaelopez @samme @jblang94 
 
