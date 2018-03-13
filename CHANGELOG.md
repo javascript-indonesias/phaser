@@ -1,8 +1,20 @@
 # Change Log
 
-## Version 3.2.1 - In Development
+## Version 3.3.0 - Tetsuo - In Development
 
 ### New Features
+
+* TextStyle has two new properties: `baselineX` and `baselineY` which allow you to customize the 'magic' value used in calculating the text metrics.
+
+### Bug Fixes
+
+### Updates
+
+* The Text testString has changed from `|MÉqgy` to `|MÃ‰qgy`.
+
+
+
+## Version 3.2.1 - 12th March 2018
 
 ### Bug Fixes
 
@@ -15,6 +27,10 @@
 * Fixed an error in the lights pipeline when no Light Manager has been defined (thanks @samme)
 * The ForwardDiffuseLightPipeline now uses `sys.lights` instead of the Scene variable to avoid errors due to injection removal.
 * Phaser.Display.Color.Interpolate would return NaN values because it was loading the wrong Linear function. Fix #3372 (thanks @samid737)
+* RenderTexture.draw was only drawing the base frame of a Texture. Fix #3374 (thanks @samid737)
+* TileSprite scaling differed between WebGL and Canvas. Fix #3338 (thanks @TCatshoek)
+* Text.setFixedSize was incorrectly setting the `text` property instead of the `parent` property. Fix #3375 (thanks @rexrainbow)
+* RenderTexture.clear on canvas was using the last transform state, instead of clearing the whole texture.
 
 ### Updates
 

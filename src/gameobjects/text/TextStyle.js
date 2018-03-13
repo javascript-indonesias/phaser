@@ -30,7 +30,9 @@ var propertyMap = {
     fixedWidth: [ 'fixedWidth', 0 ],
     fixedHeight: [ 'fixedHeight', 0 ],
     rtl: [ 'rtl', false ],
-    testString: [ 'testString', '|MÉqgy' ],
+    testString: [ 'testString', '|MÃ‰qgy' ],
+    baselineX: [ 'baselineX', 1.2 ],
+    baselineY: [ 'baselineY', 1.4 ],
     wordWrapWidth: [ 'wordWrap.width', null ],
     wordWrapCallback: [ 'wordWrap.callback', null ],
     wordWrapCallbackScope: [ 'wordWrap.callbackScope', null ],
@@ -253,6 +255,26 @@ var TextStyle = new Class({
         this.testString;
 
         /**
+         * The amount of horizontal padding adding to the width of the text when calculating the font metrics.
+         *
+         * @name Phaser.GameObjects.Components.TextStyle#baselineX
+         * @type {number}
+         * @default 1.2
+         * @since 3.3.0
+         */
+        this.baselineX;
+
+        /**
+         * The amount of vertical padding adding to the width of the text when calculating the font metrics.
+         *
+         * @name Phaser.GameObjects.Components.TextStyle#baselineY
+         * @type {number}
+         * @default 1.4
+         * @since 3.3.0
+         */
+        this.baselineY;
+
+        /**
          * [description]
          *
          * @name Phaser.GameObjects.Components.TextStyle#_font
@@ -292,7 +314,7 @@ var TextStyle = new Class({
      * @param {[type]} style - [description]
      * @param {boolean} [updateText=true] - [description]
      *
-     * @return {Phaser.GameObjects.Components.TextStyle} This TextStyle component.
+     * @return {Phaser.GameObjects.Text} The parent Text object.
      */
     setStyle: function (style, updateText)
     {
@@ -339,10 +361,12 @@ var TextStyle = new Class({
 
         if (updateText)
         {
-            this.update(true);
+            return this.update(true);
         }
-
-        return this;
+        else
+        {
+            return this.parent;
+        }
     },
 
     /**
@@ -548,12 +572,12 @@ var TextStyle = new Class({
 
         if (width)
         {
-            this.text.width = width;
+            this.parent.width = width;
         }
 
         if (height)
         {
-            this.text.height = height;
+            this.parent.height = height;
         }
 
         return this.update(false);
