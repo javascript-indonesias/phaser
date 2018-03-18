@@ -19,6 +19,9 @@
 * Added the new Action - WrapInRectangle. This will wrap each items coordinates within a rectangles area (thanks @samme)
 * Arcade Physics has the new methods `wrap`, `wrapArray` and `wrapObject` which allow you to wrap physics bodies around the world bounds (thanks @samme)
 * The Tweens Timeline has a new method: `makeActive` which delegates control to the Tween Manager (thanks @allanbreyes)
+* Actions.GetLast will return the last element in the items array matching the conditions.
+* Actions.PropertyValueInc is a new action that will increment any property of an array of objects by the given amount, using an optional step value, index and iteration direction. Most Actions have been updated to use this internally.
+* Actions.PropertyValueSet is a new action that will set any property of an array of objects to the given value, using an optional step value, index and iteration direction. Most Actions have been updated to use this internally.
 
 ### Bug Fixes
 
@@ -36,6 +39,9 @@
 * The InputPlugin.processOverOutEvents method wasn't correctly working out the total of the number of objects interacted with, which caused input events to be disabled in Scenes further down the scene list if something was being dragged in an upper scene. Fix #3399 (thanks @Jerenaux)
 * The InputPlugin.processDragEvents wasn't always returning an integer.
 * LoaderPlugin.progress and the corresponding event now factor in both the list size and the inflight size when calculating the percentage complete. Fix #3384 (thanks @vinerz @rblopes @samme)
+* Phaser.Utils.Array.Matrix.RotateLeft actually rotated to the right (thanks @Tomas2h)
+* Phaser.Utils.Array.Matrix.RotateRight actually rotated to the left (thanks @Tomas2h)
+* When deleting a Scene from the SceneManager it would set the key in the scenes has to `undefined`, preventing you from registering a new Scene with the same key. It's now properly removed from the hash(thanks @macbury)
 
 ### Updates
 
@@ -47,6 +53,30 @@
 * The Phaser.Physics.Arcade constants are now exposed on the namespace. Fix #3387 (thanks @samme)
 * The Phaser.Scene constants are now exposed on the namespace. Fix #3387 (thanks @samme)
 * The Phaser.Tweens constants are now exposed on the namespace. Fix #3387 (thanks @samme)
+* The Array Matrix utils are now exposed and available via `Phaser.Utils.Array.Matrix`.
+* Actions.Angle has 3 new arguments: `step`, `index` and `direction`.
+* Actions.IncAlpha has 3 new arguments: `step`, `index` and `direction`.
+* Actions.IncX has 3 new arguments: `step`, `index` and `direction`.
+* Actions.IncY has 3 new arguments: `step`, `index` and `direction`.
+* Actions.IncXY has 4 new arguments: `stepX`, `stepY`, `index` and `direction`.
+* Actions.Rotate has 3 new arguments: `step`, `index` and `direction`.
+* Actions.ScaleX has 3 new arguments: `step`, `index` and `direction`.
+* Actions.ScaleXY has 4 new arguments: `stepX`, `stepY`, `index` and `direction`.
+* Actions.ScaleY has 3 new arguments: `step`, `index` and `direction`.
+* Actions.SetAlpha has 2 new arguments: `index` and `direction`.
+* Actions.SetBlendMode has 2 new arguments: `index` and `direction`.
+* Actions.SetDepth has 2 new arguments: `index` and `direction`.
+* Actions.SetOrigin has 4 new arguments: `stepX`, `stepY`, `index` and `direction`.
+* Actions.SetRotation has 2 new arguments: `index` and `direction`.
+* Actions.SetScale has 2 new arguments: `index` and `direction`.
+* Actions.SetScaleX has 2 new arguments: `index` and `direction`.
+* Actions.SetScaleY has 2 new arguments: `index` and `direction`.
+* Actions.SetVisible has 2 new arguments: `index` and `direction`.
+* Actions.SetX has 2 new arguments: `index` and `direction`.
+* Actions.SetXY has 2 new arguments: `index` and `direction`.
+* Actions.SetY has 2 new arguments: `index` and `direction`.
+
+
 
 
 
