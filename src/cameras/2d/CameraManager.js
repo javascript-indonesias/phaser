@@ -200,7 +200,7 @@ var CameraManager = new Class({
             this.cameraPool.slice(poolIndex, 1);
             return camera;
         }
-        
+
         return null;
     },
 
@@ -236,9 +236,9 @@ var CameraManager = new Class({
      * @method Phaser.Cameras.Scene2D.CameraManager#fromJSON
      * @since 3.0.0
      *
-     * @param {[type]} config - [description]
+     * @param {object|object[]} config - [description]
      *
-     * @return {[type]} [description]
+     * @return {Phaser.Cameras.Scene2D.CameraManager} [description]
      */
     fromJSON: function (config)
     {
@@ -325,7 +325,7 @@ var CameraManager = new Class({
      * @method Phaser.Cameras.Scene2D.CameraManager#getCameraBelowPointer
      * @since 3.0.0
      *
-     * @param {[type]} pointer - [description]
+     * @param {Phaser.Input.Pointer} pointer - [description]
      *
      * @return {Phaser.Cameras.Scene2D.Camera} [description]
      */
@@ -375,9 +375,9 @@ var CameraManager = new Class({
      * @method Phaser.Cameras.Scene2D.CameraManager#render
      * @since 3.0.0
      *
-     * @param {[type]} renderer - [description]
-     * @param {[type]} children - [description]
-     * @param {[type]} interpolation - [description]
+     * @param {Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer} renderer - The Renderer that will render the children to this camera.
+     * @param {Phaser.GameObjects.GameObject[]} children - An array of renderable Game Objects.
+     * @param {number} interpolation - Interpolation value. Reserved for future use.
      */
     render: function (renderer, children, interpolation)
     {
@@ -436,7 +436,7 @@ var CameraManager = new Class({
      *
      * @method Phaser.Cameras.Scene2D.CameraManager#resize
      * @since 3.2.0
-     * 
+     *
      * @param {number} width - The new width of the camera.
      * @param {number} height - The new height of the camera.
      */
