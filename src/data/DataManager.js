@@ -7,6 +7,15 @@
 var Class = require('../utils/Class');
 
 /**
+ * @callback DataEachCallback
+ *
+ * @param {any} parent - [description]
+ * @param {string} key - [description]
+ * @param {any} value - [description]
+ * @param {...*} [arguments] - Additional arguments that will be passed to the callback, after the game object, key, and data.
+ */
+
+/**
  * @classdesc
  * The Data Component features a means to store pieces of data specific to a Game Object, System or Plugin.
  * You can then search, query it, and retrieve the data. The parent must either extend EventEmitter,
@@ -18,7 +27,7 @@ var Class = require('../utils/Class');
  * @since 3.0.0
  *
  * @param {any} parent - [description]
- * @param {any} eventEmitter - [description]
+ * @param {EventEmitter} eventEmitter - [description]
  */
 var DataManager = new Class({
 
@@ -53,7 +62,7 @@ var DataManager = new Class({
          * [description]
          *
          * @name Phaser.Data.DataManager#list
-         * @type {object}
+         * @type {Object.<string, any>}
          * @default {}
          * @since 3.0.0
          */
@@ -104,7 +113,7 @@ var DataManager = new Class({
      * @method Phaser.Data.DataManager#getAll
      * @since 3.0.0
      *
-     * @return {object} [description]
+     * @return {Object.<string, any>} [description]
      */
     getAll: function ()
     {
@@ -112,7 +121,10 @@ var DataManager = new Class({
 
         for (var key in this.list)
         {
-            results[key] = this.list[key];
+            if(this.list.hasOwnProperty(key))
+            {
+                results[key] = this.list[key];
+            }
         }
 
         return results;
@@ -126,7 +138,7 @@ var DataManager = new Class({
      *
      * @param {string} search - [description]
      *
-     * @return {object} [description]
+     * @return {Object.<string, any>} [description]
      */
     query: function (search)
     {
@@ -134,7 +146,7 @@ var DataManager = new Class({
 
         for (var key in this.list)
         {
-            if (key.match(search))
+            if (this.list.hasOwnProperty(key) && key.match(search))
             {
                 results[key] = this.list[key];
             }
@@ -196,7 +208,7 @@ var DataManager = new Class({
      * @method Phaser.Data.DataManager#each
      * @since 3.0.0
      *
-     * @param {function} callback - The function to call.
+     * @param {DataEachCallback} callback - The function to call.
      * @param {object} [scope] - Value to use as `this` when executing callback.
      * @param {...*} [arguments] - Additional arguments that will be passed to the callback, after the game object, key, and data.
      *
@@ -228,7 +240,7 @@ var DataManager = new Class({
      * @method Phaser.Data.DataManager#merge
      * @since 3.0.0
      *
-     * @param {object} data - [description]
+     * @param {Object.<string, any>} data - [description]
      * @param {boolean} overwrite - [description]
      *
      * @return {Phaser.Data.DataManager} This DataManager object.
@@ -240,7 +252,7 @@ var DataManager = new Class({
         //  Merge data from another component into this one
         for (var key in data)
         {
-            if (overwrite || (!overwrite && !this.has(key)))
+            if (data.hasOwnProperty(key) && (overwrite || (!overwrite && !this.has(key))))
             {
                 this.list[key] = data[key];
             }
@@ -336,7 +348,7 @@ var DataManager = new Class({
      *
      * @method Phaser.Data.DataManager#reset
      * @since 3.0.0
-     * 
+     *
      * @return {Phaser.Data.DataManager} This DataManager object.
      */
     reset: function ()
