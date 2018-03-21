@@ -154,7 +154,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {any} data - The Base64 encoded data.
+     * @param {*} data - The Base64 encoded data.
      */
     addBase64: function (key, data)
     {
@@ -186,8 +186,8 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {Image} source - The source Image element.
-     * @param {Image} [dataSource] - An optional data Image element.
+     * @param {HTMLImageElement} source - The source Image element.
+     * @param {HTMLImageElement} [dataSource] - An optional data Image element.
      *
      * @return {Phaser.Textures.Texture} The Texture that was created.
      */
@@ -283,7 +283,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {Image} source - The source Image element.
+     * @param {HTMLImageElement} source - The source Image element.
      * @param {object} data - The Texture Atlas data.
      *
      * @return {Phaser.Textures.Texture} The Texture that was created.
@@ -310,7 +310,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {Image} source - The source Image element.
+     * @param {HTMLImageElement} source - The source Image element.
      * @param {object} data - The Texture Atlas data.
      *
      * @return {Phaser.Textures.Texture} The Texture that was created.
@@ -345,7 +345,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {Image} source - The source Image element.
+     * @param {HTMLImageElement} source - The source Image element.
      * @param {object} data - The Texture Atlas data.
      *
      * @return {Phaser.Textures.Texture} The Texture that was created.
@@ -377,7 +377,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {Image} source - The source Image element.
+     * @param {HTMLImageElement} source - The source Image element.
      * @param {object} data - The Texture Atlas data.
      *
      * @return {Phaser.Textures.Texture} The Texture that was created.
@@ -401,7 +401,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {Image} source - The source Image element.
+     * @param {HTMLImageElement} source - The source Image element.
      * @param {object} config - The configuration object for this Sprite Sheet.
      * @param {integer} config.frameWidth - The fixed width of each frame.
      * @param {integer} [config.frameHeight] - The fixed height of each frame. If not set it will use the frameWidth as the height.
@@ -485,7 +485,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {Image} source - The source Image element.
+     * @param {HTMLImageElement} source - The source Image element.
      * @param {object} data - The Texture Atlas XML data.
      *
      * @return {Phaser.Textures.Texture} The Texture that was created.
@@ -517,7 +517,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {Image} source - The source Image element.
+     * @param {HTMLImageElement} source - The source Image element.
      * @param {object} data - The Texture Atlas XML data.
      *
      * @return {Phaser.Textures.Texture} The Texture that was created.
@@ -548,7 +548,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {Image} source - The source Image element.
+     * @param {HTMLImageElement} source - The source Image element.
      * @param {integer} width - The width of the Texture.
      * @param {integer} height - The height of the Texture.
      *
@@ -611,7 +611,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {string|integer} frame - The string or index of the Frame to be cloned.
+     * @param {(string|integer)} frame - The string or index of the Frame to be cloned.
      *
      * @return {Phaser.Textures.Frame} A Clone of the given Frame.
      */
@@ -630,7 +630,7 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {string|integer} frame - The string or index of the Frame.
+     * @param {(string|integer)} frame - The string or index of the Frame.
      *
      * @return {Phaser.Textures.Frame} A Texture Frame object.
      */
@@ -677,9 +677,9 @@ var TextureManager = new Class({
      * @param {integer} x - The x coordinate of the pixel within the Texture.
      * @param {integer} y - The y coordinate of the pixel within the Texture.
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {string|integer} frame - The string or index of the Frame.
+     * @param {(string|integer)} frame - The string or index of the Frame.
      *
-     * @return {Phaser.Display.Color|null} A Color object populated with the color values of the requested pixel,
+     * @return {?Phaser.Display.Color} A Color object populated with the color values of the requested pixel,
      * or `null` if the coordinates were out of bounds.
      */
     getPixel: function (x, y, key, frame)
@@ -724,7 +724,7 @@ var TextureManager = new Class({
      *
      * @param {Phaser.GameObjects.GameObject} gameObject - [description]
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {string|integer} frame - The string or index of the Frame.
+     * @param {(string|integer)} frame - The string or index of the Frame.
      *
      * @return {Phaser.GameObjects.GameObject} The Game Object the texture was set on.
      */

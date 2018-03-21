@@ -122,7 +122,7 @@ var LoaderPlugin = new Class({
          * xhr specific global settings (can be overridden on a per-file basis)
          *
          * @name Phaser.Loader.LoaderPlugin#xhr
-         * @type {Phaser.Loader.XHRSettings}
+         * @type {Phaser.Loader.XHRSettingsConfig}
          * @since 3.0.0
          */
         this.xhr = XHRSettings(
@@ -812,7 +812,7 @@ var LoaderPlugin = new Class({
      * @method Phaser.Loader.LoaderPlugin#saveJSON
      * @since 3.0.0
      *
-     * @param {any} data - [description]
+     * @param {*} data - [description]
      * @param {string} [filename=file.json] - [description]
      *
      * @return {Phaser.Loader.LoaderPlugin} This Loader plugin.
@@ -828,7 +828,7 @@ var LoaderPlugin = new Class({
      * @method Phaser.Loader.LoaderPlugin#save
      * @since 3.0.0
      *
-     * @param {any} data - [description]
+     * @param {*} data - [description]
      * @param {string} [filename=file.json] - [description]
      * @param {string} [filetype=application/json] - [description]
      *

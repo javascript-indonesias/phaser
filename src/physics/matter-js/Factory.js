@@ -185,7 +185,7 @@ var Factory = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+     * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
      * @param {number} x - The horizontal position of this composite in the world.
      * @param {number} y - The vertical position of this composite in the world.
      * @param {number} columns - The number of columns in the grid.
@@ -527,7 +527,7 @@ var Factory = new Class({
      * @param {number} x - The horizontal position of this Game Object in the world.
      * @param {number} y - The vertical position of this Game Object in the world.
      * @param {string} key - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+     * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
      * @param {object} options - [description]
      *
      * @return {Phaser.Physics.Matter.MatterImage} [description]
@@ -568,7 +568,7 @@ var Factory = new Class({
      * @param {number} x - The horizontal position of this Game Object in the world.
      * @param {number} y - The vertical position of this Game Object in the world.
      * @param {string} key - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
-     * @param {string|integer} [frame] - An optional frame from the Texture this Game Object is rendering with.
+     * @param {(string|integer)} [frame] - An optional frame from the Texture this Game Object is rendering with.
      * @param {object} options - [description]
      *
      * @return {Phaser.Physics.Matter.MatterSprite} [description]
@@ -583,9 +583,20 @@ var Factory = new Class({
         return sprite;
     },
 
+    /**
+     * [description]
+     *
+     * @method Phaser.Physics.Matter.Factory#gameObject
+     * @since 3.3.0
+     *
+     * @param {Phaser.GameObjects.GameObject} gameObject - The Game Object to inject the Matter Body in to.
+     * @param {object} options - [description]
+     *
+     * @return {Phaser.GameObjects.GameObject} The Game Object that had the Matter Body injected into it.
+     */
     gameObject: function (gameObject, options)
     {
-        return new MatterGameObject(this.world, gameObject, options);
+        return MatterGameObject(this.world, gameObject, options);
     }
 
 });
