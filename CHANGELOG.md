@@ -1,6 +1,14 @@
 # Change Log
 
-## Version 3.3.0 - Tetsuo - In Development
+## Version 3.3.1 - Tetsuo - In Development
+
+### Bug Fixes
+
+* In the WebGL Render Texture the tint of the texture was always set to 0xffffff and therefore the alpha values were ignored. The tint is now calculated using the alpha value. Fix #3385 (thanks @ger1995)
+
+### Updates
+
+## Version 3.3.0 - Tetsuo - 22nd March 2018
 
 A special mention must go to @orblazer for their outstanding assistance in helping to complete the JSDoc data-types, callbacks and type defs across the API.
 
@@ -36,6 +44,8 @@ A special mention must go to @orblazer for their outstanding assistance in helpi
 * SoundManager.setDetune is a chainable method to allow you to set the global detuning of all sounds in the SoundManager.
 * SoundManager.setMute is a chainable method to allow you to set the global mute state of the SoundManager.
 * SoundManager.setVolume is a chainable method to allow you to set the global volume of the SoundManager.
+* BaseSound.setRate is a chainable method to allow you to set the playback rate of the BaseSound.
+* BaseSound.setDetune is a chainable method to allow you to set the detuning value of the BaseSound.
 
 ### Bug Fixes
 
@@ -109,8 +119,7 @@ A special mention must go to @orblazer for their outstanding assistance in helpi
 * PathFollower.pause has been renamed to `pauseFollow` to avoid conflicting with the Animation component.
 * PathFollower.resume has been renamed to `resumeFollow` to avoid conflicting with the Animation component.
 * PathFollower.stop has been renamed to `stopFollow` to avoid conflicting with the Animation component.
-
-
+* BaseSound.setRate has been renamed to `calculateRate` to avoid confusion over the setting of the sounds rate.
 
 ## Version 3.2.1 - 12th March 2018
 
