@@ -23,7 +23,7 @@ var MatterTileBody = require('./MatterTileBody');
  * [description]
  *
  * @class World
- * @extends EventEmitter
+ * @extends Phaser.Events.EventEmitter
  * @memberOf Phaser.Physics.Matter
  * @constructor
  * @since 3.0.0
@@ -54,7 +54,7 @@ var World = new Class({
          * [description]
          *
          * @name Phaser.Physics.Matter.World#engine
-         * @type {Matter.Engine}
+         * @type {MatterJS.Engine}
          * @since 3.0.0
          */
         this.engine = Engine.create(config);
@@ -63,7 +63,7 @@ var World = new Class({
          * A `World` composite object that will contain all simulated bodies and constraints.
          *
          * @name Phaser.Physics.Matter.World#localWorld
-         * @type {Matter.World}
+         * @type {MatterJS.World}
          * @since 3.0.0
          */
         this.localWorld = this.engine.world;
@@ -457,7 +457,7 @@ var World = new Class({
      * @param {number} height - [description]
      * @param {object} options - [description]
      *
-     * @return {Matter.Body} [description]
+     * @return {MatterJS.Body} [description]
      */
     create: function (x, y, width, height, options)
     {
@@ -511,7 +511,7 @@ var World = new Class({
      * @method Phaser.Physics.Matter.World#removeConstraint
      * @since 3.0.0
      *
-     * @param {Matter.Constraint} constraint - [description]
+     * @param {MatterJS.Constraint} constraint - [description]
      * @param {boolean} deep - [description]
      *
      * @return {Phaser.Physics.Matter.World} This Matter World object.
@@ -530,7 +530,7 @@ var World = new Class({
      * @method Phaser.Physics.Matter.World#convertTilemapLayer
      * @since 3.0.0
      *
-     * @param {(Phaser.GameObjects.StaticTilemapLayer|Phaser.GameObjects.DynamicTilemapLayer)} tilemapLayer -
+     * @param {(Phaser.Tilemaps.DynamicTilemapLayer|Phaser.Tilemaps.StaticTilemapLayer)} tilemapLayer -
      * An array of tiles.
      * @param {object} [options] - Options to be passed to the MatterTileBody constructor. {@ee Phaser.Physics.Matter.TileBody}
      *
@@ -553,7 +553,7 @@ var World = new Class({
      * @method Phaser.Physics.Matter.World#convertTiles
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.Tile[]} tiles - An array of tiles.
+     * @param {Phaser.Tilemaps.Tile[]} tiles - An array of tiles.
      * @param {object} [options] - Options to be passed to the MatterTileBody constructor. {@see Phaser.Physics.Matter.TileBody}
      *
      * @return {Phaser.Physics.Matter.World} This Matter World object.

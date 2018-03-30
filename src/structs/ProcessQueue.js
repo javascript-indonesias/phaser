@@ -10,12 +10,12 @@ var Class = require('../utils/Class');
  * @classdesc
  * [description]
  *
- * @generic T
- *
  * @class ProcessQueue
  * @memberOf Phaser.Structs
  * @constructor
  * @since 3.0.0
+ *
+ * @generic T
  */
 var ProcessQueue = new Class({
 
@@ -25,6 +25,8 @@ var ProcessQueue = new Class({
     {
         /**
          * [description]
+         *
+         * @genericUse {T[]} - [$type]
          *
          * @name Phaser.Structs.ProcessQueue#_pending
          * @type {Array.<*>}
@@ -37,6 +39,8 @@ var ProcessQueue = new Class({
         /**
          * [description]
          *
+         * @genericUse {T[]} - [$type]
+         *
          * @name Phaser.Structs.ProcessQueue#_active
          * @type {Array.<*>}
          * @private
@@ -47,6 +51,8 @@ var ProcessQueue = new Class({
 
         /**
          * [description]
+         *
+         * @genericUse {T[]} - [$type]
          *
          * @name Phaser.Structs.ProcessQueue#_destroy
          * @type {Array.<*>}
@@ -74,6 +80,9 @@ var ProcessQueue = new Class({
      * @method Phaser.Structs.ProcessQueue#add
      * @since 3.0.0
      *
+     * @genericUse {T} - [item]
+     * @genericUse {Phaser.Structs.ProcessQueue.<T>} - [$return]
+     *
      * @param {*} item - [description]
      *
      * @return {Phaser.Structs.ProcessQueue} This Process Queue object.
@@ -93,6 +102,9 @@ var ProcessQueue = new Class({
      * @method Phaser.Structs.ProcessQueue#remove
      * @since 3.0.0
      *
+     * @genericUse {T} - [item]
+     * @genericUse {Phaser.Structs.ProcessQueue.<T>} - [$return]
+     *
      * @param {*} item - [description]
      *
      * @return {Phaser.Structs.ProcessQueue} This Process Queue object.
@@ -111,6 +123,8 @@ var ProcessQueue = new Class({
      *
      * @method Phaser.Structs.ProcessQueue#update
      * @since 3.0.0
+     *
+     * @genericUse {T[]} - [$return]
      *
      * @return {Array.<*>} [description]
      */
@@ -168,6 +182,8 @@ var ProcessQueue = new Class({
      *
      * @method Phaser.Structs.ProcessQueue#getActive
      * @since 3.0.0
+     *
+     * @genericUse {T[]} - [$return]
      *
      * @return {Array.<*>} [description]
      */
