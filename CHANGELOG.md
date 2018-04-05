@@ -19,6 +19,12 @@ being passed to the simulation. The default value is 1 to remain consistent with
 * HTML5AudioSound.setVolume is a chainable way to set the volume of a single Sound instance.
 * HTML5AudioSound.setSeek is a chainable way to set seek to a point of a single Sound instance.
 * HTML5AudioSound.setLoop is a chainable way to set the loop state of a single Sound instance.
+* BitmapText has a new property `letterSpacing` which accepts a positive or negative number to add / reduce spacing between characters (thanks @wtravO)
+* Matter Physics has two new debug properties: `debugShowJoint` and `debugJointColor`. If defined they will display joints in Matter bodies during the postUpdate debug phase (only if debug is enabled) (thanks @OmarShehata)
+* You can now pass a Sprite Sheet or Canvas as the Texture key to `Tilemap.addTileset` and it will work in WebGL, where-as before it would display a corrupted tilemap. Fix #3407 (thanks @Zykino)
+* Graphics.slice allows you to easily draw a Pacman, or slice of pie shape to a Graphics object.
+* List.addCallback is a new optional callback that is invoked every time a new child is added to the List. You can use this to have a callback fire when children are added to the Display List.
+* List.removeCallback is a new optional callback that is invoked every time a new child is removed from the List. You can use this to have a callback fire when children are removed from the Display List.
 
 ### Bug Fixes
 
@@ -28,6 +34,16 @@ being passed to the simulation. The default value is 1 to remain consistent with
 * BaseSoundManager.rate and BaseSoundManager.detune would incorrectly called `setRate` on its sounds, instead of `calculateRate`.
 * The Gamepad Axis `getValue` method now correctly applies the threshold and zeroes out the returned value.
 * The HueToComponent module was not correctly exporting itself. Fix #3482 (thanks @jdotrjs)
+* Matter.World was using `setZ` instead of `setDepth` for the Debug Graphics Layer, causing it to appear behind objects in some display lists.
+* Game.destroy now checks to see if the `renderer` exists before calling destroy on it. Fix #3498 (thanks @Huararanga)
+* Keyboard.JustDown and Keyboard.JustUp were being reset too early, causing them to fail when called in `update` loops. Fix #3490 (thanks @belen-albeza)
+* RenderTexture.destroy no longer throws an error when called. Fix #3475 (thanks @kuoruan)
+* The WebGL TileSprite batch now modulates the tilePosition to avoid large values being passed into the UV data, fixing corruption when scrolling TileSprites over a long period of time. Fix #3402 (thanks @vinerz @FrancescoNegri)
+* LineCurve.getResolution was missing the `divisions` argument and always returning 1, which made it fail when used as part of a Path. It now defaults to return 1 unless specified otherwise (thanks _ok)
+* A Game Object enabled for drag would no longer fire over and out events after being dragged, now it does (thanks @jmcriat)
+* Line.getPointA and Line.getPointB incorrectly set the values into the Vector2 (thanks @Tomas2h)
+* DynamicTilemapLayer now uses the ComputedSize component, which stops it breaking if you call `setDisplaySize` (thanks Babsobar)
+* StaticTilemapLayer now uses the ComputedSize component, which stops it breaking if you call `setDisplaySize` (thanks Babsobar)
 
 ### Updates
 
@@ -39,8 +55,64 @@ being passed to the simulation. The default value is 1 to remain consistent with
 * The ComputedSize Component now has `setSize` and `setDisplaySize` methods. This component is used for Game Objects that have a non-texture based size.
 * The GamepadManager now extends EventEmitter directly, just like the KeyboardManager does.
 * The Gamepad Axis threshold has been increased from 0.05 to 0.1.
+* Utils.Array.FindClosestInSorted has a new optional argument `key` which will allow you to scan a top-level property of any object in the given sorted array and get the closest match to it.
+* Vector2.setTo is a method alias for Vector2.set allowing it to be used inter-changeably with Geom.Point.
+* List.add can now take an array or a single child. If an array is given it's passed over to List.addMultiple.
+* List.add has a new optional argument `skipCallback`.
+* List.addAt has a new optional argument `skipCallback`.
+* List.addMultiple has a new optional argument `skipCallback`.
+* List.remove has a new optional argument `skipCallback`.
+* List.removeAt has a new optional argument `skipCallback`.
+* List.removeBetween has a new optional argument `skipCallback`.
+* List.removeAll has a new optional argument `skipCallback`.
 
-Also, my thanks to the following for helping with the Phaser 3 Examples and Docs, either by reporting errors or fixing them: @gabegordon @melissaelopez @samid737 @nbs @tgrajewski @pagesrichie @hexus @mbrickn 
+### Animation Component Updates
+
+We have refactored the Animation API to make it more consistent with the rest of Phaser 3 and to fix some issues. All of the following changes apply to the Animation Component:
+
+* Animation durations, delays and repeatDelays are all now specified in milliseconds, not seconds like before. This makes them consistent with Tweens, Sounds and other parts of v3. You can still use the `frameRate` property to set the speed of an animation in frames per second.
+* `delay` method has been removed.
+* `setDelay` allows you to define the delay before playback begins.
+* `getDelay` returns the animation playback delay value.
+* `delayedPlay` now returns the parent Game Object instead of the component.
+* `load` now returns the parent Game Object instead of the component.
+* `pause` now returns the parent Game Object instead of the component.
+* `resume` now returns the parent Game Object instead of the component.
+* `isPaused` returns a boolean indicating the paused state of the animation.
+* `paused` method has been removed.
+* `play` now returns the parent Game Object instead of the component.
+* `progress` method has been removed.
+* `getProgress` returns the animation progress value.
+* `setProgress` lets you jump the animation to a specific progress point.
+* `repeat` method has been removed.
+* `getRepeat` returns the animation repeat value.
+* `setRepeat` sets the number of times the current animation will repeat.
+* `repeatDelay` method has been removed.
+* `getRepeatDelay` returns the animation repeat delay value.
+* `setRepeatDelay` sets the delay time between each repeat.
+* `restart` now returns the parent Game Object instead of the component.
+* `stop` now returns the parent Game Object instead of the component.
+* `timeScale` method has been removed.
+* `getTimeScale` returns the animation time scale value.
+* `setTimeScale` sets the time scale value.
+* `totalFrames` method has been removed.
+* `getTotalFrames` returns the total number of frames in the animation.
+* `totalProgres` method has been removed as it did nothing and was mis-spelt.
+* `yoyo` method has been removed.
+* `getYoyo` returns if the animation will yoyo or not.
+* `setYoyo` sets if the animation will yoyo or not.
+* `updateFrame` will now call `setSizeToFrame` on the Game Object, which will adjust the Game Objects `width` and `height` properties to match the frame size. Fix #3473 (thanks @wtravO @jp-gc)
+* `updateFrame` now supports animation frames with custom pivot points and injects these into the Game Object origin.
+* `destroy` now removes events, references to the Animation Manager and parent Game Object, clears the current animation and frame and empties internal arrays.
+* Changing the `yoyo` property on an Animation Component would have no effect as it only ever checked the global property, it now checks the local one properly allowing you to specify a `yoyo` on a per Game Object basis.
+* Animation.destroy now properly clears the global animation object.
+* Animation.getFrameByProgress will return the Animation Frame that is closest to the given progress value. For example, in a 5 frame animation calling this method with a value of 0.5 would return the middle frame.
+
+### Examples, Documentation and TypeScript
+
+My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
+
+@gabegordon @melissaelopez @samid737 @nbs @tgrajewski @pagesrichie @hexus @mbrickn @erd0s @icbat @Matthew-Herman @ampled
 
 
 

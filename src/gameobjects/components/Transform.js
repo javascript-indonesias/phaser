@@ -7,6 +7,7 @@
 var MATH_CONST = require('../../math/const');
 var WrapAngle = require('../../math/angle/Wrap');
 var WrapAngleDegrees = require('../../math/angle/WrapDegrees');
+var TransformMatrix = require('./TransformMatrix');
 
 //  global bitmask flag for GameObject.renderMask (used by Scale)
 var _FLAG = 4; // 0100
@@ -213,7 +214,7 @@ var Transform = {
      * @since 3.0.0
      *
      * @param {number} [x=0] - The x position of this Game Object.
-     * @param {number} [y] - The y position of this Game Object. If not set it will use the `x` value.
+     * @param {number} [y=x] - The y position of this Game Object. If not set it will use the `x` value.
      * @param {number} [z=0] - The z position of this Game Object.
      * @param {number} [w=0] - The w position of this Game Object.
      *
@@ -368,6 +369,41 @@ var Transform = {
         this.w = value;
 
         return this;
+    },
+
+    getLocalTransformMatrix: function (tempMatrix)
+    {
+        return tempMatrix.applyITRS(this.x, this.y, this._rotation, this._scaleX, this._scaleY);
+    },
+
+    getWorldTransformMatrix: function (tempMatrix)
+    {
+        var parent = this.parentContainer;
+        var parents = [];
+        
+        while (parent)
+        {
+            parents.unshift(parent);
+            parent = parent.parentContainer;
+        }
+
+        tempMatrix.loadIdentity();
+
+        var length = parents.length;
+        
+        for (var i = 0; i < length; ++i)
+        {
+            rootContainer = parents[i];
+            tempMatrix.translate(rootContainer.x, rootContainer.y);
+            tempMatrix.rotate(rootContainer.rotation);
+            tempMatrix.scale(rootContainer.scaleX, rootContainer.scaleY);
+        }
+
+        tempMatrix.translate(this.x, this.y);
+        tempMatrix.rotate(this._rotation);
+        tempMatrix.scale(this._scaleX, this._scaleY);
+
+        return tempMatrix;
     }
 
 };
