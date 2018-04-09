@@ -25,6 +25,7 @@ being passed to the simulation. The default value is 1 to remain consistent with
 * Graphics.slice allows you to easily draw a Pacman, or slice of pie shape to a Graphics object.
 * List.addCallback is a new optional callback that is invoked every time a new child is added to the List. You can use this to have a callback fire when children are added to the Display List.
 * List.removeCallback is a new optional callback that is invoked every time a new child is removed from the List. You can use this to have a callback fire when children are removed from the Display List.
+* ScenePlugin.restart allows you to restart the current Scene. It's the same result as calling `ScenePlugin.start` without any arguments, but is more clear.
 
 ### Bug Fixes
 
@@ -44,6 +45,11 @@ being passed to the simulation. The default value is 1 to remain consistent with
 * Line.getPointA and Line.getPointB incorrectly set the values into the Vector2 (thanks @Tomas2h)
 * DynamicTilemapLayer now uses the ComputedSize component, which stops it breaking if you call `setDisplaySize` (thanks Babsobar)
 * StaticTilemapLayer now uses the ComputedSize component, which stops it breaking if you call `setDisplaySize` (thanks Babsobar)
+* CanvasPool.first always returned `null`, and now returns the first available Canvas. Fix #3520 (thanks @mchiasson)
+* When starting a new Scene with an optional `data` argument it wouldn't get passed through if the Scene was not yet available (i.e. the game had not fully booted). The data is now passed to the Scene `init` and `create` methods and stored in the Scene Settings `data` property. Fix #3363 (thanks @pixelhijack)
+* Tween.restart handles removed tweens properly and reads them back into the active queue for the TweenManager (thanks @wtravO)
+* Tween.resume will now call `Tween.play` on a tween that was paused due to its config object, not as a result of having its paused method called. Fix #3452 (thanks @jazen)
+* LoaderPlugin.isReady referenced a constant that no longer exists. Fix #3503 (thanks @Twilrom)
 
 ### Updates
 
@@ -65,6 +71,10 @@ being passed to the simulation. The default value is 1 to remain consistent with
 * List.removeAt has a new optional argument `skipCallback`.
 * List.removeBetween has a new optional argument `skipCallback`.
 * List.removeAll has a new optional argument `skipCallback`.
+* When using the `extend` property of a Scene config object it will now block overwriting the Scene `sys` property.
+* When using the `extend` property of a Scene config object, if you define a property called `data` that has an object set, it will populate the Scenes Data Manager with those values.
+* SceneManager._processing has been renamed to `isProcessing` which is now a boolean, not an integer. It's also now public and read-only.
+* SceneManager.isBooted is a new boolean read-only property that lets you know if the Scene Manager has performed its initial boot sequence.
 
 ### Animation System Updates
 

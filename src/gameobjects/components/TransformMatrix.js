@@ -63,6 +63,183 @@ var TransformMatrix = new Class({
     /**
      * [description]
      *
+     * @name Phaser.GameObjects.Components.TransformMatrix#a
+     * @type {number}
+     * @since 3.4.0
+     */
+    a: {
+
+        get: function ()
+        {
+            return this.matrix[0];
+        },
+
+        set: function (value)
+        {
+            this.matrix[0] = value;
+        }
+
+    },
+
+    /**
+     * [description]
+     *
+     * @name Phaser.GameObjects.Components.TransformMatrix#b
+     * @type {number}
+     * @since 3.4.0
+     */
+    b: {
+
+        get: function ()
+        {
+            return this.matrix[1];
+        },
+
+        set: function (value)
+        {
+            this.matrix[1] = value;
+        }
+
+    },
+
+    /**
+     * [description]
+     *
+     * @name Phaser.GameObjects.Components.TransformMatrix#c
+     * @type {number}
+     * @since 3.4.0
+     */
+    c: {
+
+        get: function ()
+        {
+            return this.matrix[2];
+        },
+
+        set: function (value)
+        {
+            this.matrix[2] = value;
+        }
+
+    },
+
+    /**
+     * [description]
+     *
+     * @name Phaser.GameObjects.Components.TransformMatrix#d
+     * @type {number}
+     * @since 3.4.0
+     */
+    d: {
+
+        get: function ()
+        {
+            return this.matrix[3];
+        },
+
+        set: function (value)
+        {
+            this.matrix[3] = value;
+        }
+
+    },
+
+    /**
+     * [description]
+     *
+     * @name Phaser.GameObjects.Components.TransformMatrix#tx
+     * @type {number}
+     * @since 3.4.0
+     */
+    tx: {
+
+        get: function ()
+        {
+            return this.matrix[4];
+        },
+
+        set: function (value)
+        {
+            this.matrix[4] = value;
+        }
+
+    },
+
+    /**
+     * [description]
+     *
+     * @name Phaser.GameObjects.Components.TransformMatrix#ty
+     * @type {number}
+     * @since 3.4.0
+     */
+    ty: {
+
+        get: function ()
+        {
+            return this.matrix[5];
+        },
+
+        set: function (value)
+        {
+            this.matrix[5] = value;
+        }
+
+    },
+
+    /**
+     * [description]
+     *
+     * @name Phaser.GameObjects.Components.TransformMatrix#rotation
+     * @type {number}
+     * @readOnly
+     * @since 3.4.0
+     */
+    rotation: {
+
+        get: function ()
+        {
+            return Math.acos(this.a / this.scaleX) * (Math.atan(-this.c / this.a) < 0 ? -1 : 1);
+        }
+
+    },
+
+    /**
+     * [description]
+     *
+     * @name Phaser.GameObjects.Components.TransformMatrix#scaleX
+     * @type {number}
+     * @readOnly
+     * @since 3.4.0
+     */
+    scaleX: {
+
+        get: function ()
+        {
+            return Math.sqrt((this.a * this.a) + (this.c * this.c));
+        }
+
+    },
+
+    /**
+     * [description]
+     *
+     * @name Phaser.GameObjects.Components.TransformMatrix#scaleY
+     * @type {number}
+     * @readOnly
+     * @since 3.4.0
+     */
+    scaleY: {
+
+        get: function ()
+        {
+            return Math.sqrt((this.b * this.b) + (this.d * this.d));
+        }
+
+    },
+
+    /**
+     * [description]
+     *
      * @method Phaser.GameObjects.Components.TransformMatrix#loadIdentity
      * @since 3.0.0
      *

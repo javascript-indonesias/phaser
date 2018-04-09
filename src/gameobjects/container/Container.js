@@ -36,6 +36,7 @@ var Container = new Class({
     Extends: GameObject,
 
     Mixins: [
+        Components.Alpha,
         Components.BlendMode,
         Components.Depth,
         Components.Transform,
@@ -128,6 +129,7 @@ var Container = new Class({
         this._displayList = scene.sys.displayList;
 
         this.setPosition(x, y);
+        this.clearAlpha();
 
         if (Array.isArray(children))
         {
@@ -205,32 +207,6 @@ var Container = new Class({
         tempMatrix.invert();
 
         tempMatrix.transformPoint(source.x, source.y, output);
-
-        return output;
-    },
-
-    /**
-     * 
-     *
-     * @method Phaser.GameObjects.Container#localToWorld
-     * @since 3.4.0
-     *
-     * @param {Phaser.GameObjects.GameObject} child - The child of this Container.
-     * @param {Phaser.Cameras.Scene2D.Camera} [camera] - The camera to transform against.
-     * @param {(object|Phaser.Geom.Point|Phaser.Math.Vector2)} [output] - A destination object to store the transformed point in. If none given a Vector2 will be created and returned.
-     *
-     * @return {(object|Phaser.Geom.Point|Phaser.Math.Vector2)} The transformed point.
-     */
-    localToWorld: function (child, camera, output)
-    {
-        if (camera === undefined) { camera = this.scene.sys.cameras.main; }
-        if (output === undefined) { output = new Vector2(); }
-
-        if (this.exists(child))
-        {
-            //  Do matrix magic here
-            //  See: Camera.getWorldPoint and InputManager.hitTest
-        }
 
         return output;
     },
