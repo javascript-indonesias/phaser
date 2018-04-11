@@ -9,12 +9,44 @@ var ArrayUtils = require('../../utils/array');
 var Class = require('../../utils/Class');
 var Components = require('../components');
 var GameObject = require('../GameObject');
+var Rectangle = require('../../geom/rectangle/Rectangle');
 var Render = require('./ContainerRender');
+var Union = require('../../geom/rectangle/Union');
 var Vector2 = require('../../math/Vector2');
 
 /**
  * @classdesc
  * A Container Game Object.
+ *
+ * A Container, as the name implies, can 'contain' other types of Game Object.
+ * When a Game Object is added to a Container, the Container becomes responsible for the rendering of it.
+ * By default it will be removed from the Display List and instead added to the Containers own internal list.
+ *
+ * The position of the Game Object automatically becomes relative to the position of the Container.
+ * 
+ * When the Container is rendered, all of its children are rendered as well, in the order in which they exist
+ * within the Container. Container children can be repositioned using methods such as `MoveUp`, `MoveDown` and `SendToBack`.
+ *
+ * If you modify a transform property of the Container, such as `Container.x` or `Container.rotation` then it will
+ * automatically influence all children as well.
+ *
+ * Containers can include other Containers for deeply nested transforms.
+ *
+ * Containers can have masks set on them and can be used as a mask too. However, Container children cannot be masked.
+ * The masks do not 'stack up'. Only a Container on the root of the display list will use its mask.
+ *
+ * Containers can be enabled for input. Because they do not have a texture you need to provide a shape for them
+ * to use as their hit area. Container children can also be enabled for input, independent of the Container.
+ *
+ * Containers can be given a physics body for either Arcade Physics, Impact Physics or Matter Physics. However,
+ * if Container children are enabled for physics you may get unexpected results,such as offset bodies,
+ * if the Container itself, or any of its ancestors, is positioned anywhere other than at 0x0.
+ *
+ * It's important to understand the impact of using Containers. They add additional processing overhead into
+ * every one of their children. The deeper you nest them, the more the cost escalates. This is especially true
+ * for input events. You also loose the ability to set the display depth of Container children in the same
+ * flexible manner as those not within them. In short, don't use them for the sake of it. You pay a small cost
+ * every time you create one, try to structure your game around avoiding that where possible.
  *
  * @class Container
  * @extends Phaser.GameObjects.GameObject
@@ -24,7 +56,9 @@ var Vector2 = require('../../math/Vector2');
  *
  * @extends Phaser.GameObjects.Components.Alpha
  * @extends Phaser.GameObjects.Components.BlendMode
+ * @extends Phaser.GameObjects.Components.ComputedSize
  * @extends Phaser.GameObjects.Components.Depth
+ * @extends Phaser.GameObjects.Components.ScrollFactor
  * @extends Phaser.GameObjects.Components.Transform
  * @extends Phaser.GameObjects.Components.Visible
  *
@@ -40,7 +74,9 @@ var Container = new Class({
     Mixins: [
         Components.Alpha,
         Components.BlendMode,
+        Components.ComputedSize,
         Components.Depth,
+        Components.ScrollFactor,
         Components.Transform,
         Components.Visible,
         Render
@@ -82,6 +118,18 @@ var Container = new Class({
         this.exclusive = true;
 
         /**
+         * Containers can have an optional maximum size. If set to anything above 0 it
+         * will constrict the addition of new Game Objects into the Container, capping off
+         * the maximum limit the Container can grow in size to.
+         *
+         * @name Phaser.GameObjects.Container#maxSize
+         * @type {integer}
+         * @default -1
+         * @since 3.4.0
+         */
+        this.maxSize = -1;
+
+        /**
          * The cursor position.
          *
          * @name Phaser.GameObjects.Container#position
@@ -91,7 +139,7 @@ var Container = new Class({
         this.position = 0;
 
         /**
-         * [description]
+         * Internal Transform Matrix used for local space conversion.
          *
          * @name Phaser.GameObjects.Container#localTransform
          * @type {Phaser.GameObjects.Components.TransformMatrix}
@@ -100,7 +148,7 @@ var Container = new Class({
         this.localTransform = new Components.TransformMatrix();
 
         /**
-         * [description]
+         * Internal temporary Transform Matrix used to avoid object creation.
          *
          * @name Phaser.GameObjects.Container#tempTransformMatrix
          * @type {Phaser.GameObjects.Components.TransformMatrix}
@@ -139,6 +187,42 @@ var Container = new Class({
     },
 
     /**
+     * Internal value to allow Containers to be used for input and physics.
+     * Do not change this value. It has no effect other than to break things.
+     *
+     * @name Phaser.GameObjects.Container#displayOriginX
+     * @type {number}
+     * @readOnly
+     * @since 3.4.0
+     */
+    displayOriginX: {
+
+        get: function ()
+        {
+            return this.width * 0.5;
+        }
+
+    },
+
+    /**
+     * Internal value to allow Containers to be used for input and physics.
+     * Do not change this value. It has no effect other than to break things.
+     *
+     * @name Phaser.GameObjects.Container#displayOriginY
+     * @type {number}
+     * @readOnly
+     * @since 3.4.0
+     */
+    displayOriginY: {
+
+        get: function ()
+        {
+            return this.height * 0.5;
+        }
+
+    },
+
+    /**
      * Does this Container exclusively manage its children?
      * 
      * The default is `true` which means a child added to this Container cannot
@@ -165,6 +249,47 @@ var Container = new Class({
         this.exclusive = value;
 
         return this;
+    },
+
+    /**
+     * Gets the bounds of this Container. It works by iterating all children of the Container,
+     * getting their respective bounds, and then working out a min-max rectangle from that.
+     * It does not factor in if the children render or not, all are included.
+     * 
+     * Depending on the quantity of children in this Container it could be a really expensive call,
+     * so cache it and only poll it as needed.
+     * 
+     * The values are stored and returned in a Rectangle object.
+     *
+     * @method Phaser.GameObjects.Container#getBounds
+     * @since 3.4.0
+     *
+     * @param {Phaser.Geom.Rectangle} [output] - A Geom.Rectangle object to store the values in. If not provided a new Rectangle will be created.
+     *
+     * @return {Phaser.Geom.Rectangle} The values stored in the output object.
+     */
+    getBounds: function (output)
+    {
+        if (output === undefined) { output = new Rectangle(); }
+
+        output.setTo(this.x, this.y, 0, 0);
+
+        if (this.list.length > 0)
+        {
+            var children = this.list;
+            var tempRect = new Rectangle();
+
+            for (var i = 0; i < children.length; i++)
+            {
+                var entry = children[i];
+
+                entry.getBounds(tempRect);
+
+                Union(tempRect, output, output);
+            }
+        }
+
+        return output;
     },
 
     /**
@@ -246,6 +371,30 @@ var Container = new Class({
     },
 
     /**
+     * Returns the world transform matrix.
+     * The returned matrix is a temporal and shouldn't be stored.
+     *
+     * @method Phaser.GameObjects.Container#getWorldTransformMatrix
+     * @since 3.4.0
+     *
+     * @return {Phaser.GameObjects.Components.TransformMatrix} The world transform matrix.
+     */
+    getWorldTransformMatrix: function ()
+    {
+        var tempMatrix = this.tempTransformMatrix;
+
+        tempMatrix.applyITRS(this.x, this.y, this.rotation, this.scaleX, this.scaleY);
+
+        if (this.parentContainer)
+        {
+            var parentMatrix = this.parentContainer.getTransformMatrix();
+            tempMatrix.multiply(parentMatrix);
+        }
+
+        return tempMatrix;
+    },
+
+    /**
      * Adds the given Game Object, or array of Game Objects, to this Container.
      * 
      * Each Game Object must be unique within the Container.
@@ -253,50 +402,48 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#add
      * @since 3.4.0
      *
-     * @genericUse {T} - [child,$return]
-     *
-     * @param {*|Array.<*>} child - The item, or array of items, to add to the array. Each item must be unique within the array.
+     * @param {Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]} child - The Game Object, or array of Game Objects, to add to the Container.
      *
      * @return {Phaser.GameObjects.Container} This Container instance.
      */
     add: function (child)
     {
-        ArrayUtils.Add(this.list, child, 0, this.addHandler, this);
+        ArrayUtils.Add(this.list, child, this.maxSize, this.addHandler, this);
 
         return this;
     },
 
     /**
-     * [description]
+     * Adds the given Game Object, or array of Game Objects, to this Container at the specified position.
+     * 
+     * Existing Game Objects in the Container are shifted up.
+     * 
+     * Each Game Object must be unique within the Container.
      *
      * @method Phaser.GameObjects.Container#addAt
      * @since 3.4.0
      *
-     * @genericUse {T} - [child,$return]
-     *
-     * @param {*} child - [description]
-     * @param {integer} [index=0] - [description]
+     * @param {Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]} child - The Game Object, or array of Game Objects, to add to the Container.
+     * @param {integer} [index=0] - The position to insert the Game Object/s at.
      *
      * @return {Phaser.GameObjects.Container} This Container instance.
      */
     addAt: function (child, index)
     {
-        ArrayUtils.AddAt(this.list, child, index, 0, this.addHandler, this);
+        ArrayUtils.AddAt(this.list, child, index, this.maxSize, this.addHandler, this);
 
         return this;
     },
 
     /**
-     * [description]
+     * Returns the Game Object at the given position in this Container.
      *
      * @method Phaser.GameObjects.Container#getAt
      * @since 3.4.0
      *
-     * @genericUse {T} - [$return]
+     * @param {integer} index - The position to get the Game Object from.
      *
-     * @param {integer} index - [description]
-     *
-     * @return {Phaser.GameObjects.GameObject|null} The Game Object at the specified index, or `null` if none found.
+     * @return {?Phaser.GameObjects.GameObject} The Game Object at the specified index, or `null` if none found.
      */
     getAt: function (index)
     {
@@ -304,12 +451,10 @@ var Container = new Class({
     },
 
     /**
-     * [description]
+     * Returns the index of the given Game Object in this Container.
      *
      * @method Phaser.GameObjects.Container#getIndex
      * @since 3.4.0
-     *
-     * @genericUse {T} - [child]
      *
      * @param {Phaser.GameObjects.GameObject} child - The Game Object to search for in this Container.
      *
@@ -317,7 +462,6 @@ var Container = new Class({
      */
     getIndex: function (child)
     {
-        //  Return -1 if given child isn't a child of this display list
         return this.list.indexOf(child);
     },
 
@@ -327,8 +471,6 @@ var Container = new Class({
      *
      * @method Phaser.GameObjects.Container#sort
      * @since 3.4.0
-     *
-     * @genericUse {T[]} - [children,$return]
      *
      * @param {string} property - The property to lexically sort by.
      *
@@ -353,8 +495,6 @@ var Container = new Class({
      * @private
      * @since 3.4.0
      *
-     * @genericUse {T} - [childA,childB]
-     *
      * @param {Phaser.GameObjects.GameObject} childA - The first child to sort.
      * @param {Phaser.GameObjects.GameObject} childB - The second child to sort.
      *
@@ -372,8 +512,6 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#getByName
      * @since 3.4.0
      *
-     * @genericUse {T | null} - [$return]
-     *
      * @param {string} name - The name to search for.
      *
      * @return {?Phaser.GameObjects.GameObject} The first child with a matching name, or `null` if none were found.
@@ -388,8 +526,6 @@ var Container = new Class({
      *
      * @method Phaser.GameObjects.Container#getRandom
      * @since 3.4.0
-     *
-     * @genericUse {T | null} - [$return]
      *
      * @param {integer} [startIndex=0] - An optional start index.
      * @param {integer} [length] - An optional length, the total number of elements (from the startIndex) to choose from.
@@ -445,7 +581,7 @@ var Container = new Class({
      * @since 3.4.0
      *
      * @param {string} [property] - The property to test on each Game Object in the Container.
-     * @param {*} [value] - If property is set then the `property` must strictly equal this value to be included in the results.
+     * @param {any} [value] - If property is set then the `property` must strictly equal this value to be included in the results.
      * @param {integer} [startIndex=0] - An optional start index to search from.
      * @param {integer} [endIndex=Container.length] - An optional end index to search up to (but not included)
      *
@@ -468,7 +604,7 @@ var Container = new Class({
      * @since 3.4.0
      *
      * @param {string} property - [description]
-     * @param {*} value - [description]
+     * @param {any} value - [description]
      * @param {integer} [startIndex=0] - An optional start index to search from.
      * @param {integer} [endIndex=Container.length] - An optional end index to search up to (but not included)
      *
@@ -485,8 +621,6 @@ var Container = new Class({
      *
      * @method Phaser.GameObjects.Container#swap
      * @since 3.4.0
-     *
-     * @genericUse {T} - [child1,child2]
      *
      * @param {Phaser.GameObjects.GameObject} child1 - The first Game Object to swap.
      * @param {Phaser.GameObjects.GameObject} child2 - The second Game Object to swap.
@@ -511,8 +645,6 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#moveTo
      * @since 3.4.0
      *
-     * @genericUse {T} - [child,$return]
-     *
      * @param {Phaser.GameObjects.GameObject} child - The Game Object to move.
      * @param {integer} index - The new position of the Game Object in this Container.
      *
@@ -534,8 +666,6 @@ var Container = new Class({
      *
      * @method Phaser.GameObjects.Container#remove
      * @since 3.4.0
-     *
-     * @genericUse {T} - [child,$return]
      *
      * @param {Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]} child - The Game Object, or array of Game Objects, to be removed from the Container.
      * @param {boolean} [destroyChild=false] - Optionally call `destroy` on each child successfully removed from this Container.
@@ -570,8 +700,6 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#removeAt
      * @since 3.4.0
      *
-     * @genericUse {T} - [$return]
-     *
      * @param {integer} index - The index of the Game Object to be removed.
      * @param {boolean} [destroyChild=false] - Optionally call `destroy` on the Game Object if successfully removed from this Container.
      *
@@ -596,8 +724,6 @@ var Container = new Class({
      *
      * @method Phaser.GameObjects.Container#removeBetween
      * @since 3.4.0
-     *
-     * @genericUse {T[]} - [$return]
      *
      * @param {integer} [startIndex=0] - An optional start index to search from.
      * @param {integer} [endIndex=Container.length] - An optional end index to search up to (but not included)
@@ -628,8 +754,6 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#removeAll
      * @since 3.4.0
      *
-     * @genericUse {Phaser.GameObjects.Container.<T>} - [$return]
-     * 
      * @param {boolean} [destroyChild=false] - Optionally call `destroy` on each Game Object successfully removed from this Container.
      *
      * @return {Phaser.GameObjects.Container} This Container instance.
@@ -656,8 +780,6 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#bringToTop
      * @since 3.4.0
      *
-     * @genericUse {T} - [child,$return]
-     *
      * @param {Phaser.GameObjects.GameObject} child - The Game Object to bring to the top of the Container.
      *
      * @return {Phaser.GameObjects.Container} This Container instance.
@@ -676,8 +798,6 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#sendToBack
      * @since 3.4.0
      *
-     * @genericUse {T} - [child,$return]
-     *
      * @param {Phaser.GameObjects.GameObject} child - The Game Object to send to the bottom of the Container.
      *
      * @return {Phaser.GameObjects.Container} This Container instance.
@@ -694,8 +814,6 @@ var Container = new Class({
      *
      * @method Phaser.GameObjects.Container#moveUp
      * @since 3.4.0
-     *
-     * @genericUse {T} - [child,$return]
      *
      * @param {Phaser.GameObjects.GameObject} child - The Game Object to be moved in the Container.
      *
@@ -714,8 +832,6 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#moveDown
      * @since 3.4.0
      *
-     * @genericUse {T} - [child,$return]
-     *
      * @param {Phaser.GameObjects.GameObject} child - The Game Object to be moved in the Container.
      *
      * @return {Phaser.GameObjects.Container} This Container instance.
@@ -733,8 +849,6 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#reverse
      * @since 3.4.0
      *
-     * @genericUse {Phaser.GameObjects.Container.<T>} - [$return]
-     *
      * @return {Phaser.GameObjects.Container} This Container instance.
      */
     reverse: function ()
@@ -749,8 +863,6 @@ var Container = new Class({
      *
      * @method Phaser.GameObjects.Container#shuffle
      * @since 3.4.0
-     *
-     * @genericUse {Phaser.GameObjects.Container.<T>} - [$return]
      *
      * @return {Phaser.GameObjects.Container} This Container instance.
      */
@@ -767,8 +879,6 @@ var Container = new Class({
      *
      * @method Phaser.GameObjects.Container#replace
      * @since 3.4.0
-     *
-     * @genericUse {T} - [oldChild,newChild,$return]
      *
      * @param {Phaser.GameObjects.GameObject} oldChild - The Game Object in this Container that will be replaced.
      * @param {Phaser.GameObjects.GameObject} newChild - The Game Object to be added to this Container.
@@ -802,8 +912,6 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#exists
      * @since 3.4.0
      *
-     * @genericUse {T} - [child]
-     *
      * @param {Phaser.GameObjects.GameObject} child - The Game Object to check for within this Container.
      *
      * @return {boolean} True if the Game Object is an immediate child of this Container, otherwise false.
@@ -823,10 +931,8 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#setAll
      * @since 3.4.0
      *
-     * @genericUse {T} - [value]
-     *
      * @param {string} property - The property that must exist on the Game Object.
-     * @param {*} value - The value to get the property to.
+     * @param {any} value - The value to get the property to.
      * @param {integer} [startIndex=0] - An optional start index to search from.
      * @param {integer} [endIndex=Container.length] - An optional end index to search up to (but not included)
      * 
@@ -840,6 +946,14 @@ var Container = new Class({
     },
 
     /**
+     * @callback EachContainerCallback
+     * @generic I - [item]
+     *
+     * @param {*} item - [description]
+     * @param {...*} [args] - Additional arguments that will be passed to the callback, after the child.
+     */
+
+    /**
      * Passes all Game Objects in this Container to the given callback.
      *
      * A copy of the Container is made before passing each entry to your callback.
@@ -851,10 +965,8 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#each
      * @since 3.4.0
      *
-     * @genericUse {EachListCallback.<T>} - [callback]
-     *
-     * @param {EachListCallback} callback - The function to call.
-     * @param {*} [context] - Value to use as `this` when executing callback.
+     * @param {function} callback - The function to call.
+     * @param {object} [context] - Value to use as `this` when executing callback.
      * @param {...*} [args] - Additional arguments that will be passed to the callback, after the child.
      * 
      * @return {Phaser.GameObjects.Container} This Container instance.
@@ -890,10 +1002,8 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#iterate
      * @since 3.4.0
      *
-     * @genericUse {EachListCallback.<T>} - [callback]
-     *
-     * @param {EachListCallback} callback - The function to call.
-     * @param {*} [context] - Value to use as `this` when executing callback.
+     * @param {function} callback - The function to call.
+     * @param {object} [context] - Value to use as `this` when executing callback.
      * @param {...*} [args] - Additional arguments that will be passed to the callback, after the child.
      * 
      * @return {Phaser.GameObjects.Container} This Container instance.

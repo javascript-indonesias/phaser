@@ -22,7 +22,7 @@
  * @since 3.4.0
  *
  * @param {array} array - The array to be added to.
- * @param {*} item - The item, or array of items, to add to the array.
+ * @param {any|any[]} item - The item, or array of items, to add to the array.
  * @param {integer} [index=0] - The index in the array where the item will be inserted.
  * @param {integer} [limit] - Optional limit which caps the size of the array.
  * @param {function} [callback] - A callback to be invoked for each item successfully added to the array.
@@ -35,7 +35,7 @@ var AddAt = function (array, item, index, limit, callback, context)
     if (index === undefined) { index = 0; }
     if (context === undefined) { context = array; }
 
-    if (limit)
+    if (limit > 0)
     {
         var remaining = limit - array.length;
 
@@ -91,7 +91,7 @@ var AddAt = function (array, item, index, limit, callback, context)
     }
 
     //  Truncate to the limit
-    if (limit && itemLength > remaining)
+    if (limit > 0 && itemLength > remaining)
     {
         item.splice(remaining);
 

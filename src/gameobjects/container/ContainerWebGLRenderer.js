@@ -34,26 +34,33 @@ var ContainerWebGLRenderer = function (renderer, container, interpolationPercent
     
     if (parentMatrix === undefined)
     {
-        transformMatrix.applyITRS(container.x, container.y, -container.rotation, container.scaleX, container.scaleY);
+        transformMatrix.applyITRS(container.x, container.y, container.rotation, container.scaleX, container.scaleY);
     }
     else
     {
         transformMatrix.loadIdentity();
         transformMatrix.multiply(parentMatrix);
         transformMatrix.translate(container.x, container.y);
-        transformMatrix.rotate(-container.rotation);
+        transformMatrix.rotate(container.rotation);
         transformMatrix.scale(container.scaleX, container.scaleY);
     }
 
     var alpha = container._alpha;
+    var scrollFactorX = container.scrollFactorX;
+    var scrollFactorY = container.scrollFactorY;
 
     for (var index = 0; index < children.length; ++index)
     {
         var child = children[index];
         var childAlpha = child._alpha;
+        var childScrollFactorX = child.scrollFactorX;
+        var childScrollFactorY = child.scrollFactorY;
+
+        child.setScrollFactor(childScrollFactorX * scrollFactorX, childScrollFactorY * scrollFactorY);
         child.setAlpha(childAlpha * alpha);
         child.renderWebGL(renderer, child, interpolationPercentage, camera, transformMatrix);
         child.setAlpha(childAlpha);
+        child.setScrollFactor(childScrollFactorX, childScrollFactorY);
     }
 };
 

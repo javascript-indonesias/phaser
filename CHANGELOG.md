@@ -45,6 +45,8 @@
 * Utils.Array.SetAll will set a property on all elements of an array to the given value, with optional range limits.
 * Utils.Array.Swap will swap the position of two elements in an array.
 * TransformMatrix.destroy is a new method that will clear out the array and object used by a Matrix internally.
+* BaseSound, and by extension WebAudioSound and HTMLAudioSound, will now emit a `destroy` event when they are destroyed (thanks @rexrainbow)
+* A new property was added to the Scene config: `mapAdd` which is used to extend the default injection map of a scene instead of overwriting it (thanks @sebashwa)
 
 ### Bug Fixes
 
@@ -69,10 +71,16 @@
 * Tween.restart handles removed tweens properly and reads them back into the active queue for the TweenManager (thanks @wtravO)
 * Tween.resume will now call `Tween.play` on a tween that was paused due to its config object, not as a result of having its paused method called. Fix #3452 (thanks @jazen)
 * LoaderPlugin.isReady referenced a constant that no longer exists. Fix #3503 (thanks @Twilrom)
+* Tween Timeline.destroy was trying to call `destroy` on Tweens instead of `stop` (thanks @Antriel)
+* Calling `setOffset` on a Static Arcade Physics Body would break because the method was missing. It has been added and now functions as expected. Fix #3465 (thanks @josephjaniga and @DouglasLapsley)
+* Calling Impact.World.remove(body) during a Body.updateCallback would cause the internal loop to crash when trying to access a now missing body. Two extra checks are in place to avoid this (thanks @iamDecode)
+* If `setInteractive` is called on a Game Object that fails to set a hit area, it will no longer try to assign `dropZone` to an undefined `input` property.
+* The Matter SetBody Component will no longer try to call `setOrigin` unless the Game Object has the origin component (which not all do, like Graphics and Container)
+* Matter Image and Matter Sprite didn't define a `destroy` method, causing an error when trying to destroy the parent Game Object. Fix #3516 (thanks @RollinSafary)
 
 ### Updates
 
-* The RTree library (rbush) used by Phaser 3 suffered from violating CSP policies by dynamically creating Functions at run-time in an eval-like manner. These are now defined via generators. Fix #3441 (thanks @jamierocks @Colbydude)
+* The RTree library (rbush) used by Phaser 3 suffered from violating CSP policies by dynamically creating Functions at run-time in an eval-like manner. These are now defined via generators. Fix #3441 (thanks @jamierocks @Colbydude @jdotrjs)
 * BaseSound has had its `rate` and `detune` properties removed as they are always set in the overriding class.
 * BaseSound `setRate` and `setDetune` from the 3.3.0 release have moved to the WebAudioSound and HTML5AudioSound classes respectively, as they each handle the values differently.
 * The file `InteractiveObject.js` has been renamed to `CreateInteractiveObject.js` to more accurately reflect what it does and to avoid type errors in the docs.
@@ -100,6 +108,8 @@
 * List.sort no longer takes an array as its argument, instead it only sorts the List contents by the defined property.
 * List.addMultiple has been removed. Used `List.add` instead which offers the exact same functionality.
 * List is now internally using all of the new Utils.Array functions.
+* Rectangle.Union will now cache all vars internally so you can use one of the input rectangles as the output rectangle without corrupting it.
+* When shutting down a Matter World it will now call MatterEvents.off, clearing all events, and also `removeAllListeners` for any local events.
 
 ### Animation System Updates
 
