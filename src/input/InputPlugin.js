@@ -58,11 +58,6 @@ var InputPlugin = new Class({
          */
         this.systems = scene.sys;
 
-        if (!scene.sys.settings.isBooted)
-        {
-            scene.sys.events.once('boot', this.boot, this);
-        }
-
         /**
          * [description]
          *
@@ -268,22 +263,27 @@ var InputPlugin = new Class({
          * @since 3.0.0
          */
         this._validTypes = [ 'onDown', 'onUp', 'onOver', 'onOut', 'onMove', 'onDragStart', 'onDrag', 'onDragEnd', 'onDragEnter', 'onDragLeave', 'onDragOver', 'onDrop' ];
+
+        scene.sys.events.on('start', this.start, this);
     },
 
     /**
-     * [description]
+     * This method is called automatically by the Scene when it is starting up.
+     * It is responsible for creating local systems, properties and listening for Scene events.
+     * Do not invoke it directly.
      *
-     * @method Phaser.Input.InputPlugin#boot
-     * @since 3.0.0
+     * @method Phaser.Input.InputPlugin#start
+     * @private
+     * @since 3.4.1
      */
-    boot: function ()
+    start: function ()
     {
         var eventEmitter = this.systems.events;
 
         eventEmitter.on('preupdate', this.preUpdate, this);
         eventEmitter.on('update', this.update, this);
-        eventEmitter.on('shutdown', this.shutdown, this);
-        eventEmitter.on('destroy', this.destroy, this);
+        eventEmitter.once('shutdown', this.shutdown, this);
+        eventEmitter.once('destroy', this.destroy, this);
 
         this.cameras = this.systems.cameras;
 
@@ -1350,89 +1350,57 @@ var InputPlugin = new Class({
 
     /**
      * Return the child lowest down the display list (with the smallest index)
+     * Will iterate through all parent containers, if present.
      *
      * @method Phaser.Input.InputPlugin#sortHandlerGO
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.GameObject} childA - [description]
-     * @param {Phaser.GameObjects.GameObject} childB - [description]
+     * @param {Phaser.GameObjects.GameObject} childA - The first Game Object to compare.
+     * @param {Phaser.GameObjects.GameObject} childB - The second Game Object to compare.
      *
-     * @return {integer} [description]
+     * @return {integer} Returns either a negative or positive integer, or zero if they match.
      */
     sortHandlerGO: function (childA, childB)
     {
-        //  The higher the index, the lower down the display list they are.
-        //  So entry 0 will be the top-most item (visually)
-        var indexA = this.displayList.getIndex(childA);
-        var indexB = this.displayList.getIndex(childB);
-
-        if (indexA < indexB)
+        if (!childA.parentContainer && !childB.parentContainer)
         {
-            return 1;
+            //  Quick bail out when neither child has a container
+            return this.displayList.getIndex(childB) - this.displayList.getIndex(childA);
         }
-        else if (indexA > indexB)
+        else if (childA.parentContainer === childB.parentContainer)
         {
-            return -1;
+            //  Quick bail out when both children have the same container
+            return childB.parentContainer.getIndex(childB) - childA.parentContainer.getIndex(childA);
+        }
+        else
+        {
+            //  Container index check
+            var listA = childA.getIndexList();
+            var listB = childB.getIndexList();
+            var len = Math.min(listA.length, listB.length);
+
+            for (var i = 0; i < len; i++)
+            {
+                // var indexA = listA[i][0];
+                // var indexB = listB[i][0];
+                var indexA = listA[i];
+                var indexB = listB[i];
+
+                if (indexA === indexB)
+                {
+                    //  Go to the next level down
+                    continue;
+                }
+                else
+                {
+                    //  Non-matching parents, so return
+                    return indexB - indexA;
+                }
+            }
         }
 
-        //  Technically this shouldn't happen, but if the GO wasn't part of this display list then it'll
-        //  have an index of -1, so in some cases it can
+        //  Technically this shouldn't happen, but ...
         return 0;
-    },
-
-    /**
-     * Return the child lowest down the display list (with the smallest index)
-     *
-     * @method Phaser.Input.InputPlugin#sortHandlerIO
-     * @since 3.0.0
-     *
-     * @param {Phaser.Input.InteractiveObject} childA - [description]
-     * @param {Phaser.Input.InteractiveObject} childB - [description]
-     *
-     * @return {integer} [description]
-     */
-    sortHandlerIO: function (childA, childB)
-    {
-        //  The higher the index, the lower down the display list they are.
-        //  So entry 0 will be the top-most item (visually)
-        var indexA = this.displayList.getIndex(childA.gameObject);
-        var indexB = this.displayList.getIndex(childB.gameObject);
-
-        if (indexA < indexB)
-        {
-            return 1;
-        }
-        else if (indexA > indexB)
-        {
-            return -1;
-        }
-
-        //  Technically this shouldn't happen, but if the GO wasn't part of this display list then it'll
-        //  have an index of -1, so in some cases it can
-        return 0;
-    },
-
-    /**
-     * Given an array of Interactive Objects, sort the array and return it,
-     * so that the objects are in index order with the lowest at the bottom.
-     *
-     * @method Phaser.Input.InputPlugin#sortInteractiveObjects
-     * @since 3.0.0
-     *
-     * @param {Phaser.Input.InteractiveObject[]} interactiveObjects - [description]
-     *
-     * @return {Phaser.Input.InteractiveObject[]} [description]
-     */
-    sortInteractiveObjects: function (interactiveObjects)
-    {
-        if (interactiveObjects.length < 2)
-        {
-            return interactiveObjects;
-        }
-
-        this.scene.sys.depthSort();
-
-        return interactiveObjects.sort(this.sortHandlerIO.bind(this));
     },
 
     /**
@@ -1548,8 +1516,10 @@ var InputPlugin = new Class({
 
     /**
      * The Scene that owns this plugin is shutting down.
+     * We need to kill and reset all internal properties as well as stop listening to Scene events.
      *
      * @method Phaser.Input.InputPlugin#shutdown
+     * @private
      * @since 3.0.0
      */
     shutdown: function ()
@@ -1567,25 +1537,35 @@ var InputPlugin = new Class({
         }
 
         this.removeAllListeners();
+
+        var eventEmitter = this.systems.events;
+
+        eventEmitter.off('preupdate', this.preUpdate, this);
+        eventEmitter.off('update', this.update, this);
+        eventEmitter.off('shutdown', this.shutdown, this);
     },
 
     /**
-     * [description]
+     * The Scene that owns this plugin is being destroyed.
+     * We need to shutdown and then kill off all external references.
      *
      * @method Phaser.Input.InputPlugin#destroy
+     * @private
      * @since 3.0.0
      */
     destroy: function ()
     {
         this.shutdown();
 
-        this.scene = undefined;
-        this.cameras = undefined;
-        this.manager = undefined;
-        this.events = undefined;
-        this.keyboard = undefined;
-        this.mouse = undefined;
-        this.gamepad = undefined;
+        this.scene.sys.events.off('start', this.start, this);
+
+        this.scene = null;
+        this.cameras = null;
+        this.manager = null;
+        this.events = null;
+        this.keyboard = null;
+        this.mouse = null;
+        this.gamepad = null;
     },
 
     /**

@@ -216,7 +216,8 @@ var World = new Class({
             this.createDebugGraphic();
         }
 
-        this.setEventsProxy();
+        scene.sys.events.on('start', this.setEventsProxy, this);
+        // this.setEventsProxy();
     },
 
     /**
@@ -894,7 +895,7 @@ var World = new Class({
      */
     shutdown: function ()
     {
-        MatterEvents.off();
+        MatterEvents.off(this.engine);
 
         this.removeAllListeners();
 
