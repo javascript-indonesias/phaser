@@ -408,12 +408,19 @@ var Systems = new Class({
      */
     wake: function ()
     {
-        this.settings.status = CONST.RUNNING;
+        var settings = this.settings;
 
-        this.settings.active = true;
-        this.settings.visible = true;
+        settings.status = CONST.RUNNING;
+
+        settings.active = true;
+        settings.visible = true;
 
         this.events.emit('wake', this);
+
+        if (settings.isTransition)
+        {
+            this.events.emit('transitionwake', settings.transitionFrom, settings.transitionDuration);
+        }
 
         return this;
     },
@@ -448,7 +455,7 @@ var Systems = new Class({
      * Is this Scene currently transitioning out to, or in from another Scene?
      *
      * @method Phaser.Scenes.Systems#isTransitioning
-     * @since 3.4.1
+     * @since 3.5.0
      *
      * @return {boolean} `true` if this Scene is currently transitioning, otherwise `false`.
      */
@@ -461,7 +468,7 @@ var Systems = new Class({
      * Is this Scene currently transitioning out from itself to another Scene?
      *
      * @method Phaser.Scenes.Systems#isTransitionOut
-     * @since 3.4.1
+     * @since 3.5.0
      *
      * @return {boolean} `true` if this Scene is in transition to another Scene, otherwise `false`.
      */
@@ -474,7 +481,7 @@ var Systems = new Class({
      * Is this Scene currently transitioning in from another Scene?
      *
      * @method Phaser.Scenes.Systems#isTransitionIn
-     * @since 3.4.1
+     * @since 3.5.0
      *
      * @return {boolean} `true` if this Scene is transitioning in from another Scene, otherwise `false`.
      */
@@ -588,6 +595,11 @@ var Systems = new Class({
      */
     shutdown: function ()
     {
+        this.events.off('transitioninit');
+        this.events.off('transitionstart');
+        this.events.off('transitioncomplete');
+        this.events.off('transitionout');
+
         this.settings.status = CONST.SHUTDOWN;
 
         this.settings.active = false;
