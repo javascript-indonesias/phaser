@@ -10,7 +10,6 @@ var CustomSet = require('../structs/Set');
 var EventEmitter = require('eventemitter3');
 var FileTypesManager = require('./FileTypesManager');
 var GetFastValue = require('../utils/object/GetFastValue');
-var ParseXMLBitmapFont = require('../gameobjects/bitmaptext/ParseXMLBitmapFont');
 var PluginManager = require('../boot/PluginManager');
 var XHRSettings = require('./XHRSettings');
 
@@ -83,6 +82,24 @@ var LoaderPlugin = new Class({
          * @since 3.0.0
          */
         this.systems = scene.sys;
+
+        /**
+         * A reference to the global Cache Manager.
+         *
+         * @name Phaser.Loader.LoaderPlugin#cacheManager
+         * @type {Phaser.Cache.CacheManager}
+         * @since 3.7.0
+         */
+        this.cacheManager = scene.sys.cache;
+
+        /**
+         * A reference to the global Texture Manager.
+         *
+         * @name Phaser.Loader.LoaderPlugin#textureManager
+         * @type {Phaser.Textures.TextureManager}
+         * @since 3.7.0
+         */
+        this.textureManager = scene.sys.textures;
 
         /**
          * [description]
@@ -340,8 +357,6 @@ var LoaderPlugin = new Class({
      * @since 3.0.0
      *
      * @param {Phaser.Loader.File} file - [description]
-     *
-     * @return {Phaser.Loader.File} [description]
      */
     addFile: function (file)
     {
@@ -350,11 +365,28 @@ var LoaderPlugin = new Class({
             return -1;
         }
 
-        file.path = this.path;
+        if (Array.isArray(file))
+        {
+            for (var i = 0; i < file.length; i++)
+            {
+                var item = file[i];
 
-        this.list.set(file);
+                //  Does the file already exist in the cache or texture manager?
+                if (!item.hasCacheConflict())
+                {
+                    item.path = this.path;
 
-        return file;
+                    this.list.set(item);
+                }
+            }
+        }
+        else if (!file.hasCacheConflict())
+        {
+            //  Does the file already exist in the cache or texture manager?
+            file.path = this.path;
+
+            this.list.set(file);
+        }
     },
 
     /**
@@ -570,7 +602,7 @@ var LoaderPlugin = new Class({
 
             if (file.linkFile)
             {
-                this.queue.delete(file.linkFile);
+                file.linkFile.onFileFailed(file);
             }
 
             return this.removeFromQueue(file);
@@ -578,27 +610,9 @@ var LoaderPlugin = new Class({
 
         //  If we got here, then the file loaded
 
-        //  Special handling for multi-part files
+        this.storage.set(file);
 
-        if (file.linkFile)
-        {
-            if (file.state === CONST.FILE_COMPLETE && file.linkFile.state === CONST.FILE_COMPLETE)
-            {
-                //  Partner has loaded, so add them both to Storage
-
-                this.storage.set({ type: file.linkType, fileA: file, fileB: file.linkFile });
-
-                this.queue.delete(file.linkFile);
-
-                this.removeFromQueue(file);
-            }
-        }
-        else
-        {
-            this.storage.set(file);
-
-            this.removeFromQueue(file);
-        }
+        this.removeFromQueue(file);
     },
 
     /**
@@ -637,9 +651,6 @@ var LoaderPlugin = new Class({
         this.state = CONST.LOADER_COMPLETE;
 
         this.emit('complete', this, this.storage.size, this.failed.size);
-
-        //  Move to a User setting:
-        // this.removeAllListeners();
     },
 
     /**
@@ -658,7 +669,6 @@ var LoaderPlugin = new Class({
         //  The global Texture Manager
         var cache = this.scene.sys.cache;
         var textures = this.scene.sys.textures;
-        var anims = this.scene.sys.anims;
 
         //  Process multiatlas groups first
 
@@ -710,38 +720,10 @@ var LoaderPlugin = new Class({
 
         //  Process all of the files
 
-        //  Because AnimationJSON may require images to be loaded first, we process them last
-        var animJSON = [];
-
         this.storage.each(function (file)
         {
             switch (file.type)
             {
-                case 'animationJSON':
-                    animJSON.push(file);
-                    break;
-
-                case 'image':
-                case 'svg':
-                case 'html':
-                    textures.addImage(file.key, file.data);
-                    break;
-
-                case 'atlasjson':
-
-                    fileA = file.fileA;
-                    fileB = file.fileB;
-
-                    if (fileA.type === 'image')
-                    {
-                        textures.addAtlas(fileA.key, fileA.data, fileB.data);
-                    }
-                    else
-                    {
-                        textures.addAtlas(fileB.key, fileB.data, fileA.data);
-                    }
-                    break;
-
                 case 'dataimage':
 
                     fileA = file.fileA;
@@ -757,66 +739,6 @@ var LoaderPlugin = new Class({
                     }
                     break;
 
-                case 'unityatlas':
-
-                    fileA = file.fileA;
-                    fileB = file.fileB;
-
-                    if (fileA.type === 'image')
-                    {
-                        textures.addUnityAtlas(fileA.key, fileA.data, fileB.data);
-                    }
-                    else
-                    {
-                        textures.addUnityAtlas(fileB.key, fileB.data, fileA.data);
-                    }
-                    break;
-
-                case 'bitmapfont':
-
-                    fileA = file.fileA;
-                    fileB = file.fileB;
-
-                    if (fileA.type === 'image')
-                    {
-                        cache.bitmapFont.add(fileB.key, { data: ParseXMLBitmapFont(fileB.data), texture: fileA.key, frame: null });
-                        textures.addImage(fileA.key, fileA.data);
-                    }
-                    else
-                    {
-                        cache.bitmapFont.add(fileA.key, { data: ParseXMLBitmapFont(fileA.data), texture: fileB.key, frame: null });
-                        textures.addImage(fileB.key, fileB.data);
-                    }
-                    break;
-
-                case 'spritesheet':
-                    textures.addSpriteSheet(file.key, file.data, file.config);
-                    break;
-
-                case 'json':
-                    cache.json.add(file.key, file.data);
-                    break;
-
-                case 'xml':
-                    cache.xml.add(file.key, file.data);
-                    break;
-
-                case 'text':
-                    cache.text.add(file.key, file.data);
-                    break;
-
-                case 'obj':
-                    cache.obj.add(file.key, file.data);
-                    break;
-
-                case 'binary':
-                    cache.binary.add(file.key, file.data);
-                    break;
-
-                case 'audio':
-                    cache.audio.add(file.key, file.data);
-                    break;
-
                 case 'audioSprite':
 
                     var files = [ file.fileA, file.fileB ];
@@ -828,21 +750,24 @@ var LoaderPlugin = new Class({
 
                     break;
 
-                case 'glsl':
-                    cache.shader.add(file.key, file.data);
-                    break;
+                default:
 
-                case 'tilemapCSV':
-                case 'tilemapJSON':
-                    cache.tilemap.add(file.key, { format: file.tilemapFormat, data: file.data });
-                    break;
+                    if (file.linkFile)
+                    {
+                        file.linkFile.addToCache();
+                    }
+                    else
+                    {
+                        file.addToCache();
+                    }
+
             }
         });
 
-        animJSON.forEach(function (file)
-        {
-            anims.fromJSON(file.data);
-        });
+        this.emit('processcomplete', this);
+
+        //  Called 'destroy' on each file in storage
+        this.storage.iterateLocal('destroy');
 
         this.storage.clear();
     },
@@ -1027,6 +952,8 @@ var LoaderPlugin = new Class({
 
         this.scene = null;
         this.systems = null;
+        this.textureManager = null;
+        this.cacheManager = null;
     }
 
 });

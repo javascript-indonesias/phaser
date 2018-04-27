@@ -4,14 +4,20 @@
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
+var Class = require('../../utils/Class');
 var FileTypesManager = require('../FileTypesManager');
 var ImageFile = require('./ImageFile.js');
 var JSONFile = require('./JSONFile.js');
+var LinkFile = require('../LinkFile.js');
 
 /**
+ * @classdesc
  * An Atlas JSON File.
  *
- * @function Phaser.Loader.FileTypes.AtlasJSONFile
+ * @class AtlasJSONFile
+ * @extends Phaser.Loader.LinkFile
+ * @memberOf Phaser.Loader.FileTypes
+ * @constructor
  * @since 3.0.0
  *
  * @param {string} key - The key of the file within the loader.
@@ -20,24 +26,44 @@ var JSONFile = require('./JSONFile.js');
  * @param {string} path - The path of the file.
  * @param {XHRSettingsObject} [textureXhrSettings] - Optional texture file specific XHR settings.
  * @param {XHRSettingsObject} [atlasXhrSettings] - Optional atlas file specific XHR settings.
- *
- * @return {object} An object containing two File objects to be added to the loader.
  */
-var AtlasJSONFile = function (key, textureURL, atlasURL, path, textureXhrSettings, atlasXhrSettings)
-{
-    var image = new ImageFile(key, textureURL, path, textureXhrSettings);
-    var data = new JSONFile(key, atlasURL, path, atlasXhrSettings);
+var AtlasJSONFile = new Class({
 
-    //  Link them together
-    image.linkFile = data;
-    data.linkFile = image;
+    Extends: LinkFile,
 
-    //  Set the type
-    image.linkType = 'atlasjson';
-    data.linkType = 'atlasjson';
+    initialize:
 
-    return { texture: image, data: data };
-};
+    function AtlasJSONFile (loader, key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings)
+    {
+        var image = new ImageFile(loader, key, textureURL, textureXhrSettings);
+        var data = new JSONFile(loader, key, atlasURL, atlasXhrSettings);
+
+        LinkFile.call(this, loader, 'atlasjson', key, [ image, data ]);
+    },
+
+    addToCache: function ()
+    {
+        if (this.failed === 0 && !this.complete)
+        {
+            var fileA = this.files[0];
+            var fileB = this.files[1];
+
+            if (fileA.type === 'image')
+            {
+                this.loader.textureManager.addAtlas(fileA.key, fileA.data, fileB.data);
+                fileB.addToCache();
+            }
+            else
+            {
+                this.loader.textureManager.addAtlas(fileB.key, fileB.data, fileA.data);
+                fileA.addToCache();
+            }
+
+            this.complete = true;
+        }
+    }
+
+});
 
 /**
  * Adds a Texture Atlas file to the current load queue.
@@ -60,24 +86,20 @@ var AtlasJSONFile = function (key, textureURL, atlasURL, path, textureXhrSetting
  */
 FileTypesManager.register('atlas', function (key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings)
 {
+    var linkfile;
 
-    var files;
-
-    // If param key is an object, use object based loading method
     if ((typeof key === 'object') && (key !== null))
     {
-        files = new AtlasJSONFile(key.key, key.texture, key.data, this.path, textureXhrSettings, atlasXhrSettings);
+        // If param key is an object, use object based loading method
+        linkfile = new AtlasJSONFile(this, key.key, key.texture, key.data, textureXhrSettings, atlasXhrSettings);
     }
-
-    // Else just use the parameters like normal
     else
     {
-        //  Returns an object with two properties: 'texture' and 'data'
-        files = new AtlasJSONFile(key, textureURL, atlasURL, this.path, textureXhrSettings, atlasXhrSettings);
+        // else just use the parameters like normal
+        linkfile = new AtlasJSONFile(this, key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings);
     }
 
-    this.addFile(files.texture);
-    this.addFile(files.data);
+    this.addFile(linkfile.files);
 
     return this;
 });
