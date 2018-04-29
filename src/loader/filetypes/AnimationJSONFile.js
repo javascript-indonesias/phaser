@@ -73,12 +73,15 @@ var AnimationJSONFile = new Class({
  */
 FileTypesManager.register('animation', function (key, url, xhrSettings)
 {
+    //  Supports an Object file definition in the key argument
+    //  Or an array of objects in the key argument
+    //  Or a single entry where all arguments have been defined
+
     if (Array.isArray(key))
     {
         for (var i = 0; i < key.length; i++)
         {
-            //  If it's an array it has to be an array of Objects, so we get everything out of the 'key' object
-            this.addFile(new AnimationJSONFile(this, key[i], url, xhrSettings));
+            this.addFile(new AnimationJSONFile(this, key[i]));
         }
     }
     else
@@ -86,7 +89,6 @@ FileTypesManager.register('animation', function (key, url, xhrSettings)
         this.addFile(new AnimationJSONFile(this, key, url, xhrSettings));
     }
 
-    //  For method chaining
     return this;
 });
 
