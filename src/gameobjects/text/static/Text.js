@@ -456,13 +456,19 @@ var Text = new Class({
                     {
                         result += '\n';
                     }
+
                     result += words[j] + ' ';
                     spaceLeft = wordWrapWidth - wordWidth;
                 }
                 else
                 {
                     spaceLeft -= wordWidthWithSpace;
-                    result += words[j] + ' ';
+                    result += words[j];
+
+                    if (j < (words.length - 1))
+                    {
+                        result += ' ';
+                    }
                 }
             }
 

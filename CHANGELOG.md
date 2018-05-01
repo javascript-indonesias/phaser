@@ -41,6 +41,8 @@ The Loader has been given a slight overhaul to improve its performance and exten
 * TextureSource will now automatically create a glTexture from its canvas if using one.
 * WebGLRenderer will now remove a GL texture from its local `nativeTextures` array when you call the `deleteTexture` method.
 * The BaseCache has a new method `exists` that will return a boolean if an entry for the given key exists in the cache or not.
+* ScenePlugin.getIndex will return the index of the given Scene in the Scene List.
+* The Scene Systems will emit a `ready` event when it has fully finished starting up and all plugins are available. Re: #3636 (thanks @Yazir)
 
 ### Bug Fixes
 
@@ -51,12 +53,20 @@ The Loader has been given a slight overhaul to improve its performance and exten
 * Fixed loading normals with multi image load (thanks @iamchristopher)
 * Array.AddAt would fail if it branched to the fast-path within a Container due to an invalid property. Fix #3617 (thanks @poasher)
 * Polygon.setTo would fail if given an array of arrays as a list of points. Fix #3619 (thanks @PaulTodd)
+* Text objects with word wrapping enabled would gain an extra space at the end of the line. These are now only added when the word index is greater than the previous one. Fix #3626 (thanks @rexrainbow)
+* Container.getBounds now checks if it can call `getBounds` on its children before doing so, as some do not have this method (such as Graphics objects) so they no longer cause the call to crash. Fix #3623 (thanks @poasher)
+* The Animation Component `setProgress` method was setting the frame on the wrong object. Fix #3633 (thanks @benhhopkins)
+* SceneManager.moveAbove wouldn't move the Scene if it was already above the target Scene. Now it moves to be directly above the target Scene no matter where in the Scene List it is.
+* SceneManager.moveBelow wouldn't move the Scene if it was already below the target Scene. Now it moves to be directly below the target Scene no matter where in the Scene List it is.
+* Emitter.setEmitZone was rejecting custom objects passed as the source argument because it was checking for the wrong methods (thanks @samme)
+* ScenePlugin.setActive would only toggle the current Scene, not any given Scene.
+* ScenePlugin.setVisible would only toggle the current Scene, not any given Scene.
 
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@wtravO @Fabadiculous @zilbuz @samme @iamchristopher
+@wtravO @Fabadiculous @zilbuz @samme @iamchristopher @erd0s @PaNaVTEC @ksmai @snowbillr 
 
 ## Version 3.6.0 - Asuna - 19th April 2018
 
