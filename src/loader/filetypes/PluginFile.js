@@ -61,14 +61,13 @@ var PluginFile = new Class({
             responseType: 'text',
             key: key,
             url: url,
-            path: loader.path,
             xhrSettings: xhrSettings
         };
 
         File.call(this, fileConfig);
     },
 
-    onProcess: function (callback)
+    onProcess: function ()
     {
         this.state = CONST.FILE_PROCESSING;
 
@@ -83,9 +82,7 @@ var PluginFile = new Class({
         //  Need to wait for onload?
         window[this.key].register(PluginManager);
 
-        this.onComplete();
-
-        callback(this);
+        this.onProcessComplete();
     }
 
 });

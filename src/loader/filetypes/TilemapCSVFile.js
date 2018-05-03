@@ -55,7 +55,6 @@ var TilemapCSVFile = new Class({
             responseType: 'text',
             key: key,
             url: url,
-            path: loader.path,
             xhrSettings: xhrSettings
         };
 
@@ -64,22 +63,22 @@ var TilemapCSVFile = new Class({
         this.tilemapFormat = TILEMAP_FORMATS.CSV;
     },
 
-    onProcess: function (callback)
+    onProcess: function ()
     {
         this.state = CONST.FILE_PROCESSING;
 
         this.data = this.xhrLoader.responseText;
 
-        this.onComplete();
-
-        callback(this);
+        this.onProcessComplete();
     },
 
     addToCache: function ()
     {
-        this.cache.add(this.key, { format: this.tilemapFormat, data: this.data });
+        var tiledata = { format: this.tilemapFormat, data: this.data };
 
-        this.loader.emit('filecomplete', this.key, this);
+        this.cache.add(this.key, tiledata);
+
+        this.pendingDestroy(tiledata);
     }
 
 });

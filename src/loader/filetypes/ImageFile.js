@@ -55,7 +55,6 @@ var ImageFile = new Class({
             responseType: 'blob',
             key: key,
             url: url,
-            path: loader.path,
             xhrSettings: xhrSettings,
             config: frameConfig
         };
@@ -63,7 +62,7 @@ var ImageFile = new Class({
         File.call(this, loader, fileConfig);
     },
 
-    onProcess: function (callback)
+    onProcess: function ()
     {
         this.state = CONST.FILE_PROCESSING;
 
@@ -77,18 +76,14 @@ var ImageFile = new Class({
         {
             File.revokeObjectURL(_this.data);
 
-            _this.onComplete();
-
-            callback(_this);
+            _this.onProcessComplete();
         };
 
         this.data.onerror = function ()
         {
             File.revokeObjectURL(_this.data);
 
-            _this.state = CONST.FILE_ERRORED;
-
-            callback(_this);
+            _this.onProcessError();
         };
 
         File.createObjectURL(this.data, this.xhrLoader.response, 'image/png');
@@ -96,9 +91,9 @@ var ImageFile = new Class({
 
     addToCache: function ()
     {
-        this.cache.addImage(this.key, this.data);
+        var texture = this.cache.addImage(this.key, this.data);
 
-        this.loader.emit('filecomplete', this.key, this);
+        this.pendingDestroy(texture);
     }
 
 });

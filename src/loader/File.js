@@ -85,6 +85,13 @@ var File = new Class({
          */
         this.key = GetFastValue(fileConfig, 'key', false);
 
+        var loadKey = this.key;
+
+        if (loader.prefix && loader.prefix !== '')
+        {
+            this.key = loader.prefix + loadKey;
+        }
+
         if (!this.type || !this.key)
         {
             throw new Error('Error calling \'Loader.' + this.type + '\' invalid key provided.');
@@ -101,11 +108,11 @@ var File = new Class({
 
         if (this.url === undefined)
         {
-            this.url = GetFastValue(fileConfig, 'path', '') + this.key + '.' + GetFastValue(fileConfig, 'extension', '');
+            this.url = loader.path + loadKey + '.' + GetFastValue(fileConfig, 'extension', '');
         }
         else if (typeof(this.url) !== 'function')
         {
-            this.url = GetFastValue(fileConfig, 'path', '').concat(this.url);
+            this.url = loader.path + this.url;
         }
 
         /**
@@ -248,9 +255,8 @@ var File = new Class({
     {
         if (this.state === CONST.FILE_POPULATED)
         {
-            this.onComplete();
-
-            this.loader.nextFile(this);
+            //  Can happen for example in a JSONFile if they've provided a JSON object instead of a URL
+            this.loader.nextFile(this, true);
         }
         else
         {
@@ -262,6 +268,13 @@ var File = new Class({
             }
             else
             {
+                //  The creation of this XHRLoader starts the load process going.
+                //  It will automatically call the following, based on the load outcome:
+                //  
+                // xhr.onload = file.onLoad.bind(file);
+                // xhr.onerror = file.onError.bind(file);
+                // xhr.onprogress = file.onProgress.bind(file);
+
                 this.xhrLoader = XHRLoader(this, this.loader.xhr);
             }
         }
@@ -279,14 +292,9 @@ var File = new Class({
     {
         this.resetXHR();
 
-        if (event.target && event.target.status !== 200)
-        {
-            this.loader.nextFile(this, false);
-        }
-        else
-        {
-            this.loader.nextFile(this, true);
-        }
+        var success = !(event.target && event.target.status !== 200);
+
+        this.loader.nextFile(this, success);
     },
 
     /**
@@ -321,44 +329,63 @@ var File = new Class({
 
             this.percentComplete = Math.min((this.bytesLoaded / this.bytesTotal), 1);
 
-            // console.log(this.percentComplete + '% (' + this.bytesLoaded + ' bytes)');
             this.loader.emit('fileprogress', this, this.percentComplete);
         }
     },
 
     /**
      * Usually overridden by the FileTypes and is called by Loader.finishedLoading.
-     * The callback is Loader.processUpdate
      *
      * @method Phaser.Loader.File#onProcess
      * @since 3.0.0
-     *
-     * @param {FileProcessCallback} callback - The callback to invoke to process this File.
      */
-    onProcess: function (callback)
+    onProcess: function ()
     {
         this.state = CONST.FILE_PROCESSING;
 
-        this.onComplete();
-
-        callback(this);
+        this.onProcessComplete();
     },
 
     /**
      * Called when the File has completed loading.
      * Checks on the state of its linkfile, if set.
      *
-     * @method Phaser.Loader.File#onComplete
-     * @since 3.0.0
+     * @method Phaser.Loader.File#onProcessComplete
+     * @since 3.7.0
      */
-    onComplete: function ()
+    onProcessComplete: function ()
     {
+        console.log('onProcessComplete', this.key);
+
         this.state = CONST.FILE_COMPLETE;
 
         if (this.linkFile)
         {
             this.linkFile.onFileComplete(this);
         }
+
+        this.loader.fileProcessComplete(this);
+    },
+
+    /**
+     * Called when the File has completed loading.
+     * Checks on the state of its linkfile, if set.
+     *
+     * @method Phaser.Loader.File#onProcessError
+     * @since 3.7.0
+     */
+    onProcessError: function ()
+    {
+        console.log('onProcessError', this.key);
+
+        this.state = CONST.FILE_ERRORED;
+
+        if (this.linkFile)
+        {
+            this.linkFile.onFileFailed(this);
+        }
+
+        this.loader.fileProcessComplete(this);
     },
 
     /**
@@ -391,12 +418,33 @@ var File = new Class({
             this.cache.add(this.key, this.data);
         }
 
-        this.loader.emit('filecomplete', this.key, this);
+        this.pendingDestroy();
+    },
+
+    /**
+     * Adds this file to its target cache upon successful loading and processing.
+     * It will emit a `filecomplete` event from the LoaderPlugin.
+     * This method is often overridden by specific file types.
+     *
+     * @method Phaser.Loader.File#pendingDestroy
+     * @since 3.7.0
+     */
+    pendingDestroy: function (data)
+    {
+        if (data === undefined) { data = this.data; }
+
+        var key = this.key;
+        var type = this.type;
+
+        this.loader.emit('filecomplete', key, type, data);
+
+        this.loader.emit(type + 'complete', key, data);
+
+        this.loader.flagForRemoval(this);
     },
 
     /**
      * Destroy this File and any references it holds.
-     * Called automatically by the Loader.
      *
      * @method Phaser.Loader.File#destroy
      * @since 3.7.0

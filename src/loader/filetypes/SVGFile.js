@@ -53,19 +53,17 @@ var SVGFile = new Class({
             responseType: 'text',
             key: key,
             url: url,
-            path: loader.path,
             xhrSettings: xhrSettings
         };
 
         File.call(this, loader, fileConfig);
     },
 
-    onProcess: function (callback)
+    onProcess: function ()
     {
         this.state = CONST.FILE_PROCESSING;
 
         var svg = [ this.xhrLoader.responseText ];
-        var _this = this;
 
         try
         {
@@ -73,9 +71,7 @@ var SVGFile = new Class({
         }
         catch (e)
         {
-            _this.state = CONST.FILE_ERRORED;
-
-            callback(_this);
+            this.onProcessError();
 
             return;
         }
@@ -84,18 +80,17 @@ var SVGFile = new Class({
 
         this.data.crossOrigin = this.crossOrigin;
 
+        var _this = this;
         var retry = false;
 
         this.data.onload = function ()
         {
-            if(!retry)
+            if (!retry)
             {
                 File.revokeObjectURL(_this.data);
             }
 
-            _this.onComplete();
-
-            callback(_this);
+            _this.onProcessComplete();
         };
 
         this.data.onerror = function ()
@@ -111,9 +106,7 @@ var SVGFile = new Class({
             }
             else
             {
-                _this.state = CONST.FILE_ERRORED;
-
-                callback(_this);
+                _this.onProcessError();
             }
         };
 
@@ -122,9 +115,9 @@ var SVGFile = new Class({
 
     addToCache: function ()
     {
-        this.cache.addImage(this.key, this.data);
+        var texture = this.cache.addImage(this.key, this.data);
 
-        this.loader.emit('filecomplete', this.key, this);
+        this.pendingDestroy(texture);
     }
 
 });

@@ -54,27 +54,28 @@ var XMLFile = new Class({
             responseType: 'text',
             key: key,
             url: url,
-            path: loader.path,
             xhrSettings: xhrSettings
         };
 
         File.call(this, loader, fileConfig);
     },
 
-    onProcess: function (callback)
+    onProcess: function ()
     {
         this.state = CONST.FILE_PROCESSING;
 
         this.data = ParseXML(this.xhrLoader.responseText);
 
-        if (this.data === null)
+        if (this.data)
         {
-            throw new Error('XMLFile: Invalid XML');
+            this.onProcessComplete();
         }
-
-        this.onComplete();
-
-        callback(this);
+        else
+        {
+            console.warn('Invalid XMLFile: ' + this.key);
+            
+            this.onProcessError();
+        }
     }
 
 });
