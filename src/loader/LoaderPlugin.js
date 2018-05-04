@@ -14,7 +14,7 @@ var PluginManager = require('../boot/PluginManager');
 var XHRSettings = require('./XHRSettings');
 
 /**
- * @typedef {object} LinkFileObject
+ * @typedef {object} MultiFileObject
  *
  * @property {string} type - [description]
  * @property {Phaser.Loader.File} fileA - [description]
@@ -45,7 +45,29 @@ var XHRSettings = require('./XHRSettings');
 
 /**
  * @classdesc
- * [description]
+ * The Loader handles loading all external content such as Images, Sounds, Texture Atlases and data files.
+ * You typically interact with it via `this.load` in your Scene. Scenes can have a `preload` method, which is always
+ * called before the Scenes `create` method, allowing you to preload assets that the Scene may need.
+ *
+ * If you call any `this.load` methods from outside of `Scene.preload` then you need to start the Loader going
+ * yourself by calling `Loader.start()`. It's only automatically started during the Scene preload.
+ *
+ * The Loader uses a combination of tag loading (eg. Audio elements) and XHR and provides progress and completion events.
+ * Files are loaded in parallel by default. The amount of concurrent connections can be controlled in your Game Configuration.
+ *
+ * Once the Loader has started loading you are still able to add files to it. These can be injected as a result of a loader
+ * event, the type of file being loaded (such as a pack file) or other external events. As long as the Loader hasn't finished
+ * simply adding a new file to it, while running, will ensure it's added into the current queue.
+ *
+ * Every Scene has its own instance of the Loader and they are bound to the Scene in which they are created. However,
+ * assets loaded by the Loader are placed into global game-level caches. For example, loading an XML file will place that
+ * file inside `Game.cache.xml`, which is accessible from every Scene in your game, no matter who was responsible
+ * for loading it. The same is true of Textures. A texture loaded in one Scene is instantly available to all other Scenes
+ * in your game.
+ *
+ * The Loader works by using custom File Types. These are stored in the FileTypesManager, which injects them into the Loader
+ * when it's instantiated. You can create your own custom file types by extending either the File or MultiFile classes.
+ * See those files for more details.
  *
  * @class LoaderPlugin
  * @extends Phaser.Events.EventEmitter
@@ -53,7 +75,7 @@ var XHRSettings = require('./XHRSettings');
  * @constructor
  * @since 3.0.0
  *
- * @param {Phaser.Scene} scene - [description]
+ * @param {Phaser.Scene} scene - The Scene which owns this Loader instance.
  */
 var LoaderPlugin = new Class({
 
@@ -69,19 +91,21 @@ var LoaderPlugin = new Class({
         var sceneConfig = scene.sys.settings.loader;
 
         /**
-         * [description]
+         * The Scene which owns this Loader instance.
          *
          * @name Phaser.Loader.LoaderPlugin#scene
          * @type {Phaser.Scene}
+         * @protected
          * @since 3.0.0
          */
         this.scene = scene;
 
         /**
-         * [description]
+         * A reference to the Scene Systems.
          *
          * @name Phaser.Loader.LoaderPlugin#systems
          * @type {Phaser.Scenes.Systems}
+         * @protected
          * @since 3.0.0
          */
         this.systems = scene.sys;
@@ -91,6 +115,7 @@ var LoaderPlugin = new Class({
          *
          * @name Phaser.Loader.LoaderPlugin#cacheManager
          * @type {Phaser.Cache.CacheManager}
+         * @protected
          * @since 3.7.0
          */
         this.cacheManager = scene.sys.cache;
@@ -100,6 +125,7 @@ var LoaderPlugin = new Class({
          *
          * @name Phaser.Loader.LoaderPlugin#textureManager
          * @type {Phaser.Textures.TextureManager}
+         * @protected
          * @since 3.7.0
          */
         this.textureManager = scene.sys.textures;
@@ -109,7 +135,9 @@ var LoaderPlugin = new Class({
 
         /**
          * An optional prefix that is automatically prepended to the start of every file key.
-         * If prefix was `MENU` and you load an image with the key 'Background' the resulting key would be `MENUBackground`.
+         * If prefix was `MENU.` and you load an image with the key 'Background' the resulting key would be `MENU.Background`.
+         * You can set this directly, or call `Loader.setPrefix()`. It will then affect every file added to the Loader
+         * from that point on. It does _not_ change any file already in the load queue.
          *
          * @name Phaser.Loader.LoaderPlugin#prefix
          * @type {string}
@@ -119,7 +147,22 @@ var LoaderPlugin = new Class({
         this.prefix = '';
 
         /**
-         * [description]
+         * The value of `path`, if set, is placed before any _relative_ file path given. For example:
+         *
+         * ```javascript
+         * this.load.path = "images/sprites/";
+         * this.load.image("ball", "ball.png");
+         * this.load.image("tree", "level1/oaktree.png");
+         * this.load.image("boom", "http://server.com/explode.png");
+         * ```
+         *
+         * Would load the `ball` file from `images/sprites/ball.png` and the tree from
+         * `images/sprites/level1/oaktree.png` but the file `boom` would load from the URL
+         * given as it's an absolute URL.
+         *
+         * Please note that the path is added before the filename but *after* the baseURL (if set.)
+         *
+         * If you set this property directly then it _must_ end with a "/". Alternatively, call `setPath()` and it'll do it for you.
          *
          * @name Phaser.Loader.LoaderPlugin#path
          * @type {string}
@@ -129,7 +172,11 @@ var LoaderPlugin = new Class({
         this.path = '';
 
         /**
-         * [description]
+         * If you want to append a URL before the path of any asset you can set this here.
+         * 
+         * Useful if allowing the asset base url to be configured outside of the game code.
+         * 
+         * If you set this property directly then it _must_ end with a "/". Alternatively, call `setBaseURL()` and it'll do it for you.
          *
          * @name Phaser.Loader.LoaderPlugin#baseURL
          * @type {string}
@@ -143,15 +190,6 @@ var LoaderPlugin = new Class({
         this.setPath(GetFastValue(sceneConfig, 'path', gameConfig.loaderPath));
 
         this.setPrefix(GetFastValue(sceneConfig, 'prefix', gameConfig.loaderPrefix));
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Loader.LoaderPlugin#enableParallel
-         * @type {boolean}
-         * @since 3.0.0
-         */
-        this.enableParallel = GetFastValue(sceneConfig, 'enableParallel', gameConfig.loaderEnableParallel);
 
         /**
          * [description]
@@ -368,12 +406,14 @@ var LoaderPlugin = new Class({
 
     /**
      * An optional prefix that is automatically prepended to the start of every file key.
-     * If prefix was `MENU` and you load an image with the key 'Background' the resulting key would be `MENUBackground`.
+     * If prefix was `MENU.` and you load an image with the key 'Background' the resulting key would be `MENU.Background`.
+     * Once a prefix is set it will then affect every file added to the Loader from that point on.
+     * It does _not_ change any file _already_ in the load queue.
      *
      * @method Phaser.Loader.LoaderPlugin#setPrefix
      * @since 3.7.0
      *
-     * @param {string} prefix - The prefix to use. Leave empty to reset.
+     * @param {string} [prefix] - The prefix to use. Leave empty to reset.
      *
      * @return {Phaser.Loader.LoaderPlugin} This Loader object.
      */
@@ -427,8 +467,6 @@ var LoaderPlugin = new Class({
             if (!this.keyExists(item))
             {
                 this.list.set(item);
-
-                console.log('addFile', item.key);
 
                 if (this.isLoading())
                 {
@@ -503,6 +541,8 @@ var LoaderPlugin = new Class({
      * @since 3.7.0
      *
      * @param {any} data - The Pack File data, or an array of Pack File data, to be added to the load queue.
+     *
+     * @return {boolean} `true` if any files were added to the queue, otherwise `false`.
      */
     addPack: function (pack, packKey)
     {
@@ -512,8 +552,7 @@ var LoaderPlugin = new Class({
             pack = { packKey: pack[packKey] };
         }
 
-        console.log('---------> addPack', packKey);
-        console.log(pack);
+        var total = 0;
 
         //  Store the loader settings in case this pack replaces them
         var currentBaseURL = this.baseURL;
@@ -546,6 +585,7 @@ var LoaderPlugin = new Class({
                     if (this[type])
                     {
                         this[type](file);
+                        total++;
                     }
                 }
             }
@@ -556,7 +596,7 @@ var LoaderPlugin = new Class({
         this.setPath(currentPath);
         this.setPrefix(currentPrefix);
 
-        return this;
+        return (total > 0);
     },
 
     /**
@@ -603,8 +643,6 @@ var LoaderPlugin = new Class({
         this.totalFailed = 0;
         this.totalComplete = 0;
         this.totalToLoad = this.list.size;
-
-        console.log('start', this.totalToLoad);
 
         this.emit('start', this);
 
@@ -661,7 +699,6 @@ var LoaderPlugin = new Class({
                     file.crossOrigin = this.crossOrigin;
                 }
 
-                console.log('processLoadQueue', file.key);
                 file.load();
             }
 
@@ -685,8 +722,6 @@ var LoaderPlugin = new Class({
      */
     nextFile: function (file, success)
     {
-        console.log('nextFile', file.key, success);
-
         this.inflight.delete(file);
 
         this.updateProgress();
@@ -699,8 +734,6 @@ var LoaderPlugin = new Class({
 
             this.emit('load', file);
 
-            console.log('nextFile 1');
-
             file.onProcess();
         }
         else
@@ -710,13 +743,10 @@ var LoaderPlugin = new Class({
             this._deleteQueue.set(file);
 
             this.emit('loaderror', file);
-
-            console.log('nextFile 2');
         }
 
         if (this.list.size > 0)
         {
-            console.log('nextFile processLoadQueue');
             this.processLoadQueue();
         }
     },
@@ -734,17 +764,20 @@ var LoaderPlugin = new Class({
         //  This file has failed, so move it to the failed Set
         if (file.state === CONST.FILE_ERRORED)
         {
-            if (file.linkFile)
+            if (file.multiFile)
             {
-                file.linkFile.onFileFailed(file);
+                file.multiFile.onFileFailed(file);
             }
         }
         else if (file.state === CONST.FILE_COMPLETE)
         {
-            if (file.linkFile && file.linkFile.isReadyToProcess())
+            if (file.multiFile)
             {
-                //  If we got here then all files the link file needs are ready to add to the cache
-                file.linkFile.addToCache();
+                if (file.multiFile.isReadyToProcess())
+                {
+                    //  If we got here then all files the link file needs are ready to add to the cache
+                    file.multiFile.addToCache();
+                }
             }
             else
             {
@@ -776,8 +809,6 @@ var LoaderPlugin = new Class({
      */
     loadComplete: function ()
     {
-        console.log('>>> loadComplete');
-
         this.emit('loadcomplete', this);
 
         this.list.clear();
@@ -807,75 +838,6 @@ var LoaderPlugin = new Class({
     flagForRemoval: function (file)
     {
         this._deleteQueue.set(file);
-    },
-
-    /**
-     * !!! TO BE DELETED !!!
-     * !!! TO BE DELETED !!!
-     * !!! TO BE DELETED !!!
-     *
-     * @method Phaser.Loader.LoaderPlugin#processCallback
-     * @since 3.0.0
-     */
-    ___processCallback: function ()
-    {
-        if (this.storage.size === 0)
-        {
-            return;
-        }
-
-        //  Process all of the files
-
-        this.storage.each(function (file)
-        {
-            if (file.linkFile)
-            {
-                file.linkFile.addToCache();
-            }
-            else
-            {
-                file.addToCache();
-            }
-
-            /*
-            switch (file.type)
-            {
-                case 'dataimage':
-
-                    fileA = file.fileA;
-                    fileB = file.fileB;
-
-                    if (fileA.linkParent)
-                    {
-                        textures.addImage(fileA.key, fileA.data, fileB.data);
-                    }
-                    else
-                    {
-                        textures.addImage(fileB.key, fileB.data, fileA.data);
-                    }
-                    break;
-
-                case 'audioSprite':
-
-                    var files = [ file.fileA, file.fileB ];
-
-                    files.forEach(function (file)
-                    {
-                        cache[file.type].add(file.key, file.data);
-                    });
-
-                    break;
-            }
-            */
-
-        });
-
-        this.emit('processcomplete', this);
-
-        //  Call 'destroy' on each file in storage
-        this.storage.iterateLocal('destroy');
-
-        this.storage.clear();
     },
 
     /**
@@ -945,37 +907,6 @@ var LoaderPlugin = new Class({
         this.setPrefix(GetFastValue(sceneConfig, 'prefix', gameConfig.loaderPrefix));
 
         this.state = CONST.LOADER_IDLE;
-    },
-
-    /**
-     * !!! TO BE REPLACED BY THE PACK LOADER METHOD !!!
-     * !!! TO BE REPLACED BY THE PACK LOADER METHOD !!!
-     * !!! TO BE REPLACED BY THE PACK LOADER METHOD !!!
-     * 
-     * Called by the Scene Manager if you specify a files payload for a pre-Scene Boot.
-     * Takes an array of file objects.
-     *
-     * @method Phaser.Loader.LoaderPlugin#loadArray
-     * @since 3.0.0
-     *
-     * @param {LoaderFileObject[]} files - An array of files to load.
-     *
-     * @return {boolean} `true` if any files were successfully added to the list, otherwise `false`.
-     */
-    loadArray: function (files)
-    {
-        if (Array.isArray(files))
-        {
-            for (var i = 0; i < files.length; i++)
-            {
-                var file = files[i];
-
-                //  Calls file-type methods like `atlas` or `image`
-                this[file.type](file);
-            }
-        }
-
-        return (this.list.size > 0);
     },
 
     /**

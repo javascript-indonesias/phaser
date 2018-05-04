@@ -9,7 +9,7 @@ var FileTypesManager = require('../FileTypesManager');
 var GetFastValue = require('../../utils/object/GetFastValue');
 var ImageFile = require('./ImageFile.js');
 var IsPlainObject = require('../../utils/object/IsPlainObject');
-var LinkFile = require('../LinkFile.js');
+var MultiFile = require('../MultiFile.js');
 var TextFile = require('./TextFile.js');
 
 /**
@@ -17,7 +17,7 @@ var TextFile = require('./TextFile.js');
  * A Unity Atlas File.
  *
  * @class UnityAtlasFile
- * @extends Phaser.Loader.LinkFile
+ * @extends Phaser.Loader.MultiFile
  * @memberOf Phaser.Loader.FileTypes
  * @constructor
  *
@@ -29,7 +29,7 @@ var TextFile = require('./TextFile.js');
  */
 var UnityAtlasFile = new Class({
 
-    Extends: LinkFile,
+    Extends: MultiFile,
 
     initialize:
 
@@ -49,26 +49,28 @@ var UnityAtlasFile = new Class({
         var image = new ImageFile(loader, key, textureURL, textureXhrSettings);
         var data = new TextFile(loader, key, atlasURL, atlasXhrSettings);
 
-        LinkFile.call(this, loader, 'unityatlas', key, [ image, data ]);
+        if (image.linkFile)
+        {
+            //  Image has a normal map
+            MultiFile.call(this, loader, 'unityatlas', key, [ image, data, image.linkFile ]);
+        }
+        else
+        {
+            MultiFile.call(this, loader, 'unityatlas', key, [ image, data ]);
+        }
     },
 
     addToCache: function ()
     {
         if (this.failed === 0 && !this.complete)
         {
-            var fileA = this.files[0];
-            var fileB = this.files[1];
+            var image = this.files[0];
+            var text = this.files[1];
+            var normalMap = (this.files[2]) ? this.files[2].data : null;
 
-            if (fileA.type === 'image')
-            {
-                this.loader.textureManager.addUnityAtlas(fileA.key, fileA.data, fileB.data);
-                fileB.addToCache();
-            }
-            else
-            {
-                this.loader.textureManager.addUnityAtlas(fileB.key, fileB.data, fileA.data);
-                fileA.addToCache();
-            }
+            this.loader.textureManager.addUnityAtlas(image.key, image.data, text.data, normalMap);
+
+            text.addToCache();
 
             this.complete = true;
         }
@@ -97,7 +99,7 @@ var UnityAtlasFile = new Class({
  */
 FileTypesManager.register('unityAtlas', function (key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings)
 {
-    var linkfile;
+    var multifile;
 
     //  Supports an Object file definition in the key argument
     //  Or an array of objects in the key argument
@@ -107,16 +109,16 @@ FileTypesManager.register('unityAtlas', function (key, textureURL, atlasURL, tex
     {
         for (var i = 0; i < key.length; i++)
         {
-            linkfile = new UnityAtlasFile(this, key[i]);
+            multifile = new UnityAtlasFile(this, key[i]);
 
-            this.addFile(linkfile.files);
+            this.addFile(multifile.files);
         }
     }
     else
     {
-        linkfile = new UnityAtlasFile(this, key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings);
+        multifile = new UnityAtlasFile(this, key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings);
 
-        this.addFile(linkfile.files);
+        this.addFile(multifile.files);
     }
 
     return this;

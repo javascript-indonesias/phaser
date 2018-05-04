@@ -36,6 +36,7 @@ var ImageFile = new Class({
     function ImageFile (loader, key, url, xhrSettings, frameConfig)
     {
         var extension = 'png';
+        var normalMapURL;
 
         if (IsPlainObject(key))
         {
@@ -43,9 +44,16 @@ var ImageFile = new Class({
 
             key = GetFastValue(config, 'key');
             url = GetFastValue(config, 'url');
+            normalMapURL = GetFastValue(config, 'normalMap');
             xhrSettings = GetFastValue(config, 'xhrSettings');
             extension = GetFastValue(config, 'extension', extension);
             frameConfig = GetFastValue(config, 'frameConfig');
+        }
+
+        if (Array.isArray(url))
+        {
+            normalMapURL = url[1];
+            url = url[0];
         }
 
         var fileConfig = {
@@ -60,6 +68,18 @@ var ImageFile = new Class({
         };
 
         File.call(this, loader, fileConfig);
+
+        //  Do we have a normal map to load as well?
+        if (normalMapURL)
+        {
+            var normalMap = new ImageFile(loader, key, normalMapURL, xhrSettings, frameConfig);
+
+            normalMap.type = 'normalMap';
+
+            this.setLink(normalMap);
+
+            loader.addFile(normalMap);
+        }
     },
 
     onProcess: function ()
@@ -91,9 +111,31 @@ var ImageFile = new Class({
 
     addToCache: function ()
     {
-        var texture = this.cache.addImage(this.key, this.data);
+        var texture;
+        var linkFile = this.linkFile;
 
-        this.pendingDestroy(texture);
+        if (linkFile && linkFile.state === CONST.FILE_COMPLETE)
+        {
+
+            if (this.type === 'image')
+            {
+                texture = this.cache.addImage(this.key, this.data, linkFile.data);
+            }
+            else
+            {
+                texture = this.cache.addImage(linkFile.key, linkFile.data, this.data);
+            }
+
+            this.pendingDestroy(texture);
+
+            linkFile.pendingDestroy(texture);
+        }
+        else if (!linkFile)
+        {
+            texture = this.cache.addImage(this.key, this.data);
+
+            this.pendingDestroy(texture);
+        }
     }
 
 });

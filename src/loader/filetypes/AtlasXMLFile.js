@@ -10,33 +10,30 @@ var GetFastValue = require('../../utils/object/GetFastValue');
 var ImageFile = require('./ImageFile.js');
 var IsPlainObject = require('../../utils/object/IsPlainObject');
 var MultiFile = require('../MultiFile.js');
-var ParseXMLBitmapFont = require('../../gameobjects/bitmaptext/ParseXMLBitmapFont.js');
 var XMLFile = require('./XMLFile.js');
 
 /**
  * @classdesc
- * An Bitmap Font File.
+ * An XML based Atlas File, such as those created with Shoebox, Starling or Flash.
  *
- * @class BitmapFontFile
+ * @class AtlasXMLFile
  * @extends Phaser.Loader.MultiFile
  * @memberOf Phaser.Loader.FileTypes
  * @constructor
- * @since 3.0.0
  *
  * @param {string} key - The key of the file within the loader.
  * @param {string} textureURL - The url to load the texture file from.
- * @param {string} xmlURL - The url to load the atlas file from.
- * @param {string} path - The path of the file.
+ * @param {string} atlasURL - The url to load the atlas file from.
  * @param {XHRSettingsObject} [textureXhrSettings] - Optional texture file specific XHR settings.
- * @param {XHRSettingsObject} [xmlXhrSettings] - Optional atlas file specific XHR settings.
+ * @param {XHRSettingsObject} [atlasXhrSettings] - Optional atlas file specific XHR settings.
  */
-var BitmapFontFile = new Class({
+var AtlasXMLFile = new Class({
 
     Extends: MultiFile,
 
     initialize:
 
-    function BitmapFontFile (loader, key, textureURL, xmlURL, textureXhrSettings, xmlXhrSettings)
+    function AtlasXMLFile (loader, key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings)
     {
         if (IsPlainObject(key))
         {
@@ -44,15 +41,23 @@ var BitmapFontFile = new Class({
 
             key = GetFastValue(config, 'key');
             textureURL = GetFastValue(config, 'textureURL');
-            xmlURL = GetFastValue(config, 'xmlURL');
+            atlasURL = GetFastValue(config, 'atlasURL');
             textureXhrSettings = GetFastValue(config, 'textureXhrSettings');
-            xmlXhrSettings = GetFastValue(config, 'xmlXhrSettings');
+            atlasXhrSettings = GetFastValue(config, 'atlasXhrSettings');
         }
 
         var image = new ImageFile(loader, key, textureURL, textureXhrSettings);
-        var data = new XMLFile(loader, key, xmlURL, xmlXhrSettings);
+        var data = new XMLFile(loader, key, atlasURL, atlasXhrSettings);
 
-        MultiFile.call(this, loader, 'bitmapfont', key, [ image, data ]);
+        if (image.linkFile)
+        {
+            //  Image has a normal map
+            MultiFile.call(this, loader, 'atlasxml', key, [ image, data, image.linkFile ]);
+        }
+        else
+        {
+            MultiFile.call(this, loader, 'atlasxml', key, [ image, data ]);
+        }
     },
 
     addToCache: function ()
@@ -61,11 +66,11 @@ var BitmapFontFile = new Class({
         {
             var image = this.files[0];
             var xml = this.files[1];
+            var normalMap = (this.files[2]) ? this.files[2].data : null;
 
-            image.addToCache();
+            this.loader.textureManager.addAtlasXML(image.key, image.data, xml.data, normalMap);
+
             xml.addToCache();
-
-            this.loader.cacheManager.bitmapFont.add(image.key, {data: ParseXMLBitmapFont(xml.data), texture: image.key, frame: null});
 
             this.complete = true;
         }
@@ -74,25 +79,25 @@ var BitmapFontFile = new Class({
 });
 
 /**
- * Adds a Bitmap Font file to the current load queue.
+ * Adds an XML Texture Atlas file to the current load queue.
  *
- * Note: This method will only be available if the Bitmap Font File type has been built into Phaser.
+ * Note: This method will only be available if the Atlas XML File type has been built into Phaser.
  *
  * The file is **not** loaded immediately after calling this method.
  * Instead, the file is added to a queue within the Loader, which is processed automatically when the Loader starts.
  *
- * @method Phaser.Loader.LoaderPlugin#bitmapFont
- * @since 3.0.0
+ * @method Phaser.Loader.LoaderPlugin#atlasXML
+ * @since 3.y.0
  *
- * @param {string} key - [description]
- * @param {string} textureURL - [description]
- * @param {string} xmlURL - [description]
- * @param {XHRSettingsObject} [textureXhrSettings] - [description]
- * @param {XHRSettingsObject} [xmlXhrSettings] - [description]
+ * @param {string} key - The key of the file within the loader.
+ * @param {string} textureURL - The url to load the texture file from.
+ * @param {string} atlasURL - The url to load the atlas file from.
+ * @param {XHRSettingsObject} [textureXhrSettings] - Optional texture file specific XHR settings.
+ * @param {XHRSettingsObject} [atlasXhrSettings] - Optional atlas file specific XHR settings.
  *
  * @return {Phaser.Loader.LoaderPlugin} The Loader.
  */
-FileTypesManager.register('bitmapFont', function (key, textureURL, xmlURL, textureXhrSettings, xmlXhrSettings)
+FileTypesManager.register('atlasXML', function (key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings)
 {
     var multifile;
 
@@ -104,14 +109,14 @@ FileTypesManager.register('bitmapFont', function (key, textureURL, xmlURL, textu
     {
         for (var i = 0; i < key.length; i++)
         {
-            multifile = new BitmapFontFile(this, key[i]);
+            multifile = new AtlasXMLFile(this, key[i]);
 
             this.addFile(multifile.files);
         }
     }
     else
     {
-        multifile = new BitmapFontFile(this, key, textureURL, xmlURL, textureXhrSettings, xmlXhrSettings);
+        multifile = new AtlasXMLFile(this, key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings);
 
         this.addFile(multifile.files);
     }
@@ -119,4 +124,4 @@ FileTypesManager.register('bitmapFont', function (key, textureURL, xmlURL, textu
     return this;
 });
 
-module.exports = BitmapFontFile;
+module.exports = AtlasXMLFile;

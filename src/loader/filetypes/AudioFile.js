@@ -94,7 +94,7 @@ var AudioFile = new Class({
 
 });
 
-function createAudio (loader, key, urls, config, xhrSettings)
+AudioFile.create = function (loader, key, urls, config, xhrSettings)
 {
     var game = loader.systems.game;
     var audioConfig = game.config.audio;
@@ -107,7 +107,7 @@ function createAudio (loader, key, urls, config, xhrSettings)
         config = GetFastValue(key, 'config', {});
     }
 
-    var urlConfig = findAudioURL(game, urls);
+    var urlConfig = AudioFile.getAudioURL(game, urls);
 
     if (!urlConfig)
     {
@@ -115,7 +115,7 @@ function createAudio (loader, key, urls, config, xhrSettings)
     }
 
     // https://developers.google.com/web/updates/2012/02/HTML5-audio-and-the-Web-Audio-API-are-BFFs
-    var stream = GetFastValue(config, 'stream', false);
+    // var stream = GetFastValue(config, 'stream', false);
 
     if (deviceAudio.webAudio && !(audioConfig && audioConfig.disableWebAudio))
     {
@@ -125,9 +125,9 @@ function createAudio (loader, key, urls, config, xhrSettings)
     {
         return new HTML5AudioFile(loader, key, urlConfig, config);
     }
-}
+};
 
-function findAudioURL (game, urls)
+AudioFile.getAudioURL = function (game, urls)
 {
     if (!Array.isArray(urls))
     {
@@ -157,7 +157,7 @@ function findAudioURL (game, urls)
     }
 
     return null;
-}
+};
 
 /**
  * Adds an Audio file to the current load queue.
@@ -189,12 +189,14 @@ FileTypesManager.register('audio', function (key, urls, config, xhrSettings)
         return this;
     }
 
+    var audioFile;
+
     if (Array.isArray(key))
     {
         for (var i = 0; i < key.length; i++)
         {
             //  If it's an array it has to be an array of Objects, so we get everything out of the 'key' object
-            var audioFile = createAudio(this, key[i]);
+            audioFile = AudioFile.create(this, key[i]);
 
             if (audioFile)
             {
@@ -204,7 +206,7 @@ FileTypesManager.register('audio', function (key, urls, config, xhrSettings)
     }
     else
     {
-        var audioFile = createAudio(this, key, urls, config, xhrSettings);
+        audioFile = AudioFile.create(this, key, urls, config, xhrSettings);
 
         if (audioFile)
         {
