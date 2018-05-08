@@ -18,6 +18,7 @@ var IsPlainObject = require('../../utils/object/IsPlainObject');
  * @property {string} [url] - The absolute or relative URL to load the file from.
  * @property {string} [extension='bin'] - The default file extension to use if no url is provided.
  * @property {XHRSettingsObject} [xhrSettings] - Extra XHR Settings specifically for this file.
+ * @property {any} [dataType] - Optional type to cast the binary file to once loaded. For example, `Uint8Array`.
  */
 
 /**
@@ -38,6 +39,7 @@ var IsPlainObject = require('../../utils/object/IsPlainObject');
  * @param {(string|Phaser.Loader.FileTypes.BinaryFileConfig)} key - The key to use for this file, or a file configuration object.
  * @param {string} [url] - The absolute or relative URL to load this file from. If undefined or `null` it will be set to `<key>.bin`, i.e. if `key` was "alien" then the URL will be "alien.bin".
  * @param {XHRSettingsObject} [xhrSettings] - Extra XHR Settings specifically for this file.
+ * @param {any} [dataType] - Optional type to cast the binary file to once loaded. For example, `Uint8Array`.
  */
 var BinaryFile = new Class({
 
@@ -45,7 +47,7 @@ var BinaryFile = new Class({
 
     initialize:
 
-    function BinaryFile (loader, key, url, xhrSettings)
+    function BinaryFile (loader, key, url, xhrSettings, dataType)
     {
         var extension = 'bin';
 
@@ -57,6 +59,7 @@ var BinaryFile = new Class({
             url = GetFastValue(config, 'url');
             xhrSettings = GetFastValue(config, 'xhrSettings');
             extension = GetFastValue(config, 'extension', extension);
+            dataType = GetFastValue(config, 'dataType', dataType);
         }
 
         var fileConfig = {
@@ -66,7 +69,8 @@ var BinaryFile = new Class({
             responseType: 'arraybuffer',
             key: key,
             url: url,
-            xhrSettings: xhrSettings
+            xhrSettings: xhrSettings,
+            config: { dataType: dataType }
         };
 
         File.call(this, loader, fileConfig);
@@ -83,7 +87,9 @@ var BinaryFile = new Class({
     {
         this.state = CONST.FILE_PROCESSING;
 
-        this.data = this.xhrLoader.response;
+        var ctor = this.config.dataType;
+
+        this.data = (ctor) ? new ctor(this.xhrLoader.response) : this.xhrLoader.response;
 
         this.onProcessComplete();
     }
@@ -93,9 +99,22 @@ var BinaryFile = new Class({
 /**
  * Adds a Binary file, or array of Binary files, to the current load queue.
  *
- * The file is **not** loaded immediately, it is added to a queue ready to be loaded either when the loader starts,
- * or if it's already running, when the next free load slot becomes available. This means you cannot use the file
- * immediately after calling this method, but instead must wait for the file to complete.
+ * You can call this method from within your Scene's `preload`, along with any other files you wish to load:
+ * 
+ * ```javascript
+ * function preload ()
+ * {
+ *     this.load.binary('doom', 'files/Doom.wad');
+ * }
+ * ```
+ *
+ * The file is **not** loaded right away. It is added to a queue ready to be loaded either when the loader starts,
+ * or if it's already running, when the next free load slot becomes available. This happens automatically if you
+ * are calling this from within the Scene's `preload` method, or a related callback. Because the file is queued
+ * it means you cannot use the file immediately after calling this method, but must wait for the file to complete.
+ * The typical flow for a Phaser Scene is that you load assets in the Scene's `preload` method and then when the
+ * Scene's `create` method is called you are guaranteed that all of those assets are ready for use and have been
+ * loaded.
  * 
  * The key must be a unique String. It is used to add the file to the global Binary Cache upon a successful load.
  * The key should be unique both in terms of files being loaded and files already present in the Binary Cache.
@@ -107,7 +126,8 @@ var BinaryFile = new Class({
  * ```javascript
  * this.load.binary({
  *     key: 'doom',
- *     url: 'files/Doom.wad'
+ *     url: 'files/Doom.wad',
+ *     dataType: Uint8Array
  * });
  * ```
  *
@@ -140,11 +160,12 @@ var BinaryFile = new Class({
  *
  * @param {(string|Phaser.Loader.FileTypes.BinaryFileConfig|Phaser.Loader.FileTypes.BinaryFileConfig[])} key - The key to use for this file, or a file configuration object, or array of them.
  * @param {string} [url] - The absolute or relative URL to load this file from. If undefined or `null` it will be set to `<key>.bin`, i.e. if `key` was "alien" then the URL will be "alien.bin".
+ * @param {any} [dataType] - Optional type to cast the binary file to once loaded. For example, `Uint8Array`.
  * @param {XHRSettingsObject} [xhrSettings] - An XHR Settings configuration object. Used in replacement of the Loaders default XHR Settings.
  *
  * @return {Phaser.Loader.LoaderPlugin} The Loader instance.
  */
-FileTypesManager.register('binary', function (key, url, xhrSettings)
+FileTypesManager.register('binary', function (key, url, dataType, xhrSettings)
 {
     if (Array.isArray(key))
     {
@@ -156,7 +177,7 @@ FileTypesManager.register('binary', function (key, url, xhrSettings)
     }
     else
     {
-        this.addFile(new BinaryFile(this, key, url, xhrSettings));
+        this.addFile(new BinaryFile(this, key, url, xhrSettings, dataType));
     }
 
     return this;
