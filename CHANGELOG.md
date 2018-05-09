@@ -1,6 +1,30 @@
 # Change Log
 
-## Version 3.7.0 - Sinon - 8th May 2018
+## Version 3.next - in development
+
+### New Features
+
+### Updates
+
+* WebGLRenderer.config has a new property `maxTextures` which is derived from `gl.MAX_TEXTURE_IMAGE_UNITS`, you can get it via the new method `getMaxTextures()`.
+* WebGLRenderer.config has a new property `maxTextureSize` which is derived from `gl.MAX_TEXTURE_SIZE`, you can get it via the new method `getMaxTextureSize()`
+* WebGLRenderer has a new property `compression` which holds the browser / devices compressed texture support gl extensions, which is populated during `init`.
+* Optimized TextureTintPipeline.drawBlitter so it skips bobs that have alpha of zero and only calls `setTexture2D` if the bob sourceIndex has changed, previously it called it for every single bob.
+
+### Bug Fixes
+
+* The Script File type in the Loader didn't create itself correctly as it was missing an argument (thanks @TadejZupancic)
+* The Plugin File type in the Loader didn't create itself correctly as it was missing an argument.
+* WebAudioSoundManager.unlock will now check if `document.body` is available before setting the listeners on it. Fixes old versions of Firefox, apparently. #3649 (thanks @squilibob)
+
+### Examples, Documentation and TypeScript
+
+My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
+
+
+
+
+## Version 3.7.1 - Sinon - 8th May 2018
 
 ### New Features
 
@@ -52,9 +76,9 @@ The Loader has been given an overhaul to improve its performance and extensibili
 
 ### Updates
 
-* If you're using Webpack with Phaser you'll need to update your config to match our new one.
-* We've swapped use of the Webpack DefinePlugin so instead of setting a global flag for the compilation of the Canvas and WebGL renderers, we now use a typeof check instead. This means you should now be able to ingest the Phaser source more easily outside of Webpack without having to define any global vars first (thanks @tgrajewski)
-* Under Webpack we still use the raw-loader to import our shader source, but outside of Webpack we now use `require.extensions` to load the shader source via fs. This should allow you to bundle Phaser with packages other than Webpack more easily (thanks @tgrajewski)
+* If you're using Webpack with Phaser you'll need to update your config to match our new one. The two changes are: We've removed the need for `raw-loader` and we've changed the syntax of the DefinePlugin calls:
+* We've swapped use of the Webpack DefinePlugin so instead of setting a global flag for the compilation of the Canvas and WebGL renderers, we use a typeof check instead. This means you should now be able to ingest the Phaser source more easily outside of Webpack without having to define any global vars (thanks @tgrajewski)
+* Under Webpack we still no longer use `raw-loader` to import our shader source. Instead it's compiled to plain JS files during our in-house workflow. This should allow you to bundle Phaser with packages other than Webpack more easily.
 * The Texture Manager will now emit an `addtexture` event whenever you add a new texture to it, which includes when you load image files from the Loader (as it automatically populates the Texture Manager). Once you receive an `addtexture` event you know the image is loaded and the texture is safe to be applied to a Game Object.
 * BitmapMask and GeometryMask both have new `destroy` methods which clear their references, freeing them for gc.
 * CanvasPool has a new argument `selfParent` which allows the canvas itself to be the parent key, used for later removal.
@@ -102,6 +126,10 @@ The Loader has been given an overhaul to improve its performance and extensibili
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
 @wtravO @Fabadiculous @zilbuz @samme @iamchristopher @erd0s @PaNaVTEC @ksmai @snowbillr 
+
+## Version 3.7.0 - Sinon - 4th May 2018
+
+A beta release of the 3.7.0 version. See 3.7.1 for details.
 
 ## Version 3.6.0 - Asuna - 19th April 2018
 

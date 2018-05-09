@@ -13,7 +13,7 @@ var JSONFile = require('./JSONFile.js');
 var MultiFile = require('../MultiFile.js');
 
 /**
- * @typedef {object} Phaser.Loader.FileTypes.AudioSpriteFileFileConfig
+ * @typedef {object} Phaser.Loader.FileTypes.AudioSpriteFileConfig
  *
  * @property {string} key - The key of the file. Must be unique within both the Loader and the Audio Cache.
  * @property {string} jsonURL - The absolute or relative URL to load the json file from. Or a well formed JSON object to use instead.
@@ -254,10 +254,10 @@ var AudioSpriteFile = new Class({
 FileTypesManager.register('audioSprite', function (key, jsonURL, audioURL, audioConfig, audioXhrSettings, jsonXhrSettings)
 {
     var game = this.systems.game;
-    var audioConfig = game.config.audio;
+    var gameAudioConfig = game.config.audio;
     var deviceAudio = game.device.audio;
 
-    if ((audioConfig && audioConfig.noAudio) || (!deviceAudio.webAudio && !deviceAudio.audioData))
+    if ((gameAudioConfig && gameAudioConfig.noAudio) || (!deviceAudio.webAudio && !deviceAudio.audioData))
     {
         //  Sounds are disabled, so skip loading audio
         return this;
