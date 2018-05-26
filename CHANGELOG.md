@@ -1,9 +1,20 @@
 # Change Log
 
-## Version 3.next - Yui - in development
+## Version 3.10.0 - Hayashi - in development
 
 ### New Features
 
+### Updates
+
+### Bug Fixes
+
+
+
+## Version 3.9.0 - Yui - 24th May 2018
+
+### New Features
+
+* The command `npm run help` will display a friendly list of all the scripts available (run `npm install` first)
 * Game has a new property `hasFocus` which is a read-only boolean that lets you know if the window the game is embedded in (including in an iframe) currently has focus or not.
 * Game.Config has a new property `autoFocus`, which is `true` by default, and will automatically call `window.focus()` when the game starts.
 * Clicking on the canvas will automatically call `window.focus`. This means in games that use keyboard controls if you tab or click away from the game, then click back on it again, the keys will carry on working (where-as before they would remain unfocused)
@@ -14,8 +25,13 @@
 * PluginManager.registerFileType has a new property `addToScene` which allows you to inject the new file type into the LoaderPlugin of the given Scene. You could use this to add the file type into the Scene in which it was loaded.
 * PluginManager.install has a new property `mapping`. This allows you to give a Global Plugin a property key, so that it is automatically injected into any Scenes as a Scene level instance. This allows you to have a single global plugin running in the PluginManager, that is injected into every Scene automatically.
 * Camera.lerp has been implemented and allows you to specify the linear interpolation value used when following a target, to provide for smoothed camera tracking.
-* Camera.startFollow has 2 new arguments: `lerpX` and `lerpY` which allow you to set the interpolation value used when following the target. The default is 1 (no interpolation).
-* Camera.startFollow will now immediately set the camera scrollX and Y values to be that of the target to avoid large initial lerps during the first few preUpdates.
+* Camera.setLerp is a chainable method to set the Camera.lerp property.
+* Camera.followOffset is a new property that allows you to specify an offset from the target position that the camera is following (thanks @hermbit)
+* Camera.setFollowOffset is a chainable method to set the Camera.followOffset property.
+* Camera.startFollow has 4 new arguments: `lerpX` and `lerpY` which allow you to set the interpolation value used when following the target. The default is 1 (no interpolation) and `offsetX` and `offsetY` which allow you to set the follow offset values.
+* Camera.startFollow will now immediately set the camera `scrollX` and `scrollY` values to be that of the target position to avoid a large initial lerps during the first few preUpdates.
+* Math.Interpolation.SmoothStep is a new method that will return the smooth step interpolated value based on the given percentage and left and right edges.
+* Math.Interpolation.SmootherStep is a new method that will return the smoother step interpolated value based on the given percentage and left and right edges.
 
 ### Updates
 
@@ -32,6 +48,7 @@
 * Container removeHandler will re-instate a child's Scene shutdown listener.
 * Container preDestroy now handles the pre-destroy calls, such as clearing the container.
 * Blitter preDestroy will now clear the children List and renderList.
+* The AudioContextMonkeyPatch has been updated to use an iife. Fix #3437 (thanks @NebSehemvi)
 
 ### Bug Fixes
 
@@ -44,14 +61,16 @@
 * The `dragend` event would be broadcast even if the drag distance or drag time thresholds were not met. Fix #3686 (thanks @RollinSafary)
 * Restarting a Tween immediately after creating it, without it having first started, would cause it to get stuck permanently in the Tween Managers add queue (thanks @Antriel @zacharysarette)
 * Setting an existing Game Object as a static Arcade Physics body would sometimes incorrectly pick-up the dimensions of the object, such as with TileSprites. Fix #3690 (thanks @fariazz)
-* Interactive Objects were not fully removed from the Input Plugin when cleared, causing the internal _list array to grow. Fix #3645 (thanks @tjb295 for the fix and @rexrainbow for the issue)
+* Interactive Objects were not fully removed from the Input Plugin when cleared, causing the internal list array to grow. Fix #3645 (thanks @tjb295 for the fix and @rexrainbow for the issue)
+* Camera.shake would not effect dynamic tilemap layers. Fix #3669 (thanks @kainage)
 
 ### Examples, Documentation and TypeScript
+
+Thanks to the work of @hexus we have now documented nearly all of the Math namespace. This is hundreds of functions now covered by full docs and is work we'll continue in the coming weeks.
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
 @mikez @wtravO @thomastanck
-
 
 ## Version 3.8.0 - Klein - 16th May 2018
 
