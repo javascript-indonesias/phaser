@@ -2,15 +2,38 @@
 
 ## Version 3.10.0 - Hayashi - in development
 
+### Arcade Physics New Features + Updates
+
+* Arcade Physics now uses a fixed time-step for all internal calculations. There is a new `fps` config value and property (defaults to 60fps), which you can change at run-time using the `setFPS` method. The core update loop has been recoded so that it steps based entirely on the given frame rate, and not the wall-clock or game step delta. This fixed time step allows for a straightforward implementation of a deterministic game state. Meaning you can now set the fps rate to a high value such as 240, regardless of the browser update speed (it will simply perform more physics steps per game step). This is handy if you want to increase the accuracy of the simulation in certain cases.
+* You can also optionally call the `step` function directly, to manually advance the simulation.
+* There is a new property `timeScale` which will scale all time-step calculations at run-time, allowing you to speed-up or slow-down your simulation at will, without adjusting the frame rate.
+* You can now disable the use of the RTree for dynamic bodies via the config property `useTree`. In certain situations, i.e. densely packed worlds, this may give better performance. Static bodies will always use an RTree.
+* collideSpriteVsGroup has been rewritten. If you are using an RTree it now uses the results directly from the tree search, instead of iterating all children in the Group, which dramatically reduces the iteration count. If you have disabled the RTree it performs a brute-force O(N2) Sprite vs. Group iteration sweep. We tested multiple axis sorting variants but the cost of the array allocation and/or sorting, with large amounts of bodies (10,000+), far outweighed the simple math involved in the separation logic.
+* GetOverlapX/Y now use the calculated delta values, not the deltaX/Y methods.
+* collideSpriteVsGroup aborts early if the Sprite body has been disabled.
+* updateMotion has a new argument `delta` which should typically be a fixed-time delta value.
+* computeVelocity has a new argument `delta` which should typically be a fixed-time delta value.
+* intersects has been restructured to prioritize rect vs. rect checks.
+* Body update and postUpdate have been recoded to handle the new fixed time-step system in place. update now takes a new argument, delta, which is used internally for calculations.
+* Body.dirty has been removed as a property as it's no longer used internally.
+* Body.deltaAbsX and deltaAbsY now return the cached absolute delta value from the previous update, and no longer calculate it during the actual call.
+
 ### New Features
 
-* RenderTexture.resize will allow you to resize the underlying Render Texture to the new dimensions given. Doing this also clears the Render Texture at the same time (thanks @saqsun)
+* RenderTexture.resize will allow you to resize the underlying Render Texture to the new dimensions given. Doing this also clears the Render Texture at the same time (thanks @saqsun).
+* Rectangle.RandomOutside is a new function that takes two Rectangles, `outer` and `inner`, and returns a random point that falls within the outer rectangle but is always outside of the inner rectangle.
 
 ### Updates
 
+* The ForwardDiffuseLightPipeline, used by the Lights system, now sets a flag if the Scene doesn't contain any lights. All of the Game Objects now check this flag and don't even bother adding themselves to the batch if there are no lights in the Scene, as they'd never render anyway. This also avoids the ghost-image problem if you swap Scenes to a new Scene with the Light Manager enabled, but no actual lights defined. Fix #3707 (thanks @samvieten).
+
 ### Bug Fixes
 
-* The Canvas RenderTexture drawImage method incorrectly set the values of the frame, causing them to appear wrongly scaled in the canvas renderer. Fix #3710 (thanks @saqsun)
+* The Canvas RenderTexture drawImage method incorrectly set the values of the frame, causing them to appear wrongly scaled in the canvas renderer. Fix #3710 (thanks @saqsun).
+* Fixed `Math.Matrix4.makeRotationAxis()`.
+* Fixed an incorrect usage of `Math.abs()` in `Math.Quaternion.calculateW()` (thanks @qxzkjp).
+* Particle Emitter Managers can now be added to Containers (thanks @TadejZupancic)
+* Fixed a method signature issue with the Animation component's `remove()` handler when `Animation`s are removed from the `AnimationManager`. This prevented removed animations from stopping correctly.
 
 ## Version 3.9.0 - Yui - 24th May 2018
 
