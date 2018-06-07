@@ -8,11 +8,12 @@ var Axis = require('./Axis');
 var Button = require('./Button');
 var Class = require('../../utils/Class');
 var EventEmitter = require('eventemitter3');
+var Vector2 = require('../../math/Vector2');
 
 /**
  * @classdesc
  * A single Gamepad.
- * 
+ *
  * These are created, updated and managed by the Gamepad Manager.
  *
  * @class Gamepad
@@ -54,13 +55,13 @@ var Gamepad = new Class({
 
         /**
          * A string containing some information about the controller.
-         * 
+         *
          * This is not strictly specified, but in Firefox it will contain three pieces of information
          * separated by dashes (-): two 4-digit hexadecimal strings containing the USB vendor and
          * product id of the controller, and the name of the controller as provided by the driver.
          * In Chrome it will contain the name of the controller as provided by the driver,
          * followed by vendor and product 4-digit hexadecimal strings.
-         * 
+         *
          * @name Phaser.Input.Gamepad.Gamepad#id
          * @type {string}
          * @since 3.0.0
@@ -112,7 +113,8 @@ var Gamepad = new Class({
 
         /**
          * The Gamepad's Haptic Actuator (Vibration / Rumble support).
-         * Only set if present on the device and exposed by both the hardware and browser.
+         * This is highly experimental and only set if both present on the device,
+         * and exposed by both the hardware and browser.
          *
          * @name Phaser.Input.Gamepad.Gamepad#vibration
          * @type {GamepadHapticActuator}
@@ -142,7 +144,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._LCRight = (buttons[15]) ? buttons[15] : _noButton;;
+        this._LCRight = (buttons[15]) ? buttons[15] : _noButton;
 
         /**
          * A reference to the Top Button in the Left Cluster.
@@ -152,7 +154,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._LCTop = (buttons[12]) ? buttons[12] : _noButton;;
+        this._LCTop = (buttons[12]) ? buttons[12] : _noButton;
 
         /**
          * A reference to the Bottom Button in the Left Cluster.
@@ -162,7 +164,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._LCBottom = (buttons[13]) ? buttons[13] : _noButton;;
+        this._LCBottom = (buttons[13]) ? buttons[13] : _noButton;
 
         /**
          * A reference to the Left Button in the Right Cluster.
@@ -172,7 +174,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._RCLeft = (buttons[2]) ? buttons[2] : _noButton;;
+        this._RCLeft = (buttons[2]) ? buttons[2] : _noButton;
 
         /**
          * A reference to the Right Button in the Right Cluster.
@@ -182,7 +184,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._RCRight = (buttons[1]) ? buttons[1] : _noButton;;
+        this._RCRight = (buttons[1]) ? buttons[1] : _noButton;
 
         /**
          * A reference to the Top Button in the Right Cluster.
@@ -192,7 +194,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._RCTop = (buttons[3]) ? buttons[3] : _noButton;;
+        this._RCTop = (buttons[3]) ? buttons[3] : _noButton;
 
         /**
          * A reference to the Bottom Button in the Right Cluster.
@@ -202,7 +204,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._RCBottom = (buttons[0]) ? buttons[0] : _noButton;;
+        this._RCBottom = (buttons[0]) ? buttons[0] : _noButton;
 
         /**
          * A reference to the Top Left Front Button (L1 Shoulder Button)
@@ -212,7 +214,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._FBLeftTop = (buttons[4]) ? buttons[4] : _noButton;;
+        this._FBLeftTop = (buttons[4]) ? buttons[4] : _noButton;
 
         /**
          * A reference to the Bottom Left Front Button (L2 Shoulder Button)
@@ -222,7 +224,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._FBLeftBottom = (buttons[6]) ? buttons[6] : _noButton;;
+        this._FBLeftBottom = (buttons[6]) ? buttons[6] : _noButton;
 
         /**
          * A reference to the Top Right Front Button (R1 Shoulder Button)
@@ -232,7 +234,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._FBRightTop = (buttons[5]) ? buttons[5] : _noButton;;
+        this._FBRightTop = (buttons[5]) ? buttons[5] : _noButton;
 
         /**
          * A reference to the Bottom Right Front Button (R2 Shoulder Button)
@@ -242,7 +244,7 @@ var Gamepad = new Class({
          * @private
          * @since 3.10.0
          */
-        this._FBRightBottom = (buttons[7]) ? buttons[7] : _noButton;;
+        this._FBRightBottom = (buttons[7]) ? buttons[7] : _noButton;
 
         var _noAxis = { value: 0 };
 
@@ -285,12 +287,98 @@ var Gamepad = new Class({
          * @since 3.10.0
          */
         this._VAxisRight = (axes[3]) ? axes[3] : _noAxis;
+
+        /**
+         * A Vector2 containing the most recent values from the Gamepad's left axis stick.
+         * This is updated automatically as part of the Gamepad.update cycle.
+         * The H Axis is mapped to the `Vector2.x` property, and the V Axis to the `Vector2.y` property.
+         * The values are based on the Axis thresholds.
+         * If the Gamepad does not have a left axis stick, the values will always be zero.
+         *
+         * @name Phaser.Input.Gamepad.Gamepad#leftStick
+         * @type {Phaser.Math.Vector2}
+         * @since 3.10.0
+         */
+        this.leftStick = new Vector2();
+
+        /**
+         * A Vector2 containing the most recent values from the Gamepad's right axis stick.
+         * This is updated automatically as part of the Gamepad.update cycle.
+         * The H Axis is mapped to the `Vector2.x` property, and the V Axis to the `Vector2.y` property.
+         * The values are based on the Axis thresholds.
+         * If the Gamepad does not have a right axis stick, the values will always be zero.
+         *
+         * @name Phaser.Input.Gamepad.Gamepad#rightStick
+         * @type {Phaser.Math.Vector2}
+         * @since 3.10.0
+         */
+        this.rightStick = new Vector2();
+    },
+
+    /**
+     * Gets the total number of axis this Gamepad claims to support.
+     *
+     * @method Phaser.Input.Gamepad.Gamepad#getAxisTotal
+     * @since 3.10.0
+     *
+     * @return {integer} The total number of axes this Gamepad claims to support.
+     */
+    getAxisTotal: function ()
+    {
+        return this.axes.length;
+    },
+
+    /**
+     * Gets the value of an axis based on the given index.
+     * The index must be valid within the range of axes supported by this Gamepad.
+     * The return value will be a float between 0 and 1.
+     *
+     * @method Phaser.Input.Gamepad.Gamepad#getAxisValue
+     * @since 3.10.0
+     *
+     * @param {integer} index - The index of the axes to get the value for.
+     *
+     * @return {number} The value of the axis, between 0 and 1.
+     */
+    getAxisValue: function (index)
+    {
+        return this.axes[index].getValue();
+    },
+
+    /**
+     * Sets the threshold value of all axis on this Gamepad.
+     * The value is a float between 0 and 1 and is the amount below which the axis is considered as not having been moved.
+     *
+     * @method Phaser.Input.Gamepad.Gamepad#setAxisThreshold
+     * @since 3.10.0
+     *
+     * @param {number} value - A value between 0 and 1.
+     */
+    setAxisThreshold: function (value)
+    {
+        for (var i = 0; i < this.axes.length; i++)
+        {
+            this.axes[i].threshold = value;
+        }
+    },
+
+    /**
+     * Gets the total number of buttons this Gamepad claims to have.
+     *
+     * @method Phaser.Input.Gamepad.Gamepad#getButtonTotal
+     * @since 3.10.0
+     *
+     * @return {integer} The total number of buttons this Gamepad claims to have.
+     */
+    getButtonTotal: function ()
+    {
+        return this.buttons.length;
     },
 
     /**
      * Gets the value of a button based on the given index.
      * The index must be valid within the range of buttons supported by this Gamepad.
-     * 
+     *
      * The return value will be either 0 or 1 for an analogue button, or a float between 0 and 1
      * for a pressure-sensitive digital button, such as the shoulder buttons on a Dual Shock.
      *
@@ -339,7 +427,9 @@ var Gamepad = new Class({
         var localButtons = this.buttons;
         var gamepadButtons = pad.buttons;
 
-        for (i = 0; i < localButtons.length; i++)
+        var len = localButtons.length;
+
+        for (i = 0; i < len; i++)
         {
             localButtons[i].update(gamepadButtons[i].value);
         }
@@ -349,9 +439,21 @@ var Gamepad = new Class({
         var localAxes = this.axes;
         var gamepadAxes = pad.axes;
 
-        for (i = 0; i < localAxes.length; i++)
+        len = localAxes.length;
+
+        for (i = 0; i < len; i++)
         {
             localAxes[i].update(gamepadAxes[i]);
+        }
+
+        if (len >= 2)
+        {
+            this.leftStick.set(localAxes[0].getValue(), localAxes[1].getValue());
+
+            if (len >= 4)
+            {
+                this.rightStick.set(localAxes[2].getValue(), localAxes[3].getValue());
+            }
         }
     },
 
@@ -419,6 +521,7 @@ var Gamepad = new Class({
 
     /**
      * Is the Gamepad's Left button being pressed?
+     * If the Gamepad doesn't have this button it will always return false.
      * This is the d-pad left button under standard Gamepad mapping.
      *
      * @name Phaser.Input.Gamepad.Gamepad#left
@@ -436,6 +539,7 @@ var Gamepad = new Class({
 
     /**
      * Is the Gamepad's Right button being pressed?
+     * If the Gamepad doesn't have this button it will always return false.
      * This is the d-pad right button under standard Gamepad mapping.
      *
      * @name Phaser.Input.Gamepad.Gamepad#right
@@ -453,6 +557,7 @@ var Gamepad = new Class({
 
     /**
      * Is the Gamepad's Up button being pressed?
+     * If the Gamepad doesn't have this button it will always return false.
      * This is the d-pad up button under standard Gamepad mapping.
      *
      * @name Phaser.Input.Gamepad.Gamepad#up
@@ -470,6 +575,7 @@ var Gamepad = new Class({
 
     /**
      * Is the Gamepad's Down button being pressed?
+     * If the Gamepad doesn't have this button it will always return false.
      * This is the d-pad down button under standard Gamepad mapping.
      *
      * @name Phaser.Input.Gamepad.Gamepad#down
@@ -487,6 +593,7 @@ var Gamepad = new Class({
 
     /**
      * Is the Gamepad's bottom button in the right button cluster being pressed?
+     * If the Gamepad doesn't have this button it will always return false.
      * On a Dual Shock controller it's the X button.
      * On an XBox controller it's the A button.
      *
@@ -505,6 +612,7 @@ var Gamepad = new Class({
 
     /**
      * Is the Gamepad's top button in the right button cluster being pressed?
+     * If the Gamepad doesn't have this button it will always return false.
      * On a Dual Shock controller it's the Triangle button.
      * On an XBox controller it's the Y button.
      *
@@ -523,6 +631,7 @@ var Gamepad = new Class({
 
     /**
      * Is the Gamepad's left button in the right button cluster being pressed?
+     * If the Gamepad doesn't have this button it will always return false.
      * On a Dual Shock controller it's the Square button.
      * On an XBox controller it's the X button.
      *
@@ -541,6 +650,7 @@ var Gamepad = new Class({
 
     /**
      * Is the Gamepad's right button in the right button cluster being pressed?
+     * If the Gamepad doesn't have this button it will always return false.
      * On a Dual Shock controller it's the Circle button.
      * On an XBox controller it's the B button.
      *
@@ -553,6 +663,86 @@ var Gamepad = new Class({
         get: function ()
         {
             return this._RCRight.pressed;
+        }
+
+    },
+
+    /**
+     * Returns the value of the Gamepad's top left shoulder button.
+     * If the Gamepad doesn't have this button it will always return zero.
+     * The value is a float between 0 and 1, corresponding to how depressed the button is.
+     * On a Dual Shock controller it's the L1 button.
+     * On an XBox controller it's the LB button.
+     *
+     * @name Phaser.Input.Gamepad.Gamepad#L1
+     * @type {number}
+     * @since 3.10.0
+     */
+    L1: {
+
+        get: function ()
+        {
+            return this._FBLeftTop.value;
+        }
+
+    },
+
+    /**
+     * Returns the value of the Gamepad's bottom left shoulder button.
+     * If the Gamepad doesn't have this button it will always return zero.
+     * The value is a float between 0 and 1, corresponding to how depressed the button is.
+     * On a Dual Shock controller it's the L2 button.
+     * On an XBox controller it's the LT button.
+     *
+     * @name Phaser.Input.Gamepad.Gamepad#L2
+     * @type {number}
+     * @since 3.10.0
+     */
+    L2: {
+
+        get: function ()
+        {
+            return this._FBLeftBottom.value;
+        }
+
+    },
+
+    /**
+     * Returns the value of the Gamepad's top right shoulder button.
+     * If the Gamepad doesn't have this button it will always return zero.
+     * The value is a float between 0 and 1, corresponding to how depressed the button is.
+     * On a Dual Shock controller it's the R1 button.
+     * On an XBox controller it's the RB button.
+     *
+     * @name Phaser.Input.Gamepad.Gamepad#R1
+     * @type {number}
+     * @since 3.10.0
+     */
+    R1: {
+
+        get: function ()
+        {
+            return this._FBRightTop.value;
+        }
+
+    },
+
+    /**
+     * Returns the value of the Gamepad's bottom right shoulder button.
+     * If the Gamepad doesn't have this button it will always return zero.
+     * The value is a float between 0 and 1, corresponding to how depressed the button is.
+     * On a Dual Shock controller it's the R2 button.
+     * On an XBox controller it's the RT button.
+     *
+     * @name Phaser.Input.Gamepad.Gamepad#R2
+     * @type {number}
+     * @since 3.10.0
+     */
+    R2: {
+
+        get: function ()
+        {
+            return this._FBRightBottom.value;
         }
 
     }
