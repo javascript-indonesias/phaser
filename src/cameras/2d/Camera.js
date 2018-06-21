@@ -228,8 +228,8 @@ var Camera = new Class({
          * @type {float}
          * @default 1
          * @since 3.0.0
-         */
         this.zoom = 1;
+         */
 
         /**
          * The rotation of the Camera. This influences the rendering of all Game Objects visible by this camera.
@@ -367,6 +367,32 @@ var Camera = new Class({
         this.midPoint = new Vector2(width / 2, height / 2);
 
         /**
+         * The horizontal origin of this Game Object.
+         * The origin maps the relationship between the size and position of the Game Object.
+         * The default value is 0.5, meaning all Game Objects are positioned based on their center.
+         * Setting the value to 0 means the position now relates to the left of the Game Object.
+         *
+         * @name Phaser.GameObjects.Components.Origin#originX
+         * @type {float}
+         * @default 0.5
+         * @since 3.11.0
+         */
+        this.originX = 0.5;
+
+        /**
+         * The vertical origin of this Game Object.
+         * The origin maps the relationship between the size and position of the Game Object.
+         * The default value is 0.5, meaning all Game Objects are positioned based on their center.
+         * Setting the value to 0 means the position now relates to the top of the Game Object.
+         *
+         * @name Phaser.GameObjects.Components.Origin#originY
+         * @type {float}
+         * @default 0.5
+         * @since 3.11.0
+         */
+        this.originY = 0.5;
+
+        /**
          * The Camera dead zone.
          * 
          * The deadzone is only used when the camera is following a target.
@@ -412,6 +438,33 @@ var Camera = new Class({
          * @since 3.0.0
          */
         this._id = 0;
+
+        this._zoom = 1;
+        this._zoomInversed = 1;
+    },
+
+    /**
+     * Sets the rotation origin of this Camera.
+     *
+     * The values are given in the range 0 to 1 and are only used when calculating Camera rotation.
+     *
+     * @method Phaser.GameObjects.Components.Origin#setOrigin
+     * @since 3.11.0
+     *
+     * @param {number} [x=0.5] - The horizontal origin value.
+     * @param {number} [y=x] - The vertical origin value. If not defined it will be set to the value of `x`.
+     *
+     * @return {this} This Camera instance.
+     */
+    setOrigin: function (x, y)
+    {
+        if (x === undefined) { x = 0.5; }
+        if (y === undefined) { y = x; }
+
+        this.originX = x;
+        this.originY = y;
+
+        return this;
     },
 
     /**
@@ -488,8 +541,10 @@ var Camera = new Class({
     {
         if (this.useBounds)
         {
-            this.scrollX = (this._bounds.width * 0.5) - (this.width * 0.5);
-            this.scrollY = (this._bounds.height * 0.5) - (this.height * 0.5);
+            var bounds = this._bounds;
+
+            this.scrollX = bounds.centerX - (this.width * 0.5);
+            this.scrollY = bounds.centerY - (this.height * 0.5);
         }
 
         return this;
@@ -830,12 +885,14 @@ var Camera = new Class({
     {
         var width = this.width;
         var height = this.height;
-        var zoom = this.zoom * baseScale;
+        var zoom = this._zoom * baseScale;
         var matrix = this.matrix;
-        var originX = width / 2;
-        var originY = height / 2;
+        var originX = width * this.originX;
+        var originY = height * this.originY;
         var follow = this._follow;
         var deadzone = this.deadzone;
+        var sx = this.scrollX;
+        var sy = this.scrollY;
 
         if (deadzone)
         {
@@ -851,26 +908,26 @@ var Camera = new Class({
             {
                 if (fx < deadzone.x)
                 {
-                    this.scrollX = Linear(this.scrollX, this.scrollX - (deadzone.x - fx), this.lerp.x);
+                    sx = Linear(sx, sx - (deadzone.x - fx), this.lerp.x);
                 }
                 else if (fx > deadzone.right)
                 {
-                    this.scrollX = Linear(this.scrollX, this.scrollX + (fx - deadzone.right), this.lerp.x);
+                    sx = Linear(sx, sx + (fx - deadzone.right), this.lerp.x);
                 }
 
                 if (fy < deadzone.y)
                 {
-                    this.scrollY = Linear(this.scrollY, this.scrollY - (deadzone.y - fy), this.lerp.y);
+                    sy = Linear(sy, sy - (deadzone.y - fy), this.lerp.y);
                 }
                 else if (fy > deadzone.bottom)
                 {
-                    this.scrollY = Linear(this.scrollY, this.scrollY + (fy - deadzone.bottom), this.lerp.y);
+                    sy = Linear(sy, sy + (fy - deadzone.bottom), this.lerp.y);
                 }
             }
             else
             {
-                this.scrollX = Linear(this.scrollX, fx - originX, this.lerp.x);
-                this.scrollY = Linear(this.scrollY, fy - originY, this.lerp.y);
+                sx = Linear(sx, fx - originX, this.lerp.x);
+                sy = Linear(sy, fy - originY, this.lerp.y);
             }
         }
 
@@ -878,35 +935,45 @@ var Camera = new Class({
         {
             var bounds = this._bounds;
 
-            var bw = Math.max(0, bounds.right - width);
-            var bh = Math.max(0, bounds.bottom - height);
+            var dw = this.displayWidth;
+            var dh = this.displayHeight;
 
-            if (this.scrollX < bounds.x)
+            var bx = bounds.x + ((dw - width) / 2);
+            var by = bounds.y + ((dh - height) / 2);
+            var bw = Math.max(bx, bx + bounds.width - dw);
+            var bh = Math.max(by, by + bounds.height - dh);
+
+            // this._tb = new Rectangle(bx, by, bw, bh);
+
+            if (sx < bx)
             {
-                this.scrollX = bounds.x;
+                sx = bx;
             }
-            else if (this.scrollX > bw)
+            else if (sx > bw)
             {
-                this.scrollX = bw;
+                sx = bw;
             }
 
-            if (this.scrollY < bounds.y)
+            if (sy < by)
             {
-                this.scrollY = bounds.y;
+                sy = by;
             }
-            else if (this.scrollY > bh)
+            else if (sy > bh)
             {
-                this.scrollY = bh;
+                sy = bh;
             }
         }
 
         if (this.roundPixels)
         {
-            this.scrollX = Math.round(this.scrollX);
-            this.scrollY = Math.round(this.scrollY);
+            originX = Math.round(originX);
+            originY = Math.round(originY);
         }
 
-        this.midPoint.set(this.scrollX + originX, this.scrollY + originY);
+        this.scrollX = sx;
+        this.scrollY = sy;
+
+        this.midPoint.set(sx + originX, sy + originY);
 
         matrix.loadIdentity();
         matrix.scale(resolution, resolution);
@@ -917,6 +984,36 @@ var Camera = new Class({
 
         this.shakeEffect.preRender();
     },
+
+    /*
+    getRenderX: function (src)
+    {
+        if (this.roundPixels)
+        {
+            var gap = this._zoomInversed;
+
+            return gap * Math.round((src.x - this.scrollX * src.scrollFactorX) / gap);
+        }
+        else
+        {
+            return src.x - this.scrollX * src.scrollFactorX;
+        }
+    },
+
+    getRenderY: function (src)
+    {
+        if (this.roundPixels)
+        {
+            var gap = this._zoomInversed;
+
+            return gap * Math.round((src.y - this.scrollY * src.scrollFactorY) / gap);
+        }
+        else
+        {
+            return src.y - this.scrollY * src.scrollFactorY;
+        }
+    },
+    */
 
     /**
      * If this Camera has previously had movement bounds set on it, this will remove them.
@@ -1250,13 +1347,18 @@ var Camera = new Class({
      * @method Phaser.Cameras.Scene2D.Camera#setZoom
      * @since 3.0.0
      *
-     * @param {float} [value=1] - The zoom value of the Camera.
+     * @param {float} [value=1] - The zoom value of the Camera. The minimum it can be is 0.001.
      *
      * @return {Phaser.Cameras.Scene2D.Camera} This Camera instance.
      */
     setZoom: function (value)
     {
         if (value === undefined) { value = 1; }
+
+        if (value === 0)
+        {
+            value = 0.001;
+        }
 
         this.zoom = value;
 
@@ -1461,10 +1563,9 @@ var Camera = new Class({
         this.culledObjects = [];
 
         this._follow = null;
-
         this._bounds = null;
-
         this.scene = null;
+        this.deadzone = null;
     },
 
     /**
@@ -1497,6 +1598,72 @@ var Camera = new Class({
         get: function ()
         {
             return this.y + (0.5 * this.height);
+        }
+
+    },
+
+    /**
+     * The displayed width of the camera viewport, factoring in the camera zoom level.
+     * 
+     * If a camera has a viewport width of 800 and a zoom of 0.5 then its display width
+     * would be 1600, as it's displaying twice as many pixels as zoom level 1.
+     * 
+     * Equally, a camera with a width of 800 and zoom of 2 would have a display width
+     * of 400 pixels.
+     *
+     * @name Phaser.Cameras.Scene2D.Camera#displayWidth
+     * @type {number}
+     * @readOnly
+     * @since 3.11.0
+     */
+    displayWidth: {
+
+        get: function ()
+        {
+            return this.width / this._zoom;
+        }
+
+    },
+
+    /**
+     * The displayed height of the camera viewport, factoring in the camera zoom level.
+     * 
+     * If a camera has a viewport height of 600 and a zoom of 0.5 then its display height
+     * would be 1200, as it's displaying twice as many pixels as zoom level 1.
+     * 
+     * Equally, a camera with a height of 600 and zoom of 2 would have a display height
+     * of 300 pixels.
+     *
+     * @name Phaser.Cameras.Scene2D.Camera#displayHeight
+     * @type {number}
+     * @readOnly
+     * @since 3.11.0
+     */
+    displayHeight: {
+
+        get: function ()
+        {
+            return this.height / this._zoom;
+        }
+
+    },
+
+    zoom: {
+
+        get: function ()
+        {
+            return this._zoom;
+        },
+
+        set: function (value)
+        {
+            if (value === 0)
+            {
+                value = 0.001;
+            }
+
+            this._zoom = value;
+            this._zoomInversed = 1 / value;
         }
 
     }
