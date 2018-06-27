@@ -23,7 +23,7 @@ var GameObject = require('../GameObject');
  */
 var TileSpriteCanvasRenderer = function (renderer, src, interpolationPercentage, camera, parentMatrix)
 {
-    if (GameObject.RENDER_MASK !== src.renderFlags || (src.cameraFilter > 0 && (src.cameraFilter & camera._id)))
+    if (GameObject.RENDER_MASK !== src.renderFlags || (src.cameraFilter > 0 && (src.cameraFilter & camera.id)))
     {
         return;
     }
@@ -33,20 +33,27 @@ var TileSpriteCanvasRenderer = function (renderer, src, interpolationPercentage,
 
     src.updateTileTexture();
 
+    //  Alpha
+
+    var alpha = camera.alpha * src.alpha;
+
+    if (alpha === 0)
+    {
+        //  Nothing to see, so abort early
+        return;
+    }
+    else if (renderer.currentAlpha !== alpha)
+    {
+        renderer.currentAlpha = alpha;
+        ctx.globalAlpha = alpha;
+    }
+
     //  Blend Mode
 
     if (renderer.currentBlendMode !== src.blendMode)
     {
         renderer.currentBlendMode = src.blendMode;
         ctx.globalCompositeOperation = renderer.blendModes[src.blendMode];
-    }
-
-    //  Alpha
-
-    if (renderer.currentAlpha !== src.alpha)
-    {
-        renderer.currentAlpha = src.alpha;
-        ctx.globalAlpha = src.alpha;
     }
 
     //  Smoothing
@@ -79,7 +86,7 @@ var TileSpriteCanvasRenderer = function (renderer, src, interpolationPercentage,
         dy += src.height;
     }
 
-    if (renderer.config.roundPixels)
+    if (camera.roundPixels)
     {
         dx |= 0;
         dy |= 0;
