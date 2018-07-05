@@ -637,44 +637,57 @@ var TextureTintPipeline = new Class({
         {
             var crop = sprite._crop;
 
+            if (crop.flipX !== sprite.flipX || crop.flipY !== sprite.flipY)
+            {
+                frame.updateCropUVs(crop, sprite.flipX, sprite.flipY);
+            }
+
             u0 = crop.u0;
             v0 = crop.v0;
             u1 = crop.u1;
             v1 = crop.v1;
+
             frameWidth = crop.width;
             frameHeight = crop.height;
+
             frameX = crop.x;
             frameY = crop.y;
 
             x = -sprite.displayOriginX + frameX;
             y = -sprite.displayOriginY + frameY;
-
-            // if (sprite.flipX)
-            // {
-            //     frameWidth *= -1;
-            //     x -= frameWidth;
-            // }
-        }
-        else
-        {
-            if (sprite.flipX)
-            {
-                frameWidth *= -1;
-                x += frame.width;
-            }
-    
-            if (sprite.flipY || texture.isRenderTexture)
-            {
-                frameHeight *= -1;
-                y += frame.height;
-            }
         }
 
-        if (camera.roundPixels)
+        if (sprite.flipX)
         {
-            x |= 0;
-            y |= 0;
+            x += frameWidth;
+            frameWidth *= -1;
         }
+
+        if (sprite.flipY)
+        {
+            y += frameHeight;
+            frameHeight *= -1;
+        }
+
+        if (sprite.isCropped)
+        {
+            //  Positions at the correct place, UVs also correct (when unflipped)
+            //  += (sourceSize w - frame width) / 2
+            // tx0 += 125;
+            // tx1 += 125;
+            // tx2 += 125;
+            // tx3 += 125;
+
+            //  += (sourceSize h - frame height) / 2
+            // ty0 += 259;
+            // ty1 += 259;
+            // ty2 += 259;
+            // ty3 += 259;
+
+            // x += 125;
+            // y += 259;
+        }
+
 
         var xw = x + frameWidth;
         var yh = y + frameHeight;
@@ -721,10 +734,13 @@ var TextureTintPipeline = new Class({
         {
             tx0 |= 0;
             ty0 |= 0;
+
             tx1 |= 0;
             ty1 |= 0;
+
             tx2 |= 0;
             ty2 |= 0;
+
             tx3 |= 0;
             ty3 |= 0;
         }

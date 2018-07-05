@@ -46,12 +46,15 @@ There is a third game config property called `pixelArt`. If set to `true` it's t
 
 The Texture Tint Pipeline has been rewritten to tidy up hundreds of lines of duplicate code and to move the responsibility of drawing to the Game Objects themselves. Previously, had you excluded say Tilemaps from your build of Phaser, the renderer would still include masses of code dealing with the drawing of them. Now, this task has been moved to the Game Objects and the pipeline just provides a set of clean utility functions for batching, flushing and drawing.
 
+* You can now set the WebGL batch size in the Game Config via the property `batchSize`. The default is 2000 before the batch will flush, which is a happy average between desktop and mobile. If targeting desktop specifically, you may wish to increase this value to reduce draw calls.
 * The `batchTileSprite` method has been removed from the `TextureTintPipeline` class, because it is now handled internally by the Game Object itself.
 * The `drawStaticTilemapLayer` method has been removed from the `TextureTintPipeline` class, because it is now handled internally by the Game Object itself.
 * The `batchText` method has been removed from the `TextureTintPipeline` class, because it is now handled internally by the Game Object itself.
 * The `batchDynamicTilemapLayer` method has been removed from the `TextureTintPipeline` class, because it is now handled internally by the Game Object itself.
+* The shader has a new attribute: `tintEffect`. This is a single FLOAT.
+* The vertex size has increased by 1 FLOAT to account for the extra shader attribute.
 
-Due to the changes in the Texture Tint Pipeline the Texture Frame class has also been updated. The following changes concern the Frame UV data:
+Due to the changes in the Texture Tint Pipeline the `Textures.Frame` class has also been updated. The following changes concern the Frame UV data:
 
 * Previously, the UV data spanned 8 properties: `x0`, `y0`, `x1`, `y1`, `x2`, `y2`, `x3` and `y3` and was stored in the `data.uvs` object. These have been replaced with directly accessible properties: `u0`, `v0`, `u1` and `v1`. These 4 properties are used directly in all renderer code now. Although it was clearer having 8 properties, 4 of them were just duplicates, so we've traded a little clarity for a smaller overall object and less dictionary look-ups.
 * `Frame.uvs` (and the corresponding `Frame.data.uvs`) object has been removed.
@@ -66,6 +69,14 @@ As well as tidying the Texture Tint Pipeline, I also updated the shader. It now 
 
 The Tint component documentation has been overhauled to explain these differences in more detail, and you can find lots of new examples as well.
 
+### New Texture Crop Component
+
+There is a new Game Object Component called `TextureCrop`. It replaces the Texture Component (which still exists) and adds in the ability to crop the texture being used. This component is now being used by the `Sprite` and `Image` Game Objects.
+
+* You can crop the frame being used via the new `setCrop` method. The crop is a rectangle that limits the area of the texture frame that is visible during rendering. Cropping a Game Object does not change its size, dimensions, physics body or hit area, it just changes what is shown when rendered. This is ideal for hiding part of a Sprite without using a mask, or for effects like displaying a progress or loading bar. Cropping works even when the Game Object is flipped.
+* You can toggle the crop on a Game Object by changing the `isCropped` boolean at any point.
+* The crop is automatically re-applied when the texture or frame of a Game Object is changed. If you wish to disable this, turn off the crop before changing the frame.
+
 ### New Features
 
 * `Graphics.fillRoundedRect` will draw a stroked rounded rectangle to a Graphics object. The radius of the corners can be either a number, or an object, allowing you to specify different radius per corner (thanks @TadejZupancic)
@@ -77,7 +88,6 @@ The Tint component documentation has been overhauled to explain these difference
 * `ScenePlugin.wake` (and the corresponding methods in Scene Systems and the Scene Manager) now has a new optional `data` argument, which is passed to the target Scene and emitted in its 'wake' event.
 * `ScenePlugin.setActive` now has a new optional `data` argument, which is passed to the target Scene and emitted in its 'pause' or 'resume' events.
 * `TileSprite.tileScaleX` and `tileScaleY` are two new properties that allow you to control the scale of the texture within the Tile Sprite. This impacts the way the repeating texture is scaled, and is independent to scaling the Tile Sprite itself. It works in both Canvas and WebGL mode.
-* You can now set the WebGL batch size in the Game Config via the property `batchSize`. The default is 2000 before the batch will flush, which is a happy average between desktop and mobile. If targeting desktop specifically, you may wish to increase this value to reduce draw calls.
 * `TransformMatrix.copyFrom` is a new method that will copy the given matrix into the values of the current one.
 * `TransformMatrix.multiplyWithOffset` is a new method that will multiply the given matrix with the current one, factoring in an additional offset to the results. This is used internally by the renderer code in various places.
 
@@ -111,6 +121,7 @@ The Tint component documentation has been overhauled to explain these difference
 * `ArrayUtils.AddAt` didn't calculate the array offset correctly if you passed an array in to be merged with an existing array. This also caused Container.addAt to fail if an array was passed to it. Fix #3788 (thanks @jjalonso)
 * The `Pointer.camera` property would only be set if there was a viable Game Object in the camera view. Now it is set regardless, to always be the Camera the Pointer interacted with.
 * Added the Mask component to Container. It worked without it, but this brings it in-line with the documentation and other Game Objects. Fix #3797 (thanks @zilbuz)
+* The DataManager couldn't redefine previously removed properties. Fix #3803 (thanks @AleBles @oo7ph)
 
 ### Examples, Documentation and TypeScript
 
