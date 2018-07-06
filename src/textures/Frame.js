@@ -322,7 +322,9 @@ var Frame = new Class({
                 x: 0,
                 y: 0,
                 w: 0,
-                h: 0
+                h: 0,
+                r: 0,
+                b: 0
             },
             radius: 0,
             drawImage: {
@@ -430,6 +432,8 @@ var Frame = new Class({
         ss.y = destY;
         ss.w = destWidth;
         ss.h = destHeight;
+        ss.r = destX + destWidth;
+        ss.b = destY + destHeight;
 
         //  Adjust properties
         this.x = destX;
@@ -475,85 +479,114 @@ var Frame = new Class({
         var cy = this.cutY;
         var cw = this.cutWidth;
         var ch = this.cutHeight;
+        var rw = this.realWidth;
+        var rh = this.realHeight;
 
-        x = Clamp(x, 0, cw);
-        y = Clamp(y, 0, ch);
-        width = Clamp(width, 0, cw);
-        height = Clamp(height, 0, ch);
+        x = Clamp(x, 0, rw);
+        y = Clamp(y, 0, rh);
 
-        //  Reserved for flipX/Y
-        var cropWidth = width;
-        var cropHeight = height;
+        width = Clamp(width, 0, rw - x);
+        height = Clamp(height, 0, rh - y);
 
-        if (x + width > cw)
+        var ox = cx + x;
+        var oy = cy + y;
+        var ow = width;
+        var oh = height;
+
+        var data = this.data;
+
+        if (data.trim)
         {
-            width = (cw - x);
-        }
+            var ss = data.spriteSourceSize;
 
-        if (y + height > ch)
-        {
-            height = (ch - y);
-        }
+            //  Need to check for intersection between the cut area and the crop area
+            //  If there is none, we set UV to be empty, otherwise set it to be the intersection area
 
-        var tw = this.source.width;
-        var th = this.source.height;
+            var cropRight = x + width;
+            var cropBottom = y + height;
 
-        var ox = cx;
-        var oy = cy;
+            var intersects = !(ss.r < x || ss.b < y || ss.x > cropRight || ss.y > cropBottom);
 
-        if (flipX)
-        {
-            ox = (tw - width) - (x * 2);
-            // ox -= cropWidth;
-        }
+            if (intersects)
+            {
+                var ix = Math.max(ss.x, x);
+                var iy = Math.max(ss.y, y);
+                var iw = Math.min(ss.r, cropRight) - ix;
+                var ih = Math.min(ss.b, cropBottom) - iy;
 
-        if (flipY)
-        {
-            oy = (th - height) - (y * 2);
-            // oy -= cropHeight;
-        }
-
-        this.setUVs(crop, ox + x, oy + y, width, height);
-
-        // console.log(crop.u0, crop.v0, crop.u1, crop.v1);
+                ow = iw;
+                oh = ih;
+    
+                if (flipX)
+                {
+                    ox = cx + (cw - (ix - ss.x) - iw);
+                }
+                else
+                {
+                    ox = cx + (ix - ss.x);
+                }
         
+                if (flipY)
+                {
+                    oy = cy + (ch - (iy - ss.y) - ih);
+                }
+                else
+                {
+                    oy = cy + (iy - ss.y);
+                }
 
-        // crop.u0 = (x + ox) / tw;
-        // crop.v0 = (y + oy) / th;
-        // crop.u1 = (x + ox + width) / tw;
-        // crop.v1 = (y + oy + height) / th;
+                x = ix;
+                y = iy;
 
-        // crop.u0 = (cx + x + ox) / tw;
-        // crop.v0 = (cy + y + oy) / th;
-        // crop.u1 = (cx + x + ox + width) / tw;
-        // crop.v1 = (cy + y + oy + height) / th;
+                width = iw;
+                height = ih;
+            }
+            else
+            {
+                ox = 0;
+                oy = 0;
+                ow = 0;
+                oh = 0;
+            }
+        }
+        else
+        {
+            if (flipX)
+            {
+                ox = cx + (cw - x - width);
+            }
+    
+            if (flipY)
+            {
+                oy = cy + (ch - y - height);
+            }
+        }
 
-        crop.width = width;
-        crop.height = height;
-
-        crop.x = x;
-        crop.y = y;
-
-        crop.cx = cx + x;
-        crop.cy = cy + y;
-
-        crop.flipX = flipX;
-        crop.flipY = flipY;
-
-        return crop;
-    },
-
-    setUVs: function (dest, x, y, width, height)
-    {
         var tw = this.source.width;
         var th = this.source.height;
 
         //  Map the given coordinates into UV space, clamping to the 0-1 range.
 
-        dest.u0 = Math.max(0, x / tw);
-        dest.v0 = Math.max(0, y / th);
-        dest.u1 = Math.min(1, (x + width) / tw);
-        dest.v1 = Math.min(1, (y + height) / th);
+        crop.u0 = Math.max(0, ox / tw);
+        crop.v0 = Math.max(0, oy / th);
+        crop.u1 = Math.min(1, (ox + ow) / tw);
+        crop.v1 = Math.min(1, (oy + oh) / th);
+
+        crop.x = x;
+        crop.y = y;
+
+        crop.cx = ox;
+        crop.cy = oy;
+        crop.cw = ow;
+        crop.ch = oh;
+
+        crop.width = width;
+        crop.height = height;
+
+        crop.flipX = flipX;
+        crop.flipY = flipY;
+
+        return crop;
     },
 
     /**

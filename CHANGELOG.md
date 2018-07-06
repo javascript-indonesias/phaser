@@ -51,6 +51,7 @@ The Texture Tint Pipeline has been rewritten to tidy up hundreds of lines of dup
 * The `drawStaticTilemapLayer` method has been removed from the `TextureTintPipeline` class, because it is now handled internally by the Game Object itself.
 * The `batchText` method has been removed from the `TextureTintPipeline` class, because it is now handled internally by the Game Object itself.
 * The `batchDynamicTilemapLayer` method has been removed from the `TextureTintPipeline` class, because it is now handled internally by the Game Object itself.
+* The `batchMesh` method has been removed from the `TextureTintPipeline` class, because it is now handled in the Mesh WebGL Renderer function.
 * The shader has a new attribute: `tintEffect`. This is a single FLOAT.
 * The vertex size has increased by 1 FLOAT to account for the extra shader attribute.
 
@@ -65,7 +66,8 @@ As well as tidying the Texture Tint Pipeline, I also updated the shader. It now 
 
 * `setTintFill` is a new method available to all Game Objects that have the Tint component. It differs from `setTint` in that the colors literally replace the pixel values from the texture (while still respecting the alpha). This means you can now create effects such as flashing a sprite white if it gets hit, or red for damage, etc. You can still use different colors per corner of the Game Object, allowing you to create nice seamless gradient effects.
 * `tintFill` is a new boolean property that allows you to toggle between the two different tint types: multiply or replace.
-* `_isTinted` is a new private boolean indicating if a Game Object is tinted or not.
+* `isTinted` is a new read-only boolean indicating if a Game Object is tinted or not. Handy for knowing if you need to clear a tint after an effect.
+* `Mesh.tintFill` allows you to control the tint effect applied to the Mesh vertices when color blending.
 
 The Tint component documentation has been overhauled to explain these differences in more detail, and you can find lots of new examples as well.
 
@@ -73,7 +75,7 @@ The Tint component documentation has been overhauled to explain these difference
 
 There is a new Game Object Component called `TextureCrop`. It replaces the Texture Component (which still exists) and adds in the ability to crop the texture being used. This component is now being used by the `Sprite` and `Image` Game Objects.
 
-* You can crop the frame being used via the new `setCrop` method. The crop is a rectangle that limits the area of the texture frame that is visible during rendering. Cropping a Game Object does not change its size, dimensions, physics body or hit area, it just changes what is shown when rendered. This is ideal for hiding part of a Sprite without using a mask, or for effects like displaying a progress or loading bar. Cropping works even when the Game Object is flipped.
+* You can crop the frame being used via the new `setCrop` method. The crop is a rectangle that limits the area of the texture frame that is visible during rendering. Cropping a Game Object does not change its size, dimensions, physics body or hit area, it just changes what is shown when rendered. This is ideal for hiding part of a Sprite without using a mask, or for effects like displaying a progress or loading bar. Cropping works even when the Game Object is flipped, or is a trimmed frame from an atlas.
 * You can toggle the crop on a Game Object by changing the `isCropped` boolean at any point.
 * The crop is automatically re-applied when the texture or frame of a Game Object is changed. If you wish to disable this, turn off the crop before changing the frame.
 
@@ -90,6 +92,7 @@ There is a new Game Object Component called `TextureCrop`. It replaces the Textu
 * `TileSprite.tileScaleX` and `tileScaleY` are two new properties that allow you to control the scale of the texture within the Tile Sprite. This impacts the way the repeating texture is scaled, and is independent to scaling the Tile Sprite itself. It works in both Canvas and WebGL mode.
 * `TransformMatrix.copyFrom` is a new method that will copy the given matrix into the values of the current one.
 * `TransformMatrix.multiplyWithOffset` is a new method that will multiply the given matrix with the current one, factoring in an additional offset to the results. This is used internally by the renderer code in various places.
+* `Rectangle.Intersection` will take two Rectangle objects and return the area of intersection between them. If there is no intersection, an empty Rectangle is returned.
 
 ### Updates
 
@@ -103,6 +106,7 @@ There is a new Game Object Component called `TextureCrop`. It replaces the Textu
 * `Tileset.glTexture` is a new property that maps to the WebGL Texture for the Tileset image. It's used internally by the renderer to avoid expensive object look-ups and is set automatically in the `Tileset.setImage` method.
 * `Frame.glTexture` is a new property that maps to the WebGL Texture for the Frames Texture Source image. It's used internally by the renderer to avoid expensive object look-ups and is set automatically in the `Frame` constructor.
 * `TransformMatrix.e` and `TransformMatrix.f` are two new properties that are an alias for the `tx` and `ty` values.
+* `Graphics.arc` has a new optional argument `overshoot`. This is a small value that is added onto the end of the `endAngle` and allows you to extend the arc further than the default 360 degrees. You may wish to do this if you're trying to draw an arc with an especially thick line stroke, to ensure there are no gaps. Fix #3798 (thanks @jjalonso)
 
 ### Bug Fixes
 
@@ -122,12 +126,14 @@ There is a new Game Object Component called `TextureCrop`. It replaces the Textu
 * The `Pointer.camera` property would only be set if there was a viable Game Object in the camera view. Now it is set regardless, to always be the Camera the Pointer interacted with.
 * Added the Mask component to Container. It worked without it, but this brings it in-line with the documentation and other Game Objects. Fix #3797 (thanks @zilbuz)
 * The DataManager couldn't redefine previously removed properties. Fix #3803 (thanks @AleBles @oo7ph)
+* The Canvas DrawImage function has been recoded entirely so it now correctly supports parent matrix and camera matrix calculations. This fixes an issue where children inside Containers would lose their rotation, and other issues, when in the Canvas Renderer. Fix #3728 (thanks @samid737)
+* `clearMask(true)` would throw an exception if the Game Object didn't have a mask. Now it checks first before destroying the mask. Fix #3809 (thanks @NokFrt)
 
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@DannyT @squilibob @dvdbrink @t1gu1 @cyantree @DrevanTonder @mikewesthad
+@DannyT @squilibob @dvdbrink @t1gu1 @cyantree @DrevanTonder @mikewesthad @tarsupin
 
 Also, a special mention to @andygroff for his excellent work enhancing the search box on the examples site, and @hexus for his assistance completing the documentation for the Game Objects.
 
