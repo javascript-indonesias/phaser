@@ -24,14 +24,14 @@ var Utils = require('../../../renderer/webgl/Utils');
  */
 var BitmapTextWebGLRenderer = function (renderer, src, interpolationPercentage, camera, parentMatrix)
 {
-    var text = src.text;
+    var text = src._text;
     var textLength = text.length;
 
     if (GameObject.RENDER_MASK !== src.renderFlags || textLength === 0 || (src.cameraFilter > 0 && (src.cameraFilter & camera._id)))
     {
         return;
     }
-
+ 
     var pipeline = this.pipeline;
 
     renderer.setPipeline(pipeline);
@@ -79,10 +79,9 @@ var BitmapTextWebGLRenderer = function (renderer, src, interpolationPercentage, 
 
     var xAdvance = 0;
     var yAdvance = 0;
-    var indexCount = 0;
     var charCode = 0;
     var lastCharCode = 0;
-    var letterSpacing = src.letterSpacing;
+    var letterSpacing = src._letterSpacing;
     var glyph;
     var glyphX = 0;
     var glyphY = 0;
@@ -93,7 +92,25 @@ var BitmapTextWebGLRenderer = function (renderer, src, interpolationPercentage, 
     var fontData = src.fontData;
     var chars = fontData.chars;
     var lineHeight = fontData.lineHeight;
-    var scale = (src.fontSize / fontData.size);
+    var scale = (src._fontSize / fontData.size);
+
+    var align = src._align;
+    var currentLine = 0;
+    var lineOffsetX = 0;
+
+    //  Update the bounds - skipped internally if not dirty
+    src.getTextBounds(false);
+
+    var lineData = src._bounds.lines;
+
+    if (align === 1)
+    {
+        lineOffsetX = (lineData.longest - lineData.lengths[0]) / 2;
+    }
+    else if (align === 2)
+    {
+        lineOffsetX = (lineData.longest - lineData.lengths[0]);
+    }
 
     var roundPixels = camera.roundPixels;
 
@@ -104,11 +121,21 @@ var BitmapTextWebGLRenderer = function (renderer, src, interpolationPercentage, 
         //  Carriage-return
         if (charCode === 10)
         {
+            currentLine++;
+
+            if (align === 1)
+            {
+                lineOffsetX = (lineData.longest - lineData.lengths[currentLine]) / 2;
+            }
+            else if (align === 2)
+            {
+                lineOffsetX = (lineData.longest - lineData.lengths[currentLine]);
+            }
+        
             xAdvance = 0;
-            indexCount = 0;
             yAdvance += lineHeight;
             lastGlyph = null;
-
+        
             continue;
         }
 
@@ -125,8 +152,8 @@ var BitmapTextWebGLRenderer = function (renderer, src, interpolationPercentage, 
         glyphW = glyph.width;
         glyphH = glyph.height;
 
-        var x = (indexCount + glyph.xOffset + xAdvance) * scale;
-        var y = (glyph.yOffset + yAdvance) * scale;
+        var x = glyph.xOffset + xAdvance;
+        var y = glyph.yOffset + yAdvance;
 
         if (lastGlyph !== null)
         {
@@ -135,7 +162,6 @@ var BitmapTextWebGLRenderer = function (renderer, src, interpolationPercentage, 
         }
 
         xAdvance += glyph.xAdvance + letterSpacing;
-        indexCount++;
         lastGlyph = glyph;
         lastCharCode = charCode;
 
@@ -145,13 +171,21 @@ var BitmapTextWebGLRenderer = function (renderer, src, interpolationPercentage, 
             continue;
         }
 
+        x *= scale;
+        y *= scale;
+
+        x -= src.displayOriginX;
+        y -= src.displayOriginY;
+
+        x += lineOffsetX;
+
         var u0 = glyphX / textureWidth;
         var v0 = glyphY / textureHeight;
         var u1 = (glyphX + glyphW) / textureWidth;
         var v1 = (glyphY + glyphH) / textureHeight;
 
-        var xw = x + glyphW * scale;
-        var yh = y + glyphH * scale;
+        var xw = x + (glyphW * scale);
+        var yh = y + (glyphH * scale);
 
         var tx0 = x * calcMatrix.a + y * calcMatrix.c + calcMatrix.e;
         var ty0 = x * calcMatrix.b + y * calcMatrix.d + calcMatrix.f;
