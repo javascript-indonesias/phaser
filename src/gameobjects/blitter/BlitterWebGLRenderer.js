@@ -31,12 +31,12 @@ var BlitterWebGLRenderer = function (renderer, src, interpolationPercentage, cam
 
     var pipeline = this.pipeline;
 
-    renderer.setPipeline(pipeline);
+    renderer.setPipeline(pipeline, src);
 
     var cameraScrollX = camera.scrollX * src.scrollFactorX;
     var cameraScrollY = camera.scrollY * src.scrollFactorY;
 
-    var matrix = pipeline._tempCameraMatrix;
+    var matrix = pipeline._tempMatrix1;
 
     matrix.copyFrom(camera.matrix);
 
@@ -107,6 +107,7 @@ var BlitterWebGLRenderer = function (renderer, src, interpolationPercentage, cam
         {
             tx0 |= 0;
             ty0 |= 0;
+
             tx1 |= 0;
             ty1 |= 0;
         }

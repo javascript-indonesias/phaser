@@ -31,16 +31,15 @@ var MeshWebGLRenderer = function (renderer, src, interpolationPercentage, camera
 
     var pipeline = this.pipeline;
 
-    renderer.setPipeline(pipeline);
+    renderer.setPipeline(pipeline, src);
 
-    var camMatrix = pipeline._tempCameraMatrix;
-    var spriteMatrix = pipeline._tempSpriteMatrix;
+    var camMatrix = pipeline._tempMatrix1;
+    var spriteMatrix = pipeline._tempMatrix2;
+    var calcMatrix = pipeline._tempMatrix3;
 
-    spriteMatrix.applyITRS(src.x - camera.scrollX * src.scrollFactorX, src.y - camera.scrollY * src.scrollFactorY, src.rotation, src.scaleX, src.scaleY);
+    spriteMatrix.applyITRS(src.x, src.y, src.rotation, src.scaleX, src.scaleY);
 
     camMatrix.copyFrom(camera.matrix);
-
-    var calcMatrix;
 
     if (parentMatrix)
     {
@@ -51,12 +50,16 @@ var MeshWebGLRenderer = function (renderer, src, interpolationPercentage, camera
         spriteMatrix.e = src.x;
         spriteMatrix.f = src.y;
 
-        //  Multiply by the Sprite matrix
-        calcMatrix = camMatrix.multiply(spriteMatrix);
+        //  Multiply by the Sprite matrix, store result in calcMatrix
+        camMatrix.multiply(spriteMatrix, calcMatrix);
     }
     else
     {
-        calcMatrix = camMatrix.multiply(spriteMatrix);
+        spriteMatrix.e -= camera.scrollX * src.scrollFactorX;
+        spriteMatrix.f -= camera.scrollY * src.scrollFactorY;
+
+        //  Multiply by the Sprite matrix, store result in calcMatrix
+        camMatrix.multiply(spriteMatrix, calcMatrix);
     }
 
     var frame = src.frame;
