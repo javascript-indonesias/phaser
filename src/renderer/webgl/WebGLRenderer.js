@@ -533,6 +533,8 @@ var WebGLRenderer = new Class({
      */
     boot: function ()
     {
+        this.blankTexture = this.game.textures.getFrame('__DEFAULT').glTexture;
+
         for (var pipelineName in this.pipelines)
         {
             this.pipelines[pipelineName].boot();
@@ -880,22 +882,24 @@ var WebGLRenderer = new Class({
     },
 
     /**
-     * [description]
+     * Sets the blend mode to the value given.
+     *
+     * If the current blend mode is different from the one given, the pipeline is flushed and the new
+     * blend mode is enabled.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#setBlendMode
      * @since 3.0.0
      *
-     * @param {integer} blendModeId - [description]
+     * @param {integer} blendModeId - The blend mode to be set. Can be a `BlendModes` const or an integer value.
      *
-     * @return {Phaser.Renderer.WebGL.WebGLRenderer} [description]
+     * @return {boolean} `true` if the blend mode was changed as a result of this call, forcing a flush, otherwise `false`.
      */
     setBlendMode: function (blendModeId)
     {
         var gl = this.gl;
         var blendMode = this.blendModes[blendModeId];
 
-        if (blendModeId !== CONST.BlendModes.SKIP_CHECK &&
-            this.currentBlendMode !== blendModeId)
+        if (blendModeId !== CONST.BlendModes.SKIP_CHECK && this.currentBlendMode !== blendModeId)
         {
             this.flush();
 
@@ -912,9 +916,11 @@ var WebGLRenderer = new Class({
             }
 
             this.currentBlendMode = blendModeId;
+
+            return true;
         }
 
-        return this;
+        return false;
     },
 
     /**
