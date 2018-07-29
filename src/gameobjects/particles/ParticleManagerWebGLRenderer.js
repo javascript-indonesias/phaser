@@ -97,17 +97,17 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, interpola
 
             camMatrix.multiply(particleMatrix, calcMatrix);
 
-            var tx0 = x * calcMatrix.a + y * calcMatrix.c + calcMatrix.e;
-            var ty0 = x * calcMatrix.b + y * calcMatrix.d + calcMatrix.f;
+            var tx0 = calcMatrix.getX(x, y);
+            var ty0 = calcMatrix.getY(x, y);
     
-            var tx1 = x * calcMatrix.a + yh * calcMatrix.c + calcMatrix.e;
-            var ty1 = x * calcMatrix.b + yh * calcMatrix.d + calcMatrix.f;
+            var tx1 = calcMatrix.getX(x, yh);
+            var ty1 = calcMatrix.getY(x, yh);
     
-            var tx2 = xw * calcMatrix.a + yh * calcMatrix.c + calcMatrix.e;
-            var ty2 = xw * calcMatrix.b + yh * calcMatrix.d + calcMatrix.f;
+            var tx2 = calcMatrix.getX(xw, yh);
+            var ty2 = calcMatrix.getY(xw, yh);
     
-            var tx3 = xw * calcMatrix.a + y * calcMatrix.c + calcMatrix.e;
-            var ty3 = xw * calcMatrix.b + y * calcMatrix.d + calcMatrix.f;
+            var tx3 = calcMatrix.getX(xw, y);
+            var ty3 = calcMatrix.getY(xw, y);
 
             if (roundPixels)
             {
@@ -124,7 +124,7 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, interpola
                 ty3 |= 0;
             }
 
-            if (pipeline.batchVertices(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, frame.u0, frame.v0, frame.u1, frame.v1, color, color, color, color, tintEffect))
+            if (pipeline.batchQuad(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, frame.u0, frame.v0, frame.u1, frame.v1, color, color, color, color, tintEffect))
             {
                 pipeline.setTexture2D(texture, 0);
             }

@@ -256,6 +256,57 @@ var TextureManager = new Class({
     },
 
     /**
+     * Gets an existing texture frame and converts it into a base64 encoded image and returns the base64 data.
+     * 
+     * You can also provide the image type and encoder options.
+     *
+     * @method Phaser.Textures.TextureManager#getBase64
+     * @since 3.12.0
+     *
+     * @param {string} key - The unique string-based key of the Texture.
+     * @param {(string|integer)} [frame] - The string-based name, or integer based index, of the Frame to get from the Texture.
+     * @param {string} [type='image/png'] - [description]
+     * @param {number} [encoderOptions=0.92] - [description]
+     * 
+     * @return {string} The base64 encoded data, or an empty string if the texture frame could not be found.
+     */
+    getBase64: function (key, frame, type, encoderOptions)
+    {
+        if (type === undefined) { type = 'image/png'; }
+        if (encoderOptions === undefined) { encoderOptions = 0.92; }
+
+        var data = '';
+
+        var textureFrame = this.getFrame(key, frame);
+
+        if (textureFrame)
+        {
+            var cd = textureFrame.canvasData;
+
+            var canvas = CanvasPool.create2D(this, cd.width, cd.height);
+            var ctx = canvas.getContext('2d');
+
+            ctx.drawImage(
+                textureFrame.source.image,
+                cd.x,
+                cd.y,
+                cd.width,
+                cd.height,
+                0,
+                0,
+                cd.width,
+                cd.height
+            );
+
+            data = canvas.toDataURL(type, encoderOptions);
+
+            CanvasPool.remove(canvas);
+        }
+
+        return data;
+    },
+
+    /**
      * Adds a new Texture to the Texture Manager created from the given Image element.
      *
      * @method Phaser.Textures.TextureManager#addImage

@@ -14,7 +14,6 @@ var WebGLSnapshot = require('../snapshot/WebGLSnapshot');
 
 // Default Pipelines
 var BitmapMaskPipeline = require('./pipelines/BitmapMaskPipeline');
-var FlatTintPipeline = require('./pipelines/FlatTintPipeline');
 var ForwardDiffuseLightPipeline = require('./pipelines/ForwardDiffuseLightPipeline');
 var TextureTintPipeline = require('./pipelines/TextureTintPipeline');
 
@@ -303,7 +302,8 @@ var WebGLRenderer = new Class({
          * @type {Uint32Array}
          * @since 3.0.0
          */
-        this.currentScissor = new Uint32Array([ 0, 0, this.width, this.height ]);
+        // this.currentScissor = new Uint32Array([ 0, 0, this.width, this.height ]);
+        this.currentScissor = null;
 
         /**
          * Index to the scissor stack top
@@ -313,7 +313,7 @@ var WebGLRenderer = new Class({
          * @default 0
          * @since 3.0.0
          */
-        this.currentScissorIdx = 0;
+        // this.currentScissorIdx = 0;
 
         /**
          * Stack of scissor data
@@ -322,7 +322,8 @@ var WebGLRenderer = new Class({
          * @type {Uint32Array}
          * @since 3.0.0
          */
-        this.scissorStack = new Uint32Array(4 * 1000);
+        // this.scissorStack = new Uint32Array(4 * 1000);
+        this.scissorStack = [];
 
         // Setup context lost and restore event listeners
 
@@ -448,7 +449,7 @@ var WebGLRenderer = new Class({
         {
             this.contextLost = true;
 
-            throw new Error('This browser does not support WebGL. Try using the Canvas pipeline.');
+            throw new Error('WebGL unsupported');
         }
 
         this.gl = gl;
@@ -512,11 +513,11 @@ var WebGLRenderer = new Class({
         this.pipelines = {};
 
         this.addPipeline('TextureTintPipeline', new TextureTintPipeline({ game: this.game, renderer: this }));
-        this.addPipeline('FlatTintPipeline', new FlatTintPipeline({ game: this.game, renderer: this }));
         this.addPipeline('BitmapMaskPipeline', new BitmapMaskPipeline({ game: this.game, renderer: this }));
         this.addPipeline('Light2D', new ForwardDiffuseLightPipeline({ game: this.game, renderer: this }));
 
         this.setBlendMode(CONST.BlendModes.NORMAL);
+
         this.resize(this.width, this.height);
 
         this.game.events.once('ready', this.boot, this);
@@ -533,12 +534,16 @@ var WebGLRenderer = new Class({
      */
     boot: function ()
     {
-        this.blankTexture = this.game.textures.getFrame('__DEFAULT').glTexture;
-
         for (var pipelineName in this.pipelines)
         {
             this.pipelines[pipelineName].boot();
         }
+
+        var blank = this.game.textures.getFrame('__DEFAULT');
+
+        this.pipelines.TextureTintPipeline.currentFrame = blank;
+
+        this.blankTexture = blank;
     },
 
     /**
@@ -577,8 +582,6 @@ var WebGLRenderer = new Class({
         {
             pipelines[pipelineName].resize(width, height, resolution);
         }
-                
-        this.currentScissor.set([ 0, 0, this.width, this.height ]);
         
         this.drawingBufferHeight = gl.drawingBufferHeight;
 
@@ -751,56 +754,6 @@ var WebGLRenderer = new Class({
     },
 
     /**
-     * Sets the current scissor state
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setScissor
-     * @since 3.0.0
-     *
-     * @param {integer} x - [description]
-     * @param {integer} y - [description]
-     * @param {integer} w - [description]
-     * @param {integer} h - [description]
-     *
-     * @return {Phaser.Renderer.WebGL.WebGLRenderer} [description]
-     */
-    setScissor: function (x, y, w, h)
-    {
-        var gl = this.gl;
-        var currentScissor = this.currentScissor;
-        var enabled = (x === 0 && y === 0 && w === this.width && h === this.height && w >= 0 && h >= 0);
-
-        //  TODO: If new scissor is same as old scissor, skip setting it again
-        //  TODO: If scissor is viewport size, skip setting altogether
-
-        if (currentScissor[0] !== x ||
-            currentScissor[1] !== y ||
-            currentScissor[2] !== w ||
-            currentScissor[3] !== h)
-        {
-            this.flush();
-        }
-
-        currentScissor[0] = x;
-        currentScissor[1] = y;
-        currentScissor[2] = w;
-        currentScissor[3] = h;
-
-        this.currentScissorEnabled = enabled;
-
-        if (enabled)
-        {
-            gl.disable(gl.SCISSOR_TEST);
-
-            return this;
-        }
-
-        gl.enable(gl.SCISSOR_TEST);
-        gl.scissor(x, (this.drawingBufferHeight - y - h), w, h);
-
-        return this;
-    },
-
-    /**
      * Pushes a new scissor state. This is used to set nested scissor states.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#pushScissor
@@ -816,18 +769,42 @@ var WebGLRenderer = new Class({
     pushScissor: function (x, y, w, h)
     {
         var scissorStack = this.scissorStack;
-        var stackIndex = this.currentScissorIdx;
-        var currentScissor = this.currentScissor;
 
-        scissorStack[stackIndex + 0] = currentScissor[0];
-        scissorStack[stackIndex + 1] = currentScissor[1];
-        scissorStack[stackIndex + 2] = currentScissor[2];
-        scissorStack[stackIndex + 3] = currentScissor[3];
+        var scissor = [ x, y, w, h ];
+        
+        scissorStack.push(scissor);
 
-        this.currentScissorIdx += 4;
         this.setScissor(x, y, w, h);
 
-        return this;
+        this.currentScissor = scissor;
+
+        return scissor;
+    },
+
+    /**
+     * Sets the current scissor state
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#setScissor
+     * @since 3.0.0
+     */
+    setScissor: function (x, y, w, h)
+    {
+        var gl = this.gl;
+
+        var current = this.currentScissor;
+
+        var cx = current[0];
+        var cy = current[1];
+        var cw = current[2];
+        var ch = current[3];
+
+        if (cx !== x || cy !== y || cw !== w || ch !== h)
+        {
+            this.flush();
+
+            // https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/scissor
+            gl.scissor(x, (this.drawingBufferHeight - y - h), w, h);
+        }
     },
 
     /**
@@ -835,23 +812,16 @@ var WebGLRenderer = new Class({
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#popScissor
      * @since 3.0.0
-     *
-     * @return {Phaser.Renderer.WebGL.WebGLRenderer} [description]
      */
     popScissor: function ()
     {
         var scissorStack = this.scissorStack;
-        var stackIndex = this.currentScissorIdx - 4;
 
-        var x = scissorStack[stackIndex + 0];
-        var y = scissorStack[stackIndex + 1];
-        var w = scissorStack[stackIndex + 2];
-        var h = scissorStack[stackIndex + 3];
+        var scissor = scissorStack.pop();
+       
+        this.setScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
-        this.currentScissorIdx = stackIndex;
-        this.setScissor(x, y, w, h);
-
-        return this;
+        this.currentScissor = scissor;
     },
 
     /**
@@ -986,6 +956,24 @@ var WebGLRenderer = new Class({
         }
 
         return this;
+    },
+
+    /**
+     * Sets the current active texture for texture unit zero to be a blank texture.
+     * This only happens if there isn't a texture already in use by texture unit zero.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#setBlankTexture
+     * @private
+     * @since 3.12.0
+     *
+     * @return {Phaser.Renderer.WebGL.WebGLRenderer} This WebGL Renderer.
+     */
+    setBlankTexture: function ()
+    {
+        if (this.currentActiveTextureUnit !== 0 || !this.currentTextures[0])
+        {
+            this.setTexture2D(this.blankTexture.glTexture, 0);
+        }
     },
 
     /**
@@ -1484,18 +1472,13 @@ var WebGLRenderer = new Class({
         if (camera.backgroundColor.alphaGL > 0)
         {
             var color = camera.backgroundColor;
-            var FlatTintPipeline = this.pipelines.FlatTintPipeline;
+            var TextureTintPipeline = this.pipelines.TextureTintPipeline;
 
-            FlatTintPipeline.batchFillRect(
-                0, 0, 1, 1, 0,
+            TextureTintPipeline.drawFillRect(
                 cx, cy, cw, ch,
                 Utils.getTintFromFloats(color.redGL, color.greenGL, color.blueGL, 1.0),
-                color.alphaGL,
-                1, 0, 0, 1, 0, 0,
-                [ 1, 0, 0, 1, 0, 0 ]
+                color.alphaGL
             );
-
-            FlatTintPipeline.flush();
         }
     },
 
@@ -1510,15 +1493,10 @@ var WebGLRenderer = new Class({
      */
     postRenderCamera: function (camera)
     {
-        var FlatTintPipeline = this.pipelines.FlatTintPipeline;
+        var TextureTintPipeline = this.pipelines.TextureTintPipeline;
 
-        var isFlashing = camera.flashEffect.postRenderWebGL(FlatTintPipeline, Utils.getTintFromFloats);
-        var isFading = camera.fadeEffect.postRenderWebGL(FlatTintPipeline, Utils.getTintFromFloats);
-
-        if (isFading || isFlashing)
-        {
-            FlatTintPipeline.flush();
-        }
+        camera.flashEffect.postRenderWebGL(TextureTintPipeline, Utils.getTintFromFloats);
+        camera.fadeEffect.postRenderWebGL(TextureTintPipeline, Utils.getTintFromFloats);
 
         camera.dirty = false;
 
@@ -1551,6 +1529,21 @@ var WebGLRenderer = new Class({
         {
             pipelines[key].onPreRender();
         }
+
+        //  TODO - Find a way to stop needing to create these arrays every frame
+        //  and equally not need a huge array buffer created to hold them
+
+        this.currentScissor = [ 0, 0, this.width, this.height ];
+        this.scissorStack = [ this.currentScissor ];
+
+        if (this.game.scene.customViewports)
+        {
+            gl.enable(gl.SCISSOR_TEST);
+
+            gl.scissor(0, (this.drawingBufferHeight - this.height), this.width, this.height);
+        }
+
+        this.setPipeline(this.pipelines.TextureTintPipeline);
     },
 
     /**
@@ -1607,7 +1600,6 @@ var WebGLRenderer = new Class({
             }
         }
 
-        this.flush();
         this.setBlendMode(CONST.BlendModes.NORMAL);
 
         //  Applies camera effects and pops the scissor, if set
@@ -1623,6 +1615,8 @@ var WebGLRenderer = new Class({
     postRender: function ()
     {
         if (this.contextLost) { return; }
+
+        this.flush();
 
         // Unbind custom framebuffer here
 
