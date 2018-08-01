@@ -4,6 +4,7 @@
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
+var Camera = require('../../cameras/2d/Camera');
 var CanvasPool = require('../../display/canvas/CanvasPool');
 var Class = require('../../utils/Class');
 var Components = require('../components');
@@ -30,7 +31,6 @@ var RenderTextureWebGL = require('./RenderTextureWebGL');
  * @extends Phaser.GameObjects.Components.Flip
  * @extends Phaser.GameObjects.Components.GetBounds
  * @extends Phaser.GameObjects.Components.Mask
- * @extends Phaser.GameObjects.Components.MatrixStack
  * @extends Phaser.GameObjects.Components.Origin
  * @extends Phaser.GameObjects.Components.Pipeline
  * @extends Phaser.GameObjects.Components.ScaleMode
@@ -57,7 +57,6 @@ var RenderTexture = new Class({
         Components.Flip,
         Components.GetBounds,
         Components.Mask,
-        Components.MatrixStack,
         Components.Origin,
         Components.Pipeline,
         Components.ScaleMode,
@@ -76,8 +75,6 @@ var RenderTexture = new Class({
         if (height === undefined) { height = 32; }
 
         GameObject.call(this, scene, 'RenderTexture');
-
-        this.initMatrixStack();
 
         /**
          * A reference to either the Canvas or WebGL Renderer that the Game instance is using.
@@ -138,6 +135,12 @@ var RenderTexture = new Class({
          */
         this.framebuffer = null;
 
+        this.camera = new Camera(0, 0, width, height);
+
+        this.camera.setScene(scene);
+
+        // this.currentMatrix = new Components.TransformMatrix();
+
         if (this.renderer.type === CONST.WEBGL)
         {
             var gl = this.renderer.gl;
@@ -146,6 +149,8 @@ var RenderTexture = new Class({
             this.fill = RenderTextureWebGL.fill;
             this.clear = RenderTextureWebGL.clear;
             this.draw = RenderTextureWebGL.draw;
+            this.drawFrame = RenderTextureWebGL.drawFrame;
+            this.drawGameObject = RenderTextureWebGL.drawGameObject;
             this.texture = this.renderer.createTexture2D(0, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.RGBA, null, width, height, false);
             this.framebuffer = this.renderer.createFramebuffer(width, height, this.texture, false);
         }

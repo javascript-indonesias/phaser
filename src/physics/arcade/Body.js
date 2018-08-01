@@ -1071,13 +1071,14 @@ var Body = new Class({
 
     /**
      * Sizes and positions this Body's boundary, as a rectangle.
-     * Modifies the Body's `offset` if `center` is true (the default).
+     * Modifies the Body `offset` if `center` is true (the default).
+     * Resets the width and height to match current frame, if no width and height provided and a frame is found.
      *
      * @method Phaser.Physics.Arcade.Body#setSize
      * @since 3.0.0
      *
-     * @param {number} width - The width of the Body, in source pixels.
-     * @param {number} height - The height of the Body, in source pixels.
+     * @param {integer} [width] - The width of the Body in pixels. Cannot be zero. If not given, and the parent Game Object has a frame, it will use the frame width.
+     * @param {integer} [height] - The height of the Body in pixels. Cannot be zero. If not given, and the parent Game Object has a frame, it will use the frame height.
      * @param {boolean} [center=true] - Modify the Body's `offset`, placing the Body's center on its Game Object's center.
      *
      * @return {Phaser.Physics.Arcade.Body} This Body object.
@@ -1088,6 +1089,16 @@ var Body = new Class({
 
         var gameObject = this.gameObject;
 
+        if (!width && gameObject.frame)
+        {
+            width = gameObject.frame.realWidth;
+        }
+
+        if (!height && gameObject.frame)
+        {
+            height = gameObject.frame.realHeight;
+        }
+        
         this.sourceWidth = width;
         this.sourceHeight = height;
 
