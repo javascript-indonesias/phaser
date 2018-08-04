@@ -31,17 +31,17 @@ var ContainerCanvasRenderer = function (renderer, container, interpolationPercen
 
     var transformMatrix = container.localTransform;
     
-    if (parentMatrix === undefined)
-    {
-        transformMatrix.applyITRS(container.x, container.y, container.rotation, container.scaleX, container.scaleY);
-    }
-    else
+    if (parentMatrix)
     {
         transformMatrix.loadIdentity();
         transformMatrix.multiply(parentMatrix);
         transformMatrix.translate(container.x, container.y);
         transformMatrix.rotate(container.rotation);
         transformMatrix.scale(container.scaleX, container.scaleY);
+    }
+    else
+    {
+        transformMatrix.applyITRS(container.x, container.y, container.rotation, container.scaleX, container.scaleY);
     }
 
     var alpha = container._alpha;
@@ -61,9 +61,14 @@ var ContainerCanvasRenderer = function (renderer, container, interpolationPercen
         var childScrollFactorX = child.scrollFactorX;
         var childScrollFactorY = child.scrollFactorY;
 
+        //  Set new values
         child.setScrollFactor(childScrollFactorX * scrollFactorX, childScrollFactorY * scrollFactorY);
         child.setAlpha(childAlpha * alpha);
+
+        //  Render
         child.renderCanvas(renderer, child, interpolationPercentage, camera, transformMatrix);
+
+        //  Restore old values
         child.setAlpha(childAlpha);
         child.setScrollFactor(childScrollFactorX, childScrollFactorY);
     }

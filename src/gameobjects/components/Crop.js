@@ -4,22 +4,19 @@
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
-//  bitmask flag for GameObject.renderMask
-var _FLAG = 8; // 1000
-
 /**
  * Provides methods used for getting and setting the texture of a Game Object.
  *
- * @name Phaser.GameObjects.Components.TextureCrop
- * @since 3.0.0
+ * @name Phaser.GameObjects.Components.Crop
+ * @since 3.12.0
  */
 
-var TextureCrop = {
+var Crop = {
 
     /**
      * The Texture this Game Object is using to render with.
      *
-     * @name Phaser.GameObjects.Components.TextureCrop#texture
+     * @name Phaser.GameObjects.Components.Crop#texture
      * @type {Phaser.Textures.Texture|Phaser.Textures.CanvasTexture}
      * @since 3.0.0
      */
@@ -28,7 +25,7 @@ var TextureCrop = {
     /**
      * The Texture Frame this Game Object is using to render with.
      *
-     * @name Phaser.GameObjects.Components.TextureCrop#frame
+     * @name Phaser.GameObjects.Components.Crop#frame
      * @type {Phaser.Textures.Frame}
      * @since 3.0.0
      */
@@ -39,7 +36,7 @@ var TextureCrop = {
      * You can toggle this at any time after `setCrop` has been called, to turn cropping on or off.
      * Equally, calling `setCrop` with no arguments will reset the crop and disable it.
      *
-     * @name Phaser.GameObjects.Components.TextureCrop#isCropped
+     * @name Phaser.GameObjects.Components.Crop#isCropped
      * @type {boolean}
      * @since 3.11.0
      */
@@ -68,7 +65,7 @@ var TextureCrop = {
      * You should do this if the crop rectangle becomes the same size as the frame itself, as it will allow
      * the renderer to skip several internal calculations.
      *
-     * @method Phaser.GameObjects.Components.TextureCrop#setCrop
+     * @method Phaser.GameObjects.Components.Crop#setCrop
      * @since 3.11.0
      *
      * @param {(number|Phaser.Geom.Rectangle)} [x] - The x coordinate to start the crop from. Or a Phaser.Geom.Rectangle object, in which case the rest of the arguments are ignored.
@@ -104,89 +101,9 @@ var TextureCrop = {
     },
 
     /**
-     * Sets the texture and frame this Game Object will use to render with.
-     *
-     * Textures are referenced by their string-based keys, as stored in the Texture Manager.
-     *
-     * @method Phaser.GameObjects.Components.TextureCrop#setTexture
-     * @since 3.0.0
-     *
-     * @param {string} key - The key of the texture to be used, as stored in the Texture Manager.
-     * @param {(string|integer)} [frame] - The name or index of the frame within the Texture.
-     *
-     * @return {this} This Game Object instance.
-     */
-    setTexture: function (key, frame)
-    {
-        this.texture = this.scene.sys.textures.get(key);
-
-        return this.setFrame(frame);
-    },
-
-    /**
-     * Sets the frame this Game Object will use to render with.
-     *
-     * The Frame has to belong to the current Texture being used.
-     *
-     * It can be either a string or an index.
-     *
-     * Calling `setFrame` will modify the `width` and `height` properties of your Game Object.
-     * It will also change the `origin` if the Frame has a custom pivot point, as exported from packages like Texture Packer.
-     *
-     * @method Phaser.GameObjects.Components.TextureCrop#setFrame
-     * @since 3.0.0
-     *
-     * @param {(string|integer)} frame - The name or index of the frame within the Texture.
-     * @param {boolean} [updateSize=true] - Should this call adjust the size of the Game Object?
-     * @param {boolean} [updateOrigin=true] - Should this call adjust the origin of the Game Object?
-     *
-     * @return {this} This Game Object instance.
-     */
-    setFrame: function (frame, updateSize, updateOrigin)
-    {
-        if (updateSize === undefined) { updateSize = true; }
-        if (updateOrigin === undefined) { updateOrigin = true; }
-
-        this.frame = this.texture.get(frame);
-
-        if (!this.frame.cutWidth || !this.frame.cutHeight)
-        {
-            this.renderFlags &= ~_FLAG;
-        }
-        else
-        {
-            this.renderFlags |= _FLAG;
-        }
-
-        if (this._sizeComponent && updateSize)
-        {
-            this.setSizeToFrame();
-        }
-
-        if (this._originComponent && updateOrigin)
-        {
-            if (this.frame.customPivot)
-            {
-                this.setOrigin(this.frame.pivotX, this.frame.pivotY);
-            }
-            else
-            {
-                this.updateDisplayOrigin();
-            }
-        }
-
-        if (this.isCropped)
-        {
-            this.frame.updateCropUVs(this._crop, this.flipX, this.flipY);
-        }
-
-        return this;
-    },
-
-    /**
      * Internal method that returns a blank, well-formed crop object for use by a Game Object.
      *
-     * @method Phaser.GameObjects.Components.TextureCrop#resetCropObject
+     * @method Phaser.GameObjects.Components.Crop#resetCropObject
      * @private
      * @since 3.12.0
      * 
@@ -199,4 +116,4 @@ var TextureCrop = {
 
 };
 
-module.exports = TextureCrop;
+module.exports = Crop;

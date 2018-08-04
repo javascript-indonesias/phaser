@@ -160,26 +160,6 @@ var CanvasRenderer = new Class({
         /**
          * [description]
          *
-         * @name Phaser.Renderer.Canvas.CanvasRenderer#currentAlpha
-         * @type {number}
-         * @default 1
-         * @since 3.0.0
-         */
-        this.currentAlpha = 1;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Renderer.Canvas.CanvasRenderer#currentBlendMode
-         * @type {number}
-         * @default 0
-         * @since 3.0.0
-         */
-        this.currentBlendMode = 0;
-
-        /**
-         * [description]
-         *
          * @name Phaser.Renderer.Canvas.CanvasRenderer#currentScaleMode
          * @type {number}
          * @default 0
@@ -346,17 +326,30 @@ var CanvasRenderer = new Class({
      *
      * @param {number} blendMode - [description]
      *
-     * @return {number} [description]
+     * @return {this} [description]
      */
     setBlendMode: function (blendMode)
     {
-        if (this.currentBlendMode !== blendMode)
-        {
-            this.currentContext.globalCompositeOperation = blendMode;
-            this.currentBlendMode = blendMode;
-        }
+        this.currentContext.globalCompositeOperation = blendMode;
 
-        return this.currentBlendMode;
+        return this;
+    },
+
+    /**
+     * Changes the Canvas Rendering Context that all draw operations are performed against.
+     *
+     * @method Phaser.Renderer.Canvas.CanvasRenderer#setContext
+     * @since 3.12.0
+     *
+     * @param {?CanvasRenderingContext2D} [ctx] - The new Canvas Rendering Context to draw everything to. Leave empty to reset to the Game Canvas.
+     *
+     * @return {this} The Canvas Renderer instance.
+     */
+    setContext: function (ctx)
+    {
+        this.currentContext = (ctx) ? ctx : this.gameContext;
+
+        return this;
     },
 
     /**
@@ -367,17 +360,13 @@ var CanvasRenderer = new Class({
      *
      * @param {number} alpha - [description]
      *
-     * @return {number} [description]
+     * @return {this} [description]
      */
     setAlpha: function (alpha)
     {
-        if (this.currentAlpha !== alpha)
-        {
-            this.currentContext.globalAlpha = alpha;
-            this.currentAlpha = alpha;
-        }
+        this.currentContext.globalAlpha = alpha;
 
-        return this.currentAlpha;
+        return this;
     },
 
     /**
@@ -444,15 +433,7 @@ var CanvasRenderer = new Class({
 
         ctx.globalAlpha = camera.alpha;
 
-        this.currentAlpha = camera.alpha;
-
-        if (this.currentBlendMode !== 0)
-        {
-            ctx.globalCompositeOperation = 'source-over';
-            this.currentBlendMode = 0;
-        }
-
-        this.currentScaleMode = 0;
+        ctx.globalCompositeOperation = 'source-over';
 
         this.drawCount += list.length;
 
@@ -464,9 +445,7 @@ var CanvasRenderer = new Class({
             ctx.clip();
         }
 
-        var matrix = camera.matrix.matrix;
-
-        ctx.setTransform(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]);
+        camera.matrix.copyToContext(ctx);
 
         for (var i = 0; i < childCount; i++)
         {
@@ -519,9 +498,6 @@ var CanvasRenderer = new Class({
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
 
-        this.currentAlpha = 1;
-        this.currentBlendMode = 0;
-
         if (this.snapshotCallback)
         {
             this.snapshotCallback(CanvasSnapshot(this.gameCanvas, this.snapshotType, this.snapshotEncoder));
@@ -544,6 +520,130 @@ var CanvasRenderer = new Class({
         this.snapshotCallback = callback;
         this.snapshotType = type;
         this.snapshotEncoder = encoderOptions;
+    },
+
+    /**
+     * Takes a Sprite Game Object, or any object that extends it, and draws it to the current context.
+     *
+     * @method Phaser.Renderer.Canvas.CanvasRenderer#batchSprite
+     * @since 3.12.0
+     *
+     * @param {Phaser.GameObjects.GameObject} sprite - The texture based Game Object to draw.
+     * @param {Phaser.Textures.Frame} frame - The frame to draw, doesn't have to be that owned by the Game Object.
+     * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera to use for the rendering transform.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} [parentTransformMatrix] - The transform matrix of the parent container, if set.
+     */
+    batchSprite: function (sprite, frame, camera, parentTransformMatrix)
+    {
+        var alpha = camera.alpha * sprite.alpha;
+
+        if (alpha === 0)
+        {
+            //  Nothing to see, so abort early
+            return;
+        }
+    
+        var ctx = this.currentContext;
+
+        var camMatrix = this._tempMatrix1;
+        var spriteMatrix = this._tempMatrix2;
+        var calcMatrix = this._tempMatrix3;
+
+        var cd = frame.canvasData;
+
+        var frameX = cd.x;
+        var frameY = cd.y;
+        var frameWidth = frame.width;
+        var frameHeight = frame.height;
+        var res = frame.source.resolution;
+
+        var x = -sprite.displayOriginX + frame.x;
+        var y = -sprite.displayOriginY + frame.y;
+
+        var fx = (sprite.flipX) ? -1 : 1;
+        var fy = (sprite.flipY) ? -1 : 1;
+    
+        if (sprite.isCropped)
+        {
+            var crop = sprite._crop;
+
+            if (crop.flipX !== sprite.flipX || crop.flipY !== sprite.flipY)
+            {
+                frame.updateCropUVs(crop, sprite.flipX, sprite.flipY);
+            }
+
+            frameWidth = crop.cw;
+            frameHeight = crop.ch;
+    
+            frameX = crop.cx;
+            frameY = crop.cy;
+
+            x = -sprite.displayOriginX + crop.x;
+            y = -sprite.displayOriginY + crop.y;
+
+            if (fx === -1)
+            {
+                if (x >= 0)
+                {
+                    x = -(x + frameWidth);
+                }
+                else if (x < 0)
+                {
+                    x = (Math.abs(x) - frameWidth);
+                }
+            }
+        
+            if (fy === -1)
+            {
+                if (y >= 0)
+                {
+                    y = -(y + frameHeight);
+                }
+                else if (y < 0)
+                {
+                    y = (Math.abs(y) - frameHeight);
+                }
+            }
+        }
+
+        spriteMatrix.applyITRS(sprite.x, sprite.y, sprite.rotation, sprite.scaleX, sprite.scaleY);
+
+        camMatrix.copyFrom(camera.matrix);
+
+        if (parentTransformMatrix)
+        {
+            //  Multiply the camera by the parent matrix
+            camMatrix.multiplyWithOffset(parentTransformMatrix, -camera.scrollX * sprite.scrollFactorX, -camera.scrollY * sprite.scrollFactorY);
+
+            //  Undo the camera scroll
+            spriteMatrix.e = sprite.x;
+            spriteMatrix.f = sprite.y;
+
+            //  Multiply by the Sprite matrix, store result in calcMatrix
+            camMatrix.multiply(spriteMatrix, calcMatrix);
+        }
+        else
+        {
+            spriteMatrix.e -= camera.scrollX * sprite.scrollFactorX;
+            spriteMatrix.f -= camera.scrollY * sprite.scrollFactorY;
+    
+            //  Multiply by the Sprite matrix, store result in calcMatrix
+            camMatrix.multiply(spriteMatrix, calcMatrix);
+        }
+
+        ctx.save();
+       
+        calcMatrix.setToContext(ctx);
+
+        ctx.scale(fx, fy);
+
+        ctx.globalCompositeOperation = this.blendModes[sprite.blendMode];
+
+        ctx.globalAlpha = alpha;
+
+        ctx.drawImage(frame.source.image, frameX, frameY, frameWidth, frameHeight, x, y, frameWidth / res, frameHeight / res);
+
+        ctx.restore();
     },
 
     /**
