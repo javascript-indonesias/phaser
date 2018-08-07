@@ -5,11 +5,9 @@
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
-var BlitImage = require('./utils/BlitImage');
 var CanvasSnapshot = require('../snapshot/CanvasSnapshot');
 var Class = require('../../utils/Class');
 var CONST = require('../../const');
-var DrawImage = require('./utils/DrawImage');
 var GetBlendModes = require('./utils/GetBlendModes');
 var ScaleModes = require('../ScaleModes');
 var Smoothing = require('../../display/canvas/Smoothing');
@@ -131,24 +129,6 @@ var CanvasRenderer = new Class({
         this.currentContext = this.gameContext;
 
         /**
-         * Map to the required function.
-         *
-         * @name Phaser.Renderer.Canvas.CanvasRenderer#drawImage
-         * @type {function}
-         * @since 3.0.0
-         */
-        this.drawImage = DrawImage;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.Renderer.Canvas.CanvasRenderer#blitImage
-         * @type {function}
-         * @since 3.0.0
-         */
-        this.blitImage = BlitImage(this.config.roundPixels);
-
-        /**
          * [description]
          *
          * @name Phaser.Renderer.Canvas.CanvasRenderer#blendModes
@@ -156,6 +136,9 @@ var CanvasRenderer = new Class({
          * @since 3.0.0
          */
         this.blendModes = GetBlendModes();
+
+        // image-rendering: optimizeSpeed;
+        // image-rendering: pixelated;
 
         /**
          * [description]

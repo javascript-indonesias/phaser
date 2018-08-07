@@ -4,7 +4,7 @@
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
-var Camera = require('../../cameras/2d/Camera');
+var Camera = require('../../cameras/2d/BaseCamera');
 var CanvasPool = require('../../display/canvas/CanvasPool');
 var Class = require('../../utils/Class');
 var Components = require('../components');
@@ -163,15 +163,15 @@ var RenderTexture = new Class({
         this.frame = this.texture.get();
 
         /**
-         * An internal Camera that can be used to move around the Render Texture!
+         * An internal Camera that can be used to move around the Render Texture.
+         * Control it just like you would any Scene Camera. The difference is that it only impacts the placement of what
+         * is drawn to the Render Texture. You can scroll, zoom and rotate this Camera.
          *
          * @name Phaser.GameObjects.RenderTexture#camera
-         * @type {object}
+         * @type {Phaser.Cameras.Scene2D.BaseCamera}
          * @since 3.12.0
          */
         this.camera = new Camera(0, 0, width, height);
-
-        this.camera.setScene(scene);
 
         /**
          * Is this Render Texture dirty or not? If not it won't spend time clearing or filling itself.
@@ -206,6 +206,8 @@ var RenderTexture = new Class({
         {
             this.drawGameObject = this.batchGameObjectCanvas;
         }
+
+        this.camera.setScene(scene);
 
         this.setPosition(x, y);
         this.setSize(width, height);
@@ -270,6 +272,7 @@ var RenderTexture = new Class({
                 this.frame.glTexture = this.frame.source.glTexture;
             }
 
+            this.camera.setSize(width, height);
             this.frame.setSize(width, height);
 
             this.width = width;
