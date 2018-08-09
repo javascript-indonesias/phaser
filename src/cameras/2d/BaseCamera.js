@@ -5,6 +5,7 @@
  */
 
 var Class = require('../../utils/Class');
+var Components = require('../../gameobjects/components');
 var DegToRad = require('../../math/DegToRad');
 var EventEmitter = require('eventemitter3');
 var Rectangle = require('../../geom/rectangle/Rectangle');
@@ -66,10 +67,13 @@ var Vector2 = require('../../math/Vector2');
  * to when they were added to the Camera class.
  *
  * @class BaseCamera
- * @extends Phaser.Events.EventEmitter
  * @memberOf Phaser.Cameras.Scene2D
  * @constructor
  * @since 3.12.0
+ * 
+ * @extends Phaser.Events.EventEmitter
+ * @extends Phaser.GameObjects.Components.Alpha
+ * @extends Phaser.GameObjects.Components.Visible
  *
  * @param {number} x - The x position of the Camera, relative to the top-left of the game canvas.
  * @param {number} y - The y position of the Camera, relative to the top-left of the game canvas.
@@ -79,6 +83,11 @@ var Vector2 = require('../../math/Vector2');
 var BaseCamera = new Class({
 
     Extends: EventEmitter,
+
+    Mixins: [
+        Components.Alpha,
+        Components.Visible
+    ],
 
     initialize:
 
@@ -170,8 +179,8 @@ var BaseCamera = new Class({
          * @type {boolean}
          * @default true
          * @since 3.10.0
-         */
         this.visible = true;
+         */
 
         /**
          * Is this Camera using a bounds to restrict scrolling movement?
@@ -422,8 +431,8 @@ var BaseCamera = new Class({
          * @type {number}
          * @default 1
          * @since 3.11.0
-         */
         this.alpha = 1;
+         */
 
         /**
          * Should the camera cull Game Objects before checking them for input hit tests?
@@ -518,7 +527,6 @@ var BaseCamera = new Class({
      * @param {number} [value=1] - The Camera alpha value.
      *
      * @return {this} This Camera instance.
-     */
     setAlpha: function (value)
     {
         if (value === undefined) { value = 1; }
@@ -527,6 +535,7 @@ var BaseCamera = new Class({
 
         return this;
     },
+     */
 
     /**
      * Sets the rotation origin of this Camera.
@@ -816,24 +825,35 @@ var BaseCamera = new Class({
      * @method Phaser.Cameras.Scene2D.BaseCamera#ignore
      * @since 3.0.0
      *
-     * @param {(Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[])} gameObject - The Game Object, or array of Game Objects, to be ignored by this Camera.
+     * @param {(Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]|Phaser.GameObjects.Group)} entries - The Game Object, or array of Game Objects, to be ignored by this Camera.
      *
      * @return {Phaser.Cameras.Scene2D.BaseCamera} This Camera instance.
      */
-    ignore: function (gameObject)
+    ignore: function (entries)
     {
         var id = this.id;
 
-        if (Array.isArray(gameObject))
+        if (!Array.isArray(entries))
         {
-            for (var i = 0; i < gameObject.length; i++)
-            {
-                gameObject[i].cameraFilter |= id;
-            }
+            entries = [ entries ];
         }
-        else
+
+        for (var i = 0; i < entries.length; i++)
         {
-            gameObject.cameraFilter |= id;
+            var entry = entries[i];
+
+            if (Array.isArray(entry))
+            {
+                this.ignore(entry);
+            }
+            else if (entry.isParent)
+            {
+                this.ignore(entry.getChildren());
+            }
+            else
+            {
+                entry.cameraFilter |= id;
+            }
         }
 
         return this;
@@ -1329,13 +1349,13 @@ var BaseCamera = new Class({
      * @param {boolean} value - The visible state of the Camera.
      *
      * @return {this} This Camera instance.
-     */
     setVisible: function (value)
     {
         this.visible = value;
 
         return this;
     },
+     */
 
     /**
      * Returns an Object suitable for JSON storage containing all of the Camera viewport and rendering properties.
@@ -1398,6 +1418,11 @@ var BaseCamera = new Class({
      */
     updateSystem: function ()
     {
+        if (!this.config)
+        {
+            return;
+        }
+
         var custom = false;
 
         if (this._x !== 0 || this._y !== 0)

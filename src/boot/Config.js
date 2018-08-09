@@ -37,6 +37,21 @@ var ValueToColor = require('../display/color/ValueToColor');
  */
 
 /**
+ * @typedef {object} ScaleConfig
+ *
+ * @property {(integer|string)} [width=1024] - The base width of your game.
+ * @property {(integer|string)} [height=768] - The base height of your game.
+ * @property {integer} [zoom=1] - The zoom value of the game canvas.
+ * @property {number} [resolution=1] - The rendering resolution of the canvas.
+ * @property {any} [parent] - The parent DOM element.
+ * @property {integer} [mode=0] - The scale mode to apply to the canvas.
+ * @property {integer} [minWidth] - The minimum width the canvas can be scaled down to.
+ * @property {integer} [minHeight] - The minimum height the canvas can be scaled down to.
+ * @property {integer} [maxWidth] - The maximum width the canvas can be scaled up to.
+ * @property {integer} [maxHeight] - The maximum height the canvas can be scaled up to.
+ */
+
+/**
  * @typedef {object} LoaderConfig
  *
  * @property {string} [baseURL] - [description]
@@ -55,6 +70,26 @@ var ValueToColor = require('../display/color/ValueToColor');
  *
  * @property {boolean} [createContainer=false] - Create a div element in which DOM Elements will be contained. You must also provide a parent.
  * @property {boolean} [behindCanvas=false] - Place the DOM Container behind the Phaser Canvas. The default is to place it over the Canvas.
+ */
+
+/** 
+ * @typedef {object} PluginObjectItem
+ * 
+ * @property {string} [key] - [description]
+ * @property {*} [plugin] - [description]
+ * @property {boolean} [start] - [description]
+ * @property {string} [systemKey] - [description]
+ * @property {string} [sceneKey] - [description]
+ * @property {*} [data] - [description]
+ */
+
+/** 
+ * @typedef {object} PluginObject
+ * 
+ * @property {PluginObjectItem[]} [global=null] - [description]
+ * @property {PluginObjectItem[]} [scene=null] - [description]
+ * @property {Array} [default=[]] - [description]
+ * @property {*} [defaultMerge={}] - [description]
  */
 
 /**
@@ -112,6 +147,7 @@ var ValueToColor = require('../display/color/ValueToColor');
  * @property {string} [images.default] - [description]
  * @property {string} [images.missing] - [description]
  * @property {object} [physics] - [description]
+ * @property {PluginObject|PluginObjectItem[]} [plugins] - [description]
  */
 
 /**
@@ -164,14 +200,35 @@ var Config = new Class({
         this.resolution = GetValue(config, 'resolution', 1);
 
         /**
-         * @const {number} Phaser.Boot.Config#renderType - [description]
-         */
-        this.renderType = GetValue(config, 'type', CONST.AUTO);
-
-        /**
          * @const {?*} Phaser.Boot.Config#parent - [description]
          */
         this.parent = GetValue(config, 'parent', null);
+
+        /**
+         * @const {?*} Phaser.Boot.Config#scaleMode - [description]
+         */
+        this.scaleMode = GetValue(config, 'scaleMode', 0);
+
+        //  Scale Manager - Anything set in here over-rides anything set above
+
+        var scaleConfig = GetValue(config, 'scale', null);
+
+        if (scaleConfig)
+        {
+            this.width = GetValue(scaleConfig, 'width', this.width);
+            this.height = GetValue(scaleConfig, 'height', this.height);
+            this.zoom = GetValue(scaleConfig, 'zoom', this.zoom);
+            this.resolution = GetValue(scaleConfig, 'resolution', this.resolution);
+            this.parent = GetValue(scaleConfig, 'parent', this.parent);
+            this.scaleMode = GetValue(scaleConfig, 'mode', this.scaleMode);
+
+            //  TODO: Add in min / max sizes
+        }
+
+        /**
+         * @const {number} Phaser.Boot.Config#renderType - [description]
+         */
+        this.renderType = GetValue(config, 'type', CONST.AUTO);
 
         /**
          * @const {?HTMLCanvasElement} Phaser.Boot.Config#canvas - Force Phaser to use your own Canvas element instead of creating one.

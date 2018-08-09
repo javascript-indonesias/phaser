@@ -5,9 +5,11 @@
  */
 
 var BaseCamera = require('./BaseCamera');
+var CanvasPool = require('../../display/canvas/CanvasPool');
 var CenterOn = require('../../geom/rectangle/CenterOn');
 var Clamp = require('../../math/Clamp');
 var Class = require('../../utils/Class');
+var Components = require('../../gameobjects/components');
 var Effects = require('./effects');
 var Linear = require('../../math/Linear');
 var Rectangle = require('../../geom/rectangle/Rectangle');
@@ -37,10 +39,13 @@ var Vector2 = require('../../math/Vector2');
  * A Camera also has built-in special effects including Fade, Flash and Camera Shake.
  *
  * @class Camera
- * @extends Phaser.Cameras.Scene2D.BaseCamera
  * @memberOf Phaser.Cameras.Scene2D
  * @constructor
  * @since 3.0.0
+ * 
+ * @extends Phaser.Cameras.Scene2D.BaseCamera
+ * @extends Phaser.GameObjects.Components.Flip
+ * @extends Phaser.GameObjects.Components.Tint
  *
  * @param {number} x - The x position of the Camera, relative to the top-left of the game canvas.
  * @param {number} y - The y position of the Camera, relative to the top-left of the game canvas.
@@ -50,6 +55,11 @@ var Vector2 = require('../../math/Vector2');
 var Camera = new Class({
 
     Extends: BaseCamera,
+
+    Mixins: [
+        Components.Flip,
+        Components.Tint
+    ],
 
     initialize:
 
@@ -181,6 +191,87 @@ var Camera = new Class({
          * @since 3.0.0
          */
         this._follow = null;
+
+        this.renderToTexture = false;
+
+        /**
+         * The HTML Canvas Element that the Render Texture is drawing to.
+         * This is only populated if Phaser is running with the Canvas Renderer.
+         *
+         * @name Phaser.GameObjects.RenderTexture#canvas
+         * @type {HTMLCanvasElement}
+         * @since 3.12.0
+         */
+        this.canvas = null;
+
+        /**
+         * A reference to the Rendering Context belonging to the Canvas Element this Render Texture is drawing to.
+         *
+         * @name Phaser.GameObjects.RenderTexture#context
+         * @type {CanvasRenderingContext2D}
+         * @since 3.12.0
+         */
+        this.context = null;
+
+        /**
+         * A reference to the GL Frame Buffer this Render Texture is drawing to.
+         * This is only set if Phaser is running with the WebGL Renderer.
+         *
+         * @name Phaser.GameObjects.RenderTexture#framebuffer
+         * @type {?WebGLFramebuffer}
+         * @since 3.12.0
+         */
+        this.glTexture = null;
+
+        /**
+         * A reference to the GL Frame Buffer this Render Texture is drawing to.
+         * This is only set if Phaser is running with the WebGL Renderer.
+         *
+         * @name Phaser.GameObjects.RenderTexture#framebuffer
+         * @type {?WebGLFramebuffer}
+         * @since 3.12.0
+         */
+        this.framebuffer = null;
+
+        this.pipeline = null;
+
+        // this.flipX = false;
+        // this.flipY = false;
+        // this.tintFill = 0;
+        // this._isTinted = false;
+        // this._tintTL = 0xffffff;
+        // this._tintTR = 0xffffff;
+        // this._tintBL = 0xffffff;
+        // this._tintBR = 0xffffff;
+        // this._alphaTL = 1;
+        // this._alphaTR = 1;
+        // this._alphaBL = 1;
+        // this._alphaBR = 1;
+    },
+
+    setRenderToTexture: function (pipeline)
+    {
+        var renderer = this.scene.sys.game.renderer;
+
+        if (renderer.gl)
+        {
+            this.glTexture = renderer.createTextureFromSource(null, this.width, this.height, 0);
+            this.framebuffer = renderer.createFramebuffer(this.width, this.height, this.glTexture, false);
+        }
+        else
+        {
+            this.canvas = CanvasPool.create2D(this, this.width, this.height);
+            this.context = this.canvas.getContext('2d');
+        }
+
+        this.renderToTexture = true;
+
+        if (pipeline)
+        {
+            this.pipeline = pipeline;
+        }
+
+        return this;
     },
 
     /**
