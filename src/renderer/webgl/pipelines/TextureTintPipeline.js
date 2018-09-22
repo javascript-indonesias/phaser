@@ -219,7 +219,7 @@ var TextureTintPipeline = new Class({
          * @private
          * @since 3.12.0
          */
-        this.currentFrame = null;
+        this.currentFrame = { u0: 0, v0: 0, u1: 1, v1: 1 };
 
         /**
          * Internal path quad cache.
@@ -229,7 +229,7 @@ var TextureTintPipeline = new Class({
          * @private
          * @since 3.12.0
          */
-        this.firstQuad = [ 0, 0, 0, 0 ];
+        this.firstQuad = [ 0, 0, 0, 0, 0 ];
 
         /**
          * Internal path quad cache.
@@ -239,7 +239,7 @@ var TextureTintPipeline = new Class({
          * @private
          * @since 3.12.0
          */
-        this.prevQuad = [ 0, 0, 0, 0 ];
+        this.prevQuad = [ 0, 0, 0, 0, 0 ];
 
         /**
          * Used internally for triangulating a polygon.
@@ -733,9 +733,6 @@ var TextureTintPipeline = new Class({
         var width = srcWidth;
         var height = srcHeight;
 
-        // var x = -displayOriginX + frameX;
-        // var y = -displayOriginY + frameY;
-
         var x = -displayOriginX;
         var y = -displayOriginY;
 
@@ -788,13 +785,6 @@ var TextureTintPipeline = new Class({
             height *= -1;
             y += srcHeight;
         }
-
-        //  Do we need this? (doubt it)
-        // if (camera.roundPixels)
-        // {
-        //     x |= 0;
-        //     y |= 0;
-        // }
 
         var xw = x + width;
         var yh = y + height;
@@ -959,8 +949,11 @@ var TextureTintPipeline = new Class({
 
         var calcMatrix = this._tempMatrix3;
 
-        //  Multiply and store result in calcMatrix
-        parentMatrix.multiply(currentMatrix, calcMatrix);
+        //  Multiply and store result in calcMatrix, only if the parentMatrix is set, otherwise we'll use whatever values are already in the calcMatrix
+        if (parentMatrix)
+        {
+            parentMatrix.multiply(currentMatrix, calcMatrix);
+        }
         
         var xw = x + width;
         var yh = y + height;
@@ -1009,8 +1002,11 @@ var TextureTintPipeline = new Class({
 
         var calcMatrix = this._tempMatrix3;
 
-        //  Multiply and store result in calcMatrix
-        parentMatrix.multiply(currentMatrix, calcMatrix);
+        //  Multiply and store result in calcMatrix, only if the parentMatrix is set, otherwise we'll use whatever values are already in the calcMatrix
+        if (parentMatrix)
+        {
+            parentMatrix.multiply(currentMatrix, calcMatrix);
+        }
         
         var tx0 = calcMatrix.getX(x0, y0);
         var ty0 = calcMatrix.getY(x0, y0);
@@ -1093,8 +1089,11 @@ var TextureTintPipeline = new Class({
 
         var calcMatrix = this._tempMatrix3;
 
-        //  Multiply and store result in calcMatrix
-        parentMatrix.multiply(currentMatrix, calcMatrix);
+        //  Multiply and store result in calcMatrix, only if the parentMatrix is set, otherwise we'll use whatever values are already in the calcMatrix
+        if (parentMatrix)
+        {
+            parentMatrix.multiply(currentMatrix, calcMatrix);
+        }
 
         var length = path.length;
         var polygonCache = this.polygonCache;
@@ -1171,6 +1170,10 @@ var TextureTintPipeline = new Class({
     {
         this.renderer.setPipeline(this);
 
+        //  Reset the closePath booleans
+        this.prevQuad[4] = 0;
+        this.firstQuad[4] = 0;
+
         var pathLength = path.length - 1;
 
         for (var pathIndex = 0; pathIndex < pathLength; pathIndex++)
@@ -1214,14 +1217,12 @@ var TextureTintPipeline = new Class({
 
         var calcMatrix = this._tempMatrix3;
 
-        //  Multiply and store result in calcMatrix
-        parentMatrix.multiply(currentMatrix, calcMatrix);
-
-        if (this.vertexCount + 6 > this.vertexCapacity)
+        //  Multiply and store result in calcMatrix, only if the parentMatrix is set, otherwise we'll use whatever values are already in the calcMatrix
+        if (parentMatrix)
         {
-            this.flush();
+            parentMatrix.multiply(currentMatrix, calcMatrix);
         }
-        
+
         var dx = bx - ax;
         var dy = by - ay;
 
@@ -1274,7 +1275,7 @@ var TextureTintPipeline = new Class({
         //  TL, BL, BR, TR
         this.batchQuad(tlX, tlY, blX, blY, brX, brY, trX, trY, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect);
 
-        if (lineWidth <= 1)
+        if (lineWidth <= 2)
         {
             //  No point doing a linejoin if the line isn't thick enough
             return;
@@ -1283,22 +1284,23 @@ var TextureTintPipeline = new Class({
         var prev = this.prevQuad;
         var first = this.firstQuad;
 
-        if (index > 0)
+        if (index > 0 && prev[4])
         {
             this.batchQuad(tlX, tlY, blX, blY, prev[0], prev[1], prev[2], prev[3], u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect);
         }
         else
         {
-            first[0] = blX;
-            first[1] = blY;
-            first[2] = tlX;
-            first[3] = tlY;
+            first[0] = tlX;
+            first[1] = tlY;
+            first[2] = blX;
+            first[3] = blY;
+            first[4] = 1;
         }
 
-        if (closePath)
+        if (closePath && first[4])
         {
             //  Add a join for the final path segment
-            this.batchQuad(first[0], first[1], first[2], first[3], brX, brY, trX, trY, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect);
+            this.batchQuad(brX, brY, trX, trY, first[0], first[1], first[2], first[3], u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect);
         }
         else
         {
@@ -1308,6 +1310,7 @@ var TextureTintPipeline = new Class({
             prev[1] = brY;
             prev[2] = trX;
             prev[3] = trY;
+            prev[4] = 1;
         }
     }
 
