@@ -6,7 +6,32 @@
 
 ### Updates
 
+* The Loader has been updated to handle the impact of you destroying the game instance while still processing files. It will no longer throw cache and texture related errors. Fix #4049 (thanks @pantoninho)
+* `TileSet.getTileData()` has been updated so it will return tile data from either Tiled 1.1.x or the new Tiled 1.2.x JSON structure. Fix #3998 (thanks @martin-pabst @halgorithm)
+
 ### Bug Fixes
+
+* GameObjects added to and removed from Containers no longer listen for the `shutdown` event at all (thanks Vitali)
+* Sprites now have `preDestroy` method, which is called automatically by `destroy`. The method destroys the Animation component, unregistering the `remove` event in the process and freeing-up resources. Fix #4051 (thanks @Aveyder)
+* `Tilemap.setBaseTileSize` now sets the size into the LayerData `baseTileWidth` and `baseTileHeight` properties accordingly. Fix #4057 (thanks @imilo)
+* Calling `Tilemap.renderDebug` ignored the layer world position when drawing to the Graphics object. It will now translate to the layer position before drawing. Fix #4061 (thanks @Zax37)
+* `UpdateList.shutdown` wasn't correctly iterating over the pending lists (thanks @felipeprov)
+* Input detection was known to be broken when the game resolution was !== 1 and the Camera zoom level was !== 1. Fix #4010 (thanks @s-s)
+
+### Examples, Documentation and TypeScript
+
+My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
+
+@shaneMLK
+Arian Fornaris
+cyantree
+DannyT
+Elliott Wallace
+Lee
+Nathaniel Foldan
+Peter Pedersen
+Stephen Hamilton
+STuFF
 
 
 ## Version 3.13.0 - Yuuki - 20th September 2018
