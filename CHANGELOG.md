@@ -1,6 +1,35 @@
 # Change Log
 
-## Version 3.14.0 - Tachikoma - in development
+## Version 3.15.0 - Batou - in development
+
+### New Features
+
+* You can now set the `maxLights` value in the Game Config, which controls the total number of lights the Light2D shader can render in a single pass. The default is 10. Be careful about pushing this too far. More lights = less performance. Close #4081 (thanks @FrancescoNegri)
+
+### Updates
+
+* `WebGLRenderer.deleteTexture` will check to see if the texture it is being asked to delete is the currently bound texture or not. If it is, it'll set the blank texture to be bound after deletion. This should stop `RENDER WARNING: there is no texture bound to the unit 0` errors if you destroy a Game Object, such as Text or TileSprite, from an async or timed process (thanks jamespierce)
+* The `RequestAnimationFrame.step` and `stepTimeout` functions have been updated so that the new Frame is requested from raf before the main game step is called. This allows you to now stop the raf callback from within the game update or render loop. Fix #3952 (thanks @tolimeh)
+
+### Bug Fixes
+
+### Examples and TypeScript
+
+Thanks to the following for helping with the Phaser 3 Examples and TypeScript definitions, either by reporting errors, or even better, fixing them:
+
+
+
+### Phaser Doc Jam
+
+The [Phaser Doc Jam](http://docjam.phaser.io) is an on-going effort to ensure that the Phaser 3 API has 100% documentation coverage. Thanks to the monumental effort of myself and the following people we're now really close to that goal! My thanks to:
+
+---
+
+If you'd like to help finish off the last parts of documentation then take a look at the [Doc Jam site](http://docjam.phaser.io).
+
+
+
+## Version 3.14.0 - Tachikoma - 1st October 2018
 
 ### Tilemap New Features, Updates and Fixes
 
@@ -71,45 +100,24 @@
 * The `Texture.getFramesFromTextureSource` method was returning an array of Frame names by mistake, instead of Frame references. It now returns the Frames themselves.
 * When using `CanvasTexture.refresh` or `Graphics.generateTexture` it would throw WebGL warnings like 'bindTexture: Attempt to bind a deleted texture'. This was due to the Frames losing sync with the glTexture reference used by their TextureSource. Fix #4050 (thanks @kanthi0802)
 * Fixed an error in the `batchSprite` methods in the Canvas and WebGL Renderers that would incorrectly set the frame dimensions on Sprites with the crop component. This was particularly noticeable on Sprites with trimmed animation frames (thanks @sergeod9)
+* Fixed a bug where the gl scissor wasn't being reset during a renderer resize, causing it to appear as if the canvas didn't resize properly when `autoResize` was set to `true` in the game config. Fix #4066 (thanks @Quinten @hsan999)
+* If a Game instance is destroyed without using the `removeCanvas` argument, it would throw exceptions in the `MouseManager` after the destroy process has run, as the event listeners were not unbound. They're not unbound, regardless of if the parent canvas is removed or not. Fix #4015 (thanks @garethwhittaker)
 
-### Examples, Documentation and TypeScript
+### Examples and TypeScript
 
-My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
+A huge thanks to @presidenten for his work on the Phaser 3 Examples. You'll notice they now have a lovely screen shots for every example and the scripts generate them automatically :)
 
-31826615
-@16patsle
-@bobonthenet
-@bobonthenet
-@rgk
-@samme
-@shaneMLK
-@wemyss
-ajmetal
-andiCR
-Arian Fornaris
-bsparks
-Carl
-cyantree
-DannyT
-Elliott Wallace
-felixnemis
-griga
-Hardylr
-henriacle
-Hsaka
-icbat
-Kanthi
-Kyle
-Lee
-Nathaniel Foldan
-Peter Pedersen
-rootasjey
-Sam Frantz
-SBCGames
-snowbillr
-Stephen Hamilton
-STuFF
-TadejZupancic
+Also, thanks to the following for helping with the Phaser 3 Examples and TypeScript definitions, either by reporting errors, or even better, fixing them:
+
+@madanus @truncs @samme
+
+### Phaser Doc Jam
+
+The [Phaser Doc Jam](http://docjam.phaser.io) is an on-going effort to ensure that the Phaser 3 API has 100% documentation coverage. Thanks to the monumental effort of myself and the following people we're now really close to that goal! My thanks to:
+
+31826615 - @16patsle - @bobonthenet - @rgk - @samme - @shaneMLK - @wemyss - ajmetal - andiCR - Arian Fornaris - bsparks - Carl - cyantree - DannyT - Elliott Wallace - felixnemis - griga - Hardylr - henriacle - Hsaka - icbat - Kanthi - Kyle - Lee - Nathaniel Foldan - Peter Pedersen - rootasjey - Sam Frantz - SBCGames - snowbillr - Stephen Hamilton - STuFF - TadejZupancic - telinc1
+
+If you'd like to help finish off the last parts of documentation then take a look at the [Doc Jam site](http://docjam.phaser.io).
 
 ## Version 3.13.0 - Yuuki - 20th September 2018
 
