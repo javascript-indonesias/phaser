@@ -43,7 +43,7 @@ var TextStyle = require('../TextStyle');
  *
  * @class Text
  * @extends Phaser.GameObjects.GameObject
- * @memberOf Phaser.GameObjects
+ * @memberof Phaser.GameObjects
  * @constructor
  * @since 3.0.0
  *
@@ -252,6 +252,14 @@ var Text = new Class({
 
         //  Set the resolution
         this.frame.source.resolution = this.style.resolution;
+
+        if (this.renderer && this.renderer.gl)
+        {
+            //  Clear the default 1x1 glTexture, as we override it later
+            this.renderer.deleteTexture(this.frame.source.glTexture);
+
+            this.frame.source.glTexture = null;
+        }
 
         this.initRTL();
 
@@ -1168,7 +1176,7 @@ var Text = new Class({
 
         if (this.renderer.gl)
         {
-            this.frame.source.glTexture = this.renderer.canvasToTexture(canvas, this.frame.source.glTexture);
+            this.frame.source.glTexture = this.renderer.canvasToTexture(canvas, this.frame.source.glTexture, true);
 
             this.frame.glTexture = this.frame.source.glTexture;
         }

@@ -47,7 +47,7 @@ if (typeof PLUGIN_FBINSTANT)
  * made available to you via the Phaser.Scene Systems class instead.
  *
  * @class Game
- * @memberOf Phaser
+ * @memberof Phaser
  * @constructor
  * @since 3.0.0
  *
@@ -231,11 +231,11 @@ var Game = new Class({
          *
          * The Scale Manager is a global system responsible for handling game scaling events.
          *
-         * @name Phaser.Game#scaleManager
+         * @name Phaser.Game#scale
          * @type {Phaser.Boot.ScaleManager}
          * @since 3.15.0
          */
-        this.scaleManager = new ScaleManager(this, this.config);
+        this.scale = new ScaleManager(this, this.config);
 
         /**
          * An instance of the base Sound Manager.
@@ -367,13 +367,15 @@ var Game = new Class({
     {
         if (!PluginCache.hasCore('EventEmitter'))
         {
-            console.warn('Core Phaser Plugins missing. Cannot start.');
+            console.warn('Aborting. Core Plugins missing.');
             return;
         }
 
         this.isBooted = true;
 
         this.config.preBoot(this);
+
+        this.scale.preBoot();
 
         CreateRenderer(this);
 
@@ -383,6 +385,8 @@ var Game = new Class({
         }
 
         DebugHeader(this);
+
+        console.log('Canvas added to DOM');
 
         AddToDOM(this.canvas, this.config.parent);
 

@@ -44,7 +44,7 @@ var TextureTintPipeline = require('./pipelines/TextureTintPipeline');
  * WebGLRenderer and/or WebGLPipeline.
  *
  * @class WebGLRenderer
- * @memberOf Phaser.Renderer.WebGL
+ * @memberof Phaser.Renderer.WebGL
  * @constructor
  * @since 3.0.0
  *
@@ -112,22 +112,22 @@ var WebGLRenderer = new Class({
         this.type = CONST.WEBGL;
 
         /**
-         * The width of a rendered frame.
+         * The width of the canvas being rendered to.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#width
-         * @type {number}
+         * @type {integer}
          * @since 3.0.0
          */
-        this.width = game.config.width;
+        this.width = game.scale.canvasWidth;
 
         /**
-         * The height of a rendered frame.
+         * The height of the canvas being rendered to.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#height
-         * @type {number}
+         * @type {integer}
          * @since 3.0.0
          */
-        this.height = game.config.height;
+        this.height = game.scale.canvasHeight;
 
         /**
          * The canvas which this WebGL Renderer draws to.
@@ -567,7 +567,24 @@ var WebGLRenderer = new Class({
 
         this.setBlendMode(CONST.BlendModes.NORMAL);
 
-        this.resize(this.width, this.height);
+        var width = this.width;
+        var height = this.height;
+
+        gl.viewport(0, 0, width, height);
+
+        var pipelines = this.pipelines;
+
+        //  Update all registered pipelines
+        for (var pipelineName in pipelines)
+        {
+            pipelines[pipelineName].resize(width, height, this.game.scale.resolution);
+        }
+
+        this.drawingBufferHeight = gl.drawingBufferHeight;
+
+        this.defaultCamera.setSize(width, height);
+
+        gl.scissor(0, (this.drawingBufferHeight - height), width, height);
 
         this.game.events.once('texturesready', this.boot, this);
 
@@ -596,7 +613,7 @@ var WebGLRenderer = new Class({
     },
 
     /**
-     * Resizes the internal canvas and drawing buffer.
+     * Resizes the drawing buffer.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#resize
      * @since 3.0.0
@@ -610,19 +627,10 @@ var WebGLRenderer = new Class({
     {
         var gl = this.gl;
         var pipelines = this.pipelines;
-        var resolution = this.config.resolution;
+        var resolution = this.game.scale.resolution;
 
         this.width = Math.floor(width * resolution);
         this.height = Math.floor(height * resolution);
-
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
-
-        if (this.config.autoResize)
-        {
-            this.canvas.style.width = (this.width / resolution) + 'px';
-            this.canvas.style.height = (this.height / resolution) + 'px';
-        }
 
         gl.viewport(0, 0, this.width, this.height);
 
@@ -1816,28 +1824,40 @@ var WebGLRenderer = new Class({
      *
      * @param {HTMLCanvasElement} srcCanvas - The Canvas element that will be used to populate the texture.
      * @param {WebGLTexture} [dstTexture] - Is this going to replace an existing texture? If so, pass it here.
+     * @param {boolean} [noRepeat=false] - Should this canvas never be allowed to set REPEAT? (such as for Text objects)
      *
      * @return {WebGLTexture} The newly created WebGL Texture.
      */
-    canvasToTexture: function (srcCanvas, dstTexture)
+    canvasToTexture: function (srcCanvas, dstTexture, noRepeat)
     {
+        if (noRepeat === undefined) { noRepeat = false; }
+
         var gl = this.gl;
 
-        var wrapping = gl.CLAMP_TO_EDGE;
-
-        if (IsSizePowerOfTwo(srcCanvas.width, srcCanvas.height))
+        if (!dstTexture)
         {
-            wrapping = gl.REPEAT;
+            var wrapping = gl.CLAMP_TO_EDGE;
+
+            if (!noRepeat && IsSizePowerOfTwo(srcCanvas.width, srcCanvas.height))
+            {
+                wrapping = gl.REPEAT;
+            }
+
+            dstTexture = this.createTexture2D(0, gl.NEAREST, gl.NEAREST, wrapping, wrapping, gl.RGBA, srcCanvas, srcCanvas.width, srcCanvas.height, true);
+        }
+        else
+        {
+            this.setTexture2D(dstTexture, 0);
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
+
+            dstTexture.width = srcCanvas.width;
+            dstTexture.height = srcCanvas.height;
+
+            this.setTexture2D(null, 0);
         }
 
-        var newTexture = this.createTexture2D(0, gl.NEAREST, gl.NEAREST, wrapping, wrapping, gl.RGBA, srcCanvas, srcCanvas.width, srcCanvas.height, true);
-
-        if (newTexture && dstTexture)
-        {
-            this.deleteTexture(dstTexture);
-        }
-
-        return newTexture;
+        return dstTexture;
     },
 
     /**

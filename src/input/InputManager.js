@@ -29,7 +29,7 @@ var TransformXY = require('../math/TransformXY');
  * for dealing with all input events for a Scene.
  *
  * @class InputManager
- * @memberOf Phaser.Input
+ * @memberof Phaser.Input
  * @constructor
  * @since 3.0.0
  *
@@ -397,6 +397,7 @@ var InputManager = new Class({
      */
     resize: function ()
     {
+        /*
         this.updateBounds();
 
         //  Game config size
@@ -410,6 +411,7 @@ var InputManager = new Class({
         //  Scale factor
         this.scale.x = gw / bw;
         this.scale.y = gh / bh;
+        */
     },
 
     /**

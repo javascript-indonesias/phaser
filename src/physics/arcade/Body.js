@@ -38,7 +38,7 @@ var Vector2 = require('../../math/Vector2');
  * Its static counterpart is {@link Phaser.Physics.Arcade.StaticBody}.
  *
  * @class Body
- * @memberOf Phaser.Physics.Arcade
+ * @memberof Phaser.Physics.Arcade
  * @constructor
  * @since 3.0.0
  *
@@ -1951,6 +1951,25 @@ var Body = new Class({
         if (value === undefined) { value = true; }
 
         this.immovable = value;
+
+        return this;
+    },
+
+    /**
+     * Sets the Body's `enable` property.
+     *
+     * @method Phaser.Physics.Arcade.Body#setEnable
+     * @since 3.15.0
+     *
+     * @param {boolean} [value=true] - The value to assign to `enable`.
+     *
+     * @return {Phaser.Physics.Arcade.Body} This Body object.
+     */
+    setEnable: function (value)
+    {
+        if (value === undefined) { value = true; }
+
+        this.enable = value;
 
         return this;
     },
