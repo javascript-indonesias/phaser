@@ -6,21 +6,37 @@
 
 ### Updates
 
+* The Mouse Manager class has been updated to remove some commented out code and refine the `startListeners` method.
+* The following Key Codes have been added, which include some missing alphabet letters in Persian and Arabic: `SEMICOLON_FIREFOX`, `COLON`, `COMMA_FIREFOX_WINDOWS`, `COMMA_FIREFOX`, `BRACKET_RIGHT_FIREFOX` and `BRACKET_LEFT_FIREFOX` (thanks @wmateam)
+* You can now modify `this.physics.world.debugGraphic.defaultStrokeWidth` to set the stroke width of any debug drawn body, previously it was always 1 (thanks @samme)
+* `TextStyle.setFont` has a new optional argument `updateText` which will sets if the text should be automatically updated or not (thanks @DotTheGreat)
+* `ProcessQueue.destroy` now sets the internal `toProcess` counter to zero.
+* The `PathFollower.pathRotationVerticalAdjust` property has been removed. It was supposed to flipY a follower when it reversed path direction, but after some testing it appears it has never worked and it's easier to do this using events, so the property and associated config value are removed. The `verticalAdjust` argument from the `setRotateToPath` method has been removed as well.
+
 ### Bug Fixes
 
 * The `loadPlayerPhoto` function in the Instant Games plugin now listens for the updated Loader event correctly, causing the `photocomplete` event to fire properly.
+* The Rectangle Shape object wouldn't render if it didn't have a stroke, or any other objects on the display list (thanks mliko)
+* When using a font string instead of setting `fontFamily`, `fontSize` and `fontStyle` in either `Text.setStyle` or `setFont`, the style properties wouldn't get set. This isn't a problem while creating the text object, only if modifying it later (thanks @DotTheGreat)
+* Disabling camera bounds and then moving the camera to an area in a Tilemap that did not have any tile information would throw an `Uncaught Reference error` as it tried to access tiles that did not exist (thanks @Siyalatas)
+* Fixed an issue where Sprite Sheets being extracted from a texture atlas would fail if the sheet was either just a single column or single row of sprites. Fix #4096 (thanks @Cirras)
+* If you created an Arcade Physics Group without passing a configuration object, and passing an array of non-standard children, it would throw a classType runtime error. It now creates a default config object correctly (thanks @pierpo)
+* The `Camera.cull` method has been restructured so it now calculates if a Game Object is correctly in view or not, before culling it. Although not used internally, if you need to cull objects for a camera, you can now safely use this method. Fix #4092 (thanks @Cirras)
+* The Tiled Parser would ignore animated tile data if it was in the new Tiled 1.2 format. This is now accounted for, as well as 1.0 (thanks @nkholski)
+* `Array.Matrix.ReverseRows` was actually reversing the columns, but now reverses the rows.
+* `Array.Matrix.ReverseColumns` was actually reversing the rows, but now reverses the columns.
 
 ### Examples and TypeScript
 
 Thanks to the following for helping with the Phaser 3 Examples and TypeScript definitions, either by reporting errors, or even better, fixing them:
 
-@guilhermehto
+@guilhermehto @samvieten @darkwebdev
 
 ### Phaser Doc Jam
 
 The [Phaser Doc Jam](http://docjam.phaser.io) is an on-going effort to ensure that the Phaser 3 API has 100% documentation coverage. Thanks to the monumental effort of myself and the following people we're now really close to that goal! My thanks to:
 
--
+16patsle - @icbat - @samme - @telinc1 - anandu pavanan - blackhawx - candelibas - Diego Romero - Elliott Wallace - eric - Georges Gabereau - Haobo Zhang - henriacle - madclaws - marc136 - Mihail Ilinov - naum303 - Robert Kowalski - rootasjey - scottwestover - stetso - therealsamf - Tigran - willblackmore - zenwaichi
 
 If you'd like to help finish off the last parts of documentation then take a look at the [Doc Jam site](http://docjam.phaser.io).
 
