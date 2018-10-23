@@ -12,6 +12,7 @@
 * `TextStyle.setFont` has a new optional argument `updateText` which will sets if the text should be automatically updated or not (thanks @DotTheGreat)
 * `ProcessQueue.destroy` now sets the internal `toProcess` counter to zero.
 * The `PathFollower.pathRotationVerticalAdjust` property has been removed. It was supposed to flipY a follower when it reversed path direction, but after some testing it appears it has never worked and it's easier to do this using events, so the property and associated config value are removed. The `verticalAdjust` argument from the `setRotateToPath` method has been removed as well.
+* The config value `preserveDrawingBuffer` has been removed as it has never been used by the WebGL Renderer.
 
 ### Bug Fixes
 
@@ -36,7 +37,7 @@ Thanks to the following for helping with the Phaser 3 Examples and TypeScript de
 
 The [Phaser Doc Jam](http://docjam.phaser.io) is an on-going effort to ensure that the Phaser 3 API has 100% documentation coverage. Thanks to the monumental effort of myself and the following people we're now really close to that goal! My thanks to:
 
-16patsle - @icbat - @samme - @telinc1 - anandu pavanan - blackhawx - candelibas - Diego Romero - Elliott Wallace - eric - Georges Gabereau - Haobo Zhang - henriacle - madclaws - marc136 - Mihail Ilinov - naum303 - Robert Kowalski - rootasjey - scottwestover - stetso - therealsamf - Tigran - willblackmore - zenwaichi
+16patsle - @icbat - @samme - @telinc1 - anandu pavanan - blackhawx - candelibas - Diego Romero - Elliott Wallace - eric - Georges Gabereau - Haobo Zhang - henriacle - madclaws - marc136 - Mihail Ilinov - naum303 - NicolasRoehm - rejacobson - Robert Kowalski - rootasjey - scottwestover - stetso - therealsamf - Tigran - willblackmore - zenwaichi
 
 If you'd like to help finish off the last parts of documentation then take a look at the [Doc Jam site](http://docjam.phaser.io).
 
