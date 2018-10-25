@@ -4,6 +4,10 @@
 
 ### New Features
 
+* The data object being sent to the Dynamic Bitmap Text callback now has a new property `parent`, which is a reference to the Bitmap Text instance that owns the data object (thanks ornyth)
+* The WebGL Renderer has a new method `clearPipeline`, which will clear down the current pipeline and reset the blend mode, ready for the context to be passed to a 3rd party library.
+* The WebGL Renderer has a new method `rebindPipeline`, which will rebind the given pipeline instance, reset the blank texture and reset the blend mode. Which is useful for recovering from 3rd party libs that have modified the gl context.
+
 ### Updates
 
 * The Mouse Manager class has been updated to remove some commented out code and refine the `startListeners` method.
@@ -15,6 +19,9 @@
 * The config value `preserveDrawingBuffer` has been removed as it has never been used by the WebGL Renderer.
 * `PluginManager.install` returns `null` if the plugin failed to install in all cases.
 * `PluginFile` will now install the plugin into the _current_ Scene as long as the `start` or `mapping` arguments are provided.
+* MATH_CONST no longer requires or sets the Random Data Generator, this is now done in the Game Config, allowing you to require the math constants without pulling in a whole copy of the RNG with it.
+* The Dynamic Bitmap Text Canvas Renderer was creating a new data object every frame for the callback. It now uses the `callbackData` object instead, like the WebGL renderer does.
+* `WebGLRenderer.setBlendMode` has a new optional argument `force`, which will force the given blend mode to be set, regardless of the current settings.
 
 ### Bug Fixes
 
@@ -29,6 +36,7 @@
 * `Array.Matrix.ReverseRows` was actually reversing the columns, but now reverses the rows.
 * `Array.Matrix.ReverseColumns` was actually reversing the rows, but now reverses the columns.
 * UnityAtlas now sets the correct file type key if using a config file object.
+* Starting with version 3.13 in the Canvas Renderer, it was possible for long-running scripts to start to get bogged-down in `fillRect` calls if the game had a background color set. The context is now saved properly to avoid this. Fix #4056 (thanks @Aveyder)
 
 ### Examples and TypeScript
 
