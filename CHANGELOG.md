@@ -21,6 +21,9 @@
 * The Mouse Manager class has been updated to remove some commented out code and refine the `startListeners` method.
 * The following Key Codes have been added, which include some missing alphabet letters in Persian and Arabic: `SEMICOLON_FIREFOX`, `COLON`, `COMMA_FIREFOX_WINDOWS`, `COMMA_FIREFOX`, `BRACKET_RIGHT_FIREFOX` and `BRACKET_LEFT_FIREFOX` (thanks @wmateam)
 * When enabling a Game Object for input it will now use the `width` and `height` properties of the Game Object first, falling back to the frame size if not found. This stops a bug when enabling BitmapText objects for input and it using the font texture as the hit area size, rather than the text itself.
+* `Pointer.smoothFactor` is a float-value that allows you to automatically apply smoothing to the Pointer position as it moves. This is ideal when you want something smoothly tracking a pointer in a game, or are need a smooth drawing motion for an art package. The default value is zero, meaning disabled. Set to a small number, such as 0.2, to enable.
+* `Config.inputSmoothFactor` is a new property that allows you to set the smoothing factor for all Pointers the game creators. The default value is zero, which is disabled. Set in the game config as `input: { smoothFactor: value }`.
+* `InputManager.transformPointer` has a new boolean argument `wasMove`, which controls if the pointer is being transformed after a move or up/down event.
 
 ### New Features
 
@@ -46,7 +49,7 @@
 
 ### Updates
 
-* The `backgroundColor` property of the Game Config is now used to set the CSS backgroundColor property of the game Canvas element. This avoids a `fillRect` call in Canvas mode and allows for 'punch through' effects to be created. If `transparent` is true, the CSS property is not set.
+* The `backgroundColor` property of the Game Config is now used to set the CSS backgroundColor property of the game Canvas element. This avoids a `fillRect` call in Canvas mode and allows for 'punch through' effects to be created. If `transparent` is true, the CSS property is not set and no background color is drawn in either WebGL or Canvas, allowing the canvas to be fully transparent.
 * You can now modify `this.physics.world.debugGraphic.defaultStrokeWidth` to set the stroke width of any debug drawn body, previously it was always 1 (thanks @samme)
 * `TextStyle.setFont` has a new optional argument `updateText` which will sets if the text should be automatically updated or not (thanks @DotTheGreat)
 * `ProcessQueue.destroy` now sets the internal `toProcess` counter to zero.
@@ -63,6 +66,8 @@
 * `WebAudioSoundManager.onFocus` will not try to resume the Audio Context if it's still locked.
 * `WebAudioSoundManager.onBlur` will not try to suspend the Audio Context if it's still locked.
 * When using `ScenePlugin.add`, to add a new Scene to the Scene Manager, it didn't allow you to include the optional Scene data object. You can now pass this in the call (thanks @kainage)
+* `Graphics.stroke` is a new alias for the `strokePath` method, to keep the calls consistent with the Canvas Rendering Context API.
+* `Graphics.fill` is a new alias for the `fillPath` method, to keep the calls consistent with the Canvas Rendering Context API.
 
 ### Bug Fixes
 
@@ -80,6 +85,15 @@
 * Render Textures created larger than the size of the default canvas would be automatically clipped when drawn to in WebGL. They now reset the gl scissor and drawing height property in order to draw to their full size, regardless of the canvas size. Fix #4139 (thanks @chaoyang805 @iamchristopher)
 * The `cameraFilter` property of a Game Object will now allow full bitmasks to be set (a value of -1), instead of just those > 0 (thanks @stuartkeith)
 * When using a Particle Emitter, the array of dead particles (`this.dead`) wasn't being filled correctly. Dead particles are now moved to it as they should be (thanks @Waclaw-I)
+* The `PathFollower.startFollow` method now properly uses the `startAt` argument to the method, so you can start a follower off at any point along the path. Fix #3688 (thanks @DannyT @diteix)
+* Static Circular Arcade Physics Bodies now render as circles in the debug display, instead of showing their rectangle bounds (thanks @maikthomas)
+* Changing the mute flag on an `HTML5AudioSound` instance, via the `mute` setter, now works, as it does via the Sound Manager (thanks @Waclaw-I @neon-dev)
+* Changing the volume on an `HTML5AudioSound` instance, via the `volume` setter, now works, as it does via the Sound Manager (thanks @Waclaw-I)
+* The Dynamic Tilemap Layer WebGL renderer was drawing tiles at the incorrect position if the layer was scaled. Fix #4104 (thanks @the-realest-stu)
+* `Tile.tileset` now returns the specific Tileset associated with the tile, rather than an array of them. Fix #4095 (thanks @quadrupleslap)
+* `Tile.getCollisionGroup` wouldn't return the correct Group after the change to support multiple Tilesets. It now returns the group properly (thanks @jbpuryear)
+* `Tile.getTileData` wouldn't return the correct data after the change to support multiple Tilesets. It now returns the tile data properly (thanks @jbpuryear)
+* The `GetTileAt` and `RemoveTileAt` components would error with "Cannot read property 'index' of undefined" if the tile was undefined rather than null. It now handles both cases (thanks @WaSa42)
 
 ### Examples and TypeScript
 
