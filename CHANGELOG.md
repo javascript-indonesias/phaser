@@ -24,6 +24,8 @@
 * `Pointer.smoothFactor` is a float-value that allows you to automatically apply smoothing to the Pointer position as it moves. This is ideal when you want something smoothly tracking a pointer in a game, or are need a smooth drawing motion for an art package. The default value is zero, meaning disabled. Set to a small number, such as 0.2, to enable.
 * `Config.inputSmoothFactor` is a new property that allows you to set the smoothing factor for all Pointers the game creators. The default value is zero, which is disabled. Set in the game config as `input: { smoothFactor: value }`.
 * `InputManager.transformPointer` has a new boolean argument `wasMove`, which controls if the pointer is being transformed after a move or up/down event.
+* `Pointer.velocity` is a new Vector2 that contains the velocity of the Pointer, based on the previous and current position. This is updated whenever the Pointer moves, regardless of button states. If you find the velocity is too erratic, consider enabling the `smoothFactor`.
+* `Pointer.angle` is a new property that contains the angle of the Pointer, in radians, based on the previous and current position. This is updated whenever the Pointer moves, regardless of button states. If you find the angle is too erratic, consider enabling the `smoothFactor`.
 
 ### New Features
 
@@ -31,6 +33,7 @@
 * The WebGL Renderer has a new method `clearPipeline`, which will clear down the current pipeline and reset the blend mode, ready for the context to be passed to a 3rd party library.
 * The WebGL Renderer has a new method `rebindPipeline`, which will rebind the given pipeline instance, reset the blank texture and reset the blend mode. Which is useful for recovering from 3rd party libs that have modified the gl context.
 * Game Objects have a new property called `state`. Use this to track the state of a Game Object during its lifetime. For example, it could move from a state of 'moving', to 'attacking', to 'dead'. Phaser itself will never set this property, although plugins are allowed to.
+* Game Objects have a new method called `setState` which will set the state property in a chainable call.
 * `BlendModes.ERASE` is a new blend mode that will erase the object being drawn. When used in conjunction with a Render Texture it allows for effects that let you erase parts of the texture, in either Canvas or WebGL. When used with a transparent game canvas, it allows you to erase parts of the canvas, showing the web page background through.
 * `BlendModes.SOURCE_IN` is a new Canvas-only blend mode, that allows you to use the `source-in` composite operation when rendering Game Objects.
 * `BlendModes.SOURCE_OUT` is a new Canvas-only blend mode, that allows you to use the `source-out` composite operation when rendering Game Objects.
@@ -84,7 +87,6 @@
 * Starting with version 3.13 in the Canvas Renderer, it was possible for long-running scripts to start to get bogged-down in `fillRect` calls if the game had a background color set. The context is now saved properly to avoid this. Fix #4056 (thanks @Aveyder)
 * Render Textures created larger than the size of the default canvas would be automatically clipped when drawn to in WebGL. They now reset the gl scissor and drawing height property in order to draw to their full size, regardless of the canvas size. Fix #4139 (thanks @chaoyang805 @iamchristopher)
 * The `cameraFilter` property of a Game Object will now allow full bitmasks to be set (a value of -1), instead of just those > 0 (thanks @stuartkeith)
-* When using a Particle Emitter, the array of dead particles (`this.dead`) wasn't being filled correctly. Dead particles are now moved to it as they should be (thanks @Waclaw-I)
 * The `PathFollower.startFollow` method now properly uses the `startAt` argument to the method, so you can start a follower off at any point along the path. Fix #3688 (thanks @DannyT @diteix)
 * Static Circular Arcade Physics Bodies now render as circles in the debug display, instead of showing their rectangle bounds (thanks @maikthomas)
 * Changing the mute flag on an `HTML5AudioSound` instance, via the `mute` setter, now works, as it does via the Sound Manager (thanks @Waclaw-I @neon-dev)
@@ -94,6 +96,13 @@
 * `Tile.getCollisionGroup` wouldn't return the correct Group after the change to support multiple Tilesets. It now returns the group properly (thanks @jbpuryear)
 * `Tile.getTileData` wouldn't return the correct data after the change to support multiple Tilesets. It now returns the tile data properly (thanks @jbpuryear)
 * The `GetTileAt` and `RemoveTileAt` components would error with "Cannot read property 'index' of undefined" if the tile was undefined rather than null. It now handles both cases (thanks @WaSa42)
+* Changing `TileSprite.width` or `TileSprite.height` will now flag the texture as dirty and call `updateDisplayOrigin`, allowing you to resize TileSprites dynamically in both Canvas and WebGL.
+* `RandomDataGenerator.shuffle` has been fixed to use the proper modifier in the calculation, allowing for a more even distribution (thanks wayfinder)
+* The Particle Emitter was not recycling dead particles correctly, so it was creating new objects every time it emitted (the old particles were then left to the browsers gc to clear up). This has now been recoded, so the emitter will properly keep track of dead particles and re-use them (thanks @Waclaw-I for the initial PR)
+* `ParticleEmitter.indexSortCallback` has been removed as it's no longer required.
+* `Particle.index` has been removed, as it's no longer required. Particles don't need to keep track of their index any more.
+* The Particle Emitter no longer needs to call the StableSort.inplace during its preUpdate, saving cpu.
+* `Particle.resetPosition` is a new method that is called when a particle dies, preparing it ready for firing again in the future.
 
 ### Examples and TypeScript
 
