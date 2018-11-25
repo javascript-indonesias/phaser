@@ -119,8 +119,18 @@ var Pointer = new Class({
          * @name Phaser.Input.Pointer#prevPosition
          * @type {Phaser.Math.Vector2}
          * @since 3.11.0
-        this.prevPosition = new Vector2();
          */
+        this.prevPosition = new Vector2();
+
+        /**
+         * An internal vector used for calculations of the pointer speed and angle.
+         *
+         * @name Phaser.Input.Pointer#midPoint
+         * @type {Phaser.Math.Vector2}
+         * @private
+         * @since 3.16.0
+         */
+        this.midPoint = new Vector2();
 
         /**
          * The current velocity of the Pointer, based on its previous and current position.
@@ -148,6 +158,10 @@ var Pointer = new Class({
          */
         this.angle = new Vector2();
 
+        this.distance = 0;
+
+
+
         /**
          * The smoothing factor to apply to the Pointer position.
          * 
@@ -156,7 +170,6 @@ var Pointer = new Class({
          * 
          * The default value of zero means 'no smoothing'.
          * Set to a small value, such as 0.2, to apply an average level of smoothing between positions.
-         * Values above 1 will introduce excess jitter into the positions.
          * 
          * Positions are only smoothed when the pointer moves. Up and Down positions are always precise.
          *
@@ -166,6 +179,22 @@ var Pointer = new Class({
          * @since 3.16.0
          */
         this.smoothFactor = 0;
+
+        /**
+         * The factor applied to the motion smoothing each frame.
+         * 
+         * This value is passed to the Smooth Step Interpolation that is used to calculate the velocity
+         * and angle of the Pointer. It's applied every frame, until the midPoint reaches the current
+         * position of the Pointer. 0.2 provides a good average but can be increased if you need a
+         * quicker update and are working in a high performance environment. Never set this value to
+         * zero.
+         *
+         * @name Phaser.Input.Pointer#motionFactor
+         * @type {number}
+         * @default 0.2
+         * @since 3.16.0
+         */
+        this.motionFactor = 0.2;
 
         /**
          * The x position of this Pointer, translated into the coordinate space of the most recent Camera it interacted with.
@@ -424,7 +453,7 @@ var Pointer = new Class({
 
     /**
      * Resets the temporal properties of this Pointer.
-     * Called automatically by the Input Plugin each update.
+     * This method is called automatically each frame by the Input Manager.
      *
      * @method Phaser.Input.Pointer#reset
      * @private
@@ -442,58 +471,43 @@ var Pointer = new Class({
         this.movementY = 0;
     },
 
-    recordPosition: function (time)
-    {
-        var history = this.history;
-
-        var msSinceLastMove = time - this.moveTime;
-
-        if (msSinceLastMove > 50)
-        {
-            //  Use acceleration instead of velocity
-        }
-
-        history.push({ x: this.x, y: this.y });
-
-        if (history.length > 1)
-        {
-            history.unshift();
-        }
-
-        //  Average out the positions to get the delta and angle
-        var x = 0;
-        var y = 0;
-
-        for (var i = 0; i < history.length; i++)
-        {
-            x += history[i].x;
-            y += history[i].y;
-        }
-
-        this.velocity.x = this.x - (x / history.length);
-        this.velocity.y = this.y - (y / history.length);
-
-        this.moveTime = time;
-    },
-
+    /**
+     * Calculates the motion of this Pointer, including its velocity and angle of movement.
+     * This method is called automatically each frame by the Input Manager.
+     *
+     * @method Phaser.Input.Pointer#updateMotion
+     * @private
+     * @since 3.16.0
+     */
     updateMotion: function ()
     {
-        // this.velocity.x = Linear(this.velocity.x, 0, 0.1);
-        // this.velocity.y = Linear(this.velocity.y, 0, 0.1);
+        var cx = this.position.x;
+        var cy = this.position.y;
 
-        //  Or
-        this.velocity.x *= 0.9;
-        this.velocity.y *= 0.9;
+        //  Moving towards our goal ...
+        var vx = SmoothStepInterpolation(this.motionFactor, this.midPoint.x, cx);
+        var vy = SmoothStepInterpolation(this.motionFactor, this.midPoint.y, cy);
 
-        if (FuzzyEqual(this.velocity.x, 0, 0.1))
+        if (FuzzyEqual(vx, cx, 0.1))
         {
-            this.velocity.x = 0;
+            vx = cx;
         }
 
-        if (FuzzyEqual(this.velocity.y, 0, 0.1))
+        if (FuzzyEqual(vy, cy, 0.1))
         {
-            this.velocity.y = 0;
+            vy = cy;
         }
+
+        this.midPoint.set(vx, vy);
+
+        var dx = cx - vx;
+        var dy = cy - vy;
+
+        this.velocity.set(dx, dy);
+
+        this.angle = Math.atan2(dy, dx);
+
+        this.distance = Math.sqrt(dx * dx + dy * dy);
     },
 
     /**
@@ -596,22 +610,6 @@ var Pointer = new Class({
         //  Sets the local x/y properties
         this.manager.transformPointer(this, event.pageX, event.pageY, true);
 
-        this.recordPosition(time);
-
-        // this.velocity.x = event._deltaX;
-        // this.velocity.y = event._deltaY;
-        // this.angle = event._angle;
-
-        // var x1 = this.position.x;
-        // var y1 = this.position.y;
-
-        // var x2 = this.prevPosition.x;
-        // var y2 = this.prevPosition.y;
-
-        // this.velocity.x = x1 - x2;
-        // this.velocity.y = y1 - y2;
-        // this.angle = Math.atan2(y2 - y1, x2 - x1);
-
         if (this.manager.mouse.locked)
         {
             // Multiple DOM events may occur within one frame, but only one Phaser event will fire
@@ -620,6 +618,8 @@ var Pointer = new Class({
         }
 
         this.justMoved = true;
+
+        this.moveTime = time;
 
         this.dirty = true;
 
@@ -678,7 +678,7 @@ var Pointer = new Class({
      * @param {TouchEvent} event - The Touch Event to process.
      * @param {integer} time - The current timestamp as generated by the Request Animation Frame or SetTimeout.
      */
-    touchmove: function (event)
+    touchmove: function (event, time)
     {
         this.event = event;
 
@@ -686,6 +686,8 @@ var Pointer = new Class({
         this.manager.transformPointer(this, event.pageX, event.pageY, true);
 
         this.justMoved = true;
+
+        this.moveTime = time;
 
         this.dirty = true;
 
