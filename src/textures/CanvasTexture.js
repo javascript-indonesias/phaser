@@ -224,6 +224,53 @@ var CanvasTexture = new Class({
     },
 
     /**
+     * Draws the given texture frame to this CanvasTexture, then updates the internal
+     * ImageData buffer and arrays.
+     *
+     * @method Phaser.Textures.CanvasTexture#drawFrame
+     * @since 3.16.0
+     * 
+     * @param {string} key - The unique string-based key of the Texture.
+     * @param {(string|integer)} [frame] - The string-based name, or integer based index, of the Frame to get from the Texture.
+     * @param {integer} [x=0] - The x coordinate to draw the source at.
+     * @param {integer} [y=0] - The y coordinate to draw the source at.
+     * 
+     * @return {Phaser.Textures.CanvasTexture} This CanvasTexture.
+     */
+    drawFrame: function (key, frame, x, y)
+    {
+        if (x === undefined) { x = 0; }
+        if (y === undefined) { y = 0; }
+
+        var textureFrame = this.manager.getFrame(key, frame);
+
+        if (textureFrame)
+        {
+            var cd = textureFrame.canvasData;
+
+            var width = textureFrame.cutWidth;
+            var height = textureFrame.cutHeight;
+            var res = textureFrame.source.resolution;
+
+            this.context.drawImage(
+                textureFrame.source.image,
+                cd.x, cd.y,
+                width,
+                height,
+                x, y,
+                width / res,
+                height / res
+            );
+
+            return this.update();
+        }
+        else
+        {
+            return this;
+        }
+    },
+
+    /**
      * Get the color of a specific pixel from this texture and store it in a Color object.
      * 
      * If you have drawn anything to this CanvasTexture since it was created you must call `CanvasTexture.update` to refresh the array buffer,
@@ -301,16 +348,27 @@ var CanvasTexture = new Class({
     },
 
     /**
-     * Clears this Canvas Texture, resetting it back to transparent.
+     * Clears the given region of this Canvas Texture, resetting it back to transparent.
+     * If no region is given, the whole Canvas Texture is cleared.
      *
      * @method Phaser.Textures.CanvasTexture#clear
      * @since 3.7.0
+     * 
+     * @param {integer} [x=0] - The x coordinate of the top-left of the region to clear.
+     * @param {integer} [y=0] - The y coordinate of the top-left of the region to clear.
+     * @param {integer} [width] - The width of the region.
+     * @param {integer} [height] - The height of the region.
      *
      * @return {Phaser.Textures.CanvasTexture} The Canvas Texture.
      */
-    clear: function ()
+    clear: function (x, y, width, height)
     {
-        this.context.clearRect(0, 0, this.width, this.height);
+        if (x === undefined) { x = 0; }
+        if (y === undefined) { y = 0; }
+        if (width === undefined) { width = this.width; }
+        if (height === undefined) { height = this.height; }
+
+        this.context.clearRect(x, y, width, height);
 
         return this.update();
     },
