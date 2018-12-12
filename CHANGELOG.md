@@ -155,6 +155,8 @@ one set of bindings ever created, which makes things a lot cleaner.
 * The Animation class now emits the `complete` event when it finishes playing on any Game Object.
 * The Animation Component has a new method called `chain` which allows you to line-up another animation to start playing as soon as the current one stops, no matter how it stops (either by reaching its natural end, or directly by having stop called on it). You can chain a new animation at any point, including before the current one starts playing, during it, or when it ends (via its `animationcomplete` callback). Chained animations are specific to a Game Object, meaning different Game Objects can have different chained animations without impacting the global animation they're playing.
 * `CanvasTexture.drawFrame` is a new method that allows you to draw a texture frame to the CanvasTexture based on the texture key and frame given.
+* `CanvasTexture.getIndex` is a new method that will take an x/y coordinate and return the Image Data index offset used to retrieve the pixel values.
+* `CanvasTexture.getPixels` is a new method that will take a region as an x/y and width/height and return all of the pixels in that region from the CanvasTexture.
 
 ### Updates
 
@@ -184,6 +186,7 @@ one set of bindings ever created, which makes things a lot cleaner.
 * The Animation Component `restart` method has had is sole `key` argument removed. Previously, you had to pass in the key of the animation you wished to reverse, but now you can just call the method directly, and as long as there is an animation playing, it will automatically start playing in reverse, without the nee for a key (the way it should have been originally)
 * `Animation.play` and `playReverse` will now accept either a string-based key of the animation to play (like before), or you can pass in an Animation instance, and it will play that animation.
 * `CanvasTexture.clear` now has 4 new optional arguments: `x, y, width, height` which allow you to define the region of the texture to be cleared. If not provided it will clear the whole texture, which is the same behavior as before.
+* EarCut, the polygon triangulation library used by the Graphics and WebGL classes, has been upgraded from 2.1.1 to 2.1.4. 2.1.2 fixed a few race conditions where bad input would cause an error. 2.1.3 improved performance for bigger inputs (5-12%) and 2.1.4 fixed a race condition that could lead to a freeze on degenerate input.
 
 ### Bug Fixes
 
