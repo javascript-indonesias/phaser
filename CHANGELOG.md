@@ -17,6 +17,7 @@
 * The `showAd` method will now emit the `adsnotloaded` event, if there are no ads loaded matching the given Placement ID.
 * The `showVideo` method will now emit the `adsnotloaded` event, if there are no ads loaded matching the given Placement ID.
 * Showing an ad will emit the `adfinished` event when the ad is closed, previously this event was called `showad` but the new name better reflects what has happened.
+* The Facebook Plugin is now available in the `Phaser.Scene` class template under the `facebook` property (thanks @bryanwood)
 
 ### Keyboard Input - New Features
 
@@ -31,6 +32,8 @@ You also now have the ability to cancel this at any stage either on a local or g
 There is also the `stopPropagation()` function. This works in the same way as `stopImmediatePropagation` but instead of being local, it works across all of the Scenes in your game. For example, if you had 3 active Scenes (A, B and C, with A at the top of the Scene list), all listening for the same key, calling `stopPropagation()` in Scene A would stop the event from reaching any handlers in Scenes B or C. Remember that events flow down the Scene list from top to bottom. So, the top-most rendering Scene in the Scene list has priority over any Scene below it.
 
 All the above also works for `keyup` events.
+
+New in 3.16 is the ability to receive a global `keydown` or `keyup` event from any key on the keyboard. Previously, it would only emit the event if it came from one of the keys listed in the KeyCodes file. Now, those global events will fire for any key, regardless of location.
 
 #### Keyboard Captures
 
@@ -157,6 +160,9 @@ one set of bindings ever created, which makes things a lot cleaner.
 * `CanvasTexture.drawFrame` is a new method that allows you to draw a texture frame to the CanvasTexture based on the texture key and frame given.
 * `CanvasTexture.getIndex` is a new method that will take an x/y coordinate and return the Image Data index offset used to retrieve the pixel values.
 * `CanvasTexture.getPixels` is a new method that will take a region as an x/y and width/height and return all of the pixels in that region from the CanvasTexture.
+* `CanvasTexture.setPixel` is a new method that sets the given pixel in the CanvasTexture to the color and alpha values provided.
+* `CanvasTexture.getData` is a new method that will extract an ImageData block from the CanvasTexture from the region given.
+* `CanvasTexture.putData` is a new method that will put an ImageData block at the given coordinates in a CanvasTexture.
 
 ### Updates
 
@@ -187,11 +193,17 @@ one set of bindings ever created, which makes things a lot cleaner.
 * `Animation.play` and `playReverse` will now accept either a string-based key of the animation to play (like before), or you can pass in an Animation instance, and it will play that animation.
 * `CanvasTexture.clear` now has 4 new optional arguments: `x, y, width, height` which allow you to define the region of the texture to be cleared. If not provided it will clear the whole texture, which is the same behavior as before.
 * EarCut, the polygon triangulation library used by the Graphics and WebGL classes, has been upgraded from 2.1.1 to 2.1.4. 2.1.2 fixed a few race conditions where bad input would cause an error. 2.1.3 improved performance for bigger inputs (5-12%) and 2.1.4 fixed a race condition that could lead to a freeze on degenerate input.
+* `TextureTintPipeline.batchQuad` and `batchTri` have two new optional arguments `texture` and `unit` which are used to re-set the batch texture should the method cause a batch flush.
+* `TextureTintPipeline.requireTextureBatch` is a new internal method that helps speed-up the creation of texture batches. It is used in conjunction with `setTexture2D` and `pushBatch`.
+* `TextureTintPipeline.flush` and `TextureTintPipeline.pushBatch` have been optimized to handle zero based texture units as priority. They've also been refactored to avoid creation of empty texture batches.
+* The `WebGLRenderer.setTexture2D` method has a new optional argument `flush` which controls if the pipeline is flushed if the given texture is new, or not. This is used internally to skip flushing during an existing flush.
+* The Tilemap Layer `width` and `height` properties are now based on the tilemap tile sizes multiplied by the layer dimensions. This corrects an issue with layer sizes being wrong if you called `setBaseTileSize` on a Map.
 
 ### Bug Fixes
 
 * The Rectangle Shape object wouldn't render if it didn't have a stroke, or any other objects on the display list (thanks mliko)
 * When using a font string instead of setting `fontFamily`, `fontSize` and `fontStyle` in either `Text.setStyle` or `setFont`, the style properties wouldn't get set. This isn't a problem while creating the text object, only if modifying it later (thanks @DotTheGreat)
+* `Text.toJSON` wasn't saving the font style when using the "font" shorthand to create it. It now saves it correctly. Fix #4141 (thanks @divillysausages)
 * Disabling camera bounds and then moving the camera to an area in a Tilemap that did not have any tile information would throw an `Uncaught Reference error` as it tried to access tiles that did not exist (thanks @Siyalatas)
 * Fixed an issue where Sprite Sheets being extracted from a texture atlas would fail if the sheet was either just a single column or single row of sprites. Fix #4096 (thanks @Cirras)
 * If you created an Arcade Physics Group without passing a configuration object, and passing an array of non-standard children, it would throw a classType runtime error. It now creates a default config object correctly (thanks @pierpo)
@@ -221,18 +233,27 @@ one set of bindings ever created, which makes things a lot cleaner.
 * `Particle.resetPosition` is a new method that is called when a particle dies, preparing it ready for firing again in the future.
 * The Canvas `SetTransform` method would save the context state, but it wasn't restored at the end in the following Game Objects: Dynamic Bitmap Text, Graphics, Arc, Curve, Ellipse, Grid, IsoBox, IsoTriangle, Line, Polygon, Rectangle, Star and Triangle. These now all restore the context, meaning if you're using non-canvas sized cameras in Canvas mode, it will now render beyond just the first custom camera.
 * `Utils.Array.MoveUp` wouldn't let you move an array element to the top-most index in the array. This also impacted `Container.moveUp`.
+* The Texture Tint Pipeline had a logic error that would cause every 2001st quad to either be invisible, or pick-up the texture of the 2000th quad by mistake. The `batchQuad` and `batchTri` methods how handle re-assigning the batch texture if they cause a batch flush as part of their process.
+* Rotating Sprites that used a Normal Map wouldn't rotate the normal map with it, causing the lighting effects to become irregular. The normal map vectors are now rotated correctly (thanks @sercant for the PR and @fazzamatazz and @ysraelJMM for the report)
+* Changing `scaleX` or `scaleY` on a `MatterImage` or `MatterSprite` would cause the body scale to become distorted as the setters didn't use the correct factor when resetting the initial scale. Fix #4206 (thanks @YannCaron)
+* `StaticBody.reset` in Arcade Physics would ignore the `x` and `y` values given to it. If given, they're now used to reset the parent Game Object before the body is updated. Fix #4224 (thanks @samme)
+* Static Tilemap Layers wouldn't render correctly if the layer used a tileset with a different size to the base map data (set via `setBaseTileSize`). They now render correctly in WebGL and Canvas, regardless of the base tile size.
 
 ### Examples and TypeScript
 
 Thanks to the following for helping with the Phaser 3 Examples and TypeScript definitions, either by reporting errors, or even better, fixing them:
 
-@guilhermehto @samvieten @darkwebdev @RoryO @snowbillr @slothyrulez
+@guilhermehto @samvieten @darkwebdev @RoryO @snowbillr @slothyrulez @jcyuan
 
 ### Phaser Doc Jam
 
 The Phaser Doc Jam was a community-backed effort to try and get the Phaser 3 API documentation to 100% coverage. The Doc Jam is now over and I offer my thanks to the following who helped with docs in this release:
 
 16patsle - @gurungrahul2 - @icbat - @samme - @telinc1 - anandu pavanan - blackhawx - candelibas - Diego Romero - doronlinder - Elliott Wallace - eric - Georges Gabereau - Haobo Zhang - henriacle - jak6jak - Jake Jensen - James Van Roose - JamesSkemp - joelahoover - Joey - madclaws - marc136 - Mihail Ilinov - naum303 - NicolasRoehm - nuane - rejacobson - Robert Kowalski - rodri042 - rootasjey - sawamara - scottwestover - sir13tommy - stetso - therealsamf - Tigran - willblackmore - zenwaichi
+
+Also, the following helped with the docs outside of the Doc Jam:
+
+@bryanwood @jestarray @matosummer @tfelix @imilo
 
 ## Version 3.15.1 - Batou - 16th October 2018
 

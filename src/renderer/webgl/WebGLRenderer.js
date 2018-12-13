@@ -839,9 +839,9 @@ var WebGLRenderer = new Class({
 
         scissorStack.push(scissor);
 
-        this.currentScissor = scissor;
-
         this.setScissor(x, y, width, height);
+
+        this.currentScissor = scissor;
 
         return scissor;
     },
@@ -870,12 +870,12 @@ var WebGLRenderer = new Class({
 
         if (cx !== x || cy !== y || cw !== width || ch !== height)
         {
-            this.flush();
-
             // https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/scissor
 
             if (width > 0 && height > 0)
             {
+                this.flush();
+
                 gl.scissor(x, (this.drawingBufferHeight - y - height), width, height);
             }
         }
@@ -1137,16 +1137,22 @@ var WebGLRenderer = new Class({
      *
      * @param {WebGLTexture} texture - The WebGL texture that needs to be bound.
      * @param {integer} textureUnit - The texture unit to which the texture will be bound.
+     * @param {boolean} [flush=true] - Will the current pipeline be flushed if this is a new texture, or not?
      *
      * @return {this} This WebGLRenderer instance.
      */
-    setTexture2D: function (texture, textureUnit)
+    setTexture2D: function (texture, textureUnit, flush)
     {
+        if (flush === undefined) { flush = true; }
+
         var gl = this.gl;
 
         if (texture !== this.currentTextures[textureUnit])
         {
-            this.flush();
+            if (flush)
+            {
+                this.flush();
+            }
 
             if (this.currentActiveTextureUnit !== textureUnit)
             {
