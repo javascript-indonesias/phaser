@@ -202,6 +202,7 @@ one set of bindings ever created, which makes things a lot cleaner.
 * `WebGLRenderer.setScissor` now has a new optional argument `drawingBufferHeight` which allows you to specify the drawing buffer height, rather than use the renderers default value.
 * `WebGLRenderer.pushScissor` now has a new optional argument `drawingBufferHeight` which allows you to specify the drawing buffer height, rather than use the renderers default value.
 * `WebGLRenderer.preRender` now calls `gl.clearColor` in order to restore the background clear color in case something, like a Render Texture, has changed it.
+* `Map.set` will now update an existing value if you provide it with a key that already exists within the Map. Previously, if you tried to set the value of a key that existed it would be skipped.
 
 ### Bug Fixes
 
@@ -255,7 +256,7 @@ one set of bindings ever created, which makes things a lot cleaner.
 
 Thanks to the following for helping with the Phaser 3 Examples and TypeScript definitions, either by reporting errors, or even better, fixing them:
 
-@guilhermehto @samvieten @darkwebdev @RoryO @snowbillr @slothyrulez @jcyuan
+@guilhermehto @samvieten @darkwebdev @RoryO @snowbillr @slothyrulez @jcyuan @jestarray
 
 ### Phaser Doc Jam
 
