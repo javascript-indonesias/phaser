@@ -133,6 +133,23 @@ one set of bindings ever created, which makes things a lot cleaner.
 * The WebGL and Canvas Renderers now read the `width`, `height` and `resolution` values from the Scale Manager, not the Game Config.
 * `CameraManager.baseScale` property has been removed as it's no longer used anywhere.
 * The BaseCamera and Camera `preRender` methods now only take a resolution argument and use it internally for their transforms.
+* `InputManager.scaleManager` is a new property that is a reference to the Scale Manager. This is populated in the `boot` method.
+* The `InputManager.transformX` method has been removed. This is now available in the ScaleManager.
+* The `InputManager.transformY` method has been removed. This is now available in the ScaleManager.
+* The `InputManager.scale` property has been removed. This is now available in the ScaleManager under `displayScale`.
+* The `InputManager.resize` method has been removed as this process is now handled by the ScaleManager.
+* The `InputManager.updateBounds` method has been removed as this process is now handled by the ScaleManager.
+* The `InputManager.getOffsetX` method has been removed as it's no longer required.
+* The `InputManager.getOffsetY` method has been removed as it's no longer required.
+* The `InputManager.getScaleX` method has been removed as it's no longer required.
+* The `InputManager.getScaleY` method has been removed as it's no longer required.
+* The `SceneManager.resize` method has been removed as it's no longer required.
+* The `Scene.Systems.resize` method has been removed as it's no longer required.
+* Scenes will no longer dispatch the `resize` event. You should now listen for this event from the Scale Manager instead.
+* `BaseCamera.config` has been removed as it's no longer required.
+* `BaseCamera.scaleManager` is a new property that references the Scale Manager and is used internally for size checks.
+* The `Game.resize` method has been removed as it's no longer required. You should now call `ScaleManager.resize` instead.
+* The Game will no longer dispatch the `resize` event. You should now listen for this event from the Scale Manager instead.
 
 ### New Features
 
