@@ -164,7 +164,7 @@ var Size = new Class({
      * 1) WIDTH_CONTROLS_HEIGHT = The height is automatically adjusted based on the width.
      * 2) HEIGHT_CONTROLS_WIDTH = The width is automatically adjusted based on the height.
      * 3) FIT = The width and height are automatically adjusted to fit inside the given target area, while keeping the aspect ratio. Depending on the aspect ratio there may be some space inside the area which is not covered.
-     * 4) ENVELOPE = The width and height are automatically adjusted to make the size cover the entire target area while keeping the aspect ratio. This may extend further out than the target size.
+     * 4) ENVELOP = The width and height are automatically adjusted to make the size cover the entire target area while keeping the aspect ratio. This may extend further out than the target size.
      * 
      * Calling this method automatically recalculates the `width` and the `height`, if required.
      * 
@@ -226,7 +226,7 @@ var Size = new Class({
      * WIDTH_CONTROLS_HEIGHT - The parent clamps just the width.
      * HEIGHT_CONTROLS_WIDTH - The parent clamps just the height.
      * FIT - The parent clamps whichever axis is required to ensure the size fits within it.
-     * ENVELOPE - The parent is used to ensure the size fully envelopes the parent.
+     * ENVELOP - The parent is used to ensure the size fully envelops the parent.
      * 
      * Calling this method automatically calls `setSize`.
      *
@@ -312,7 +312,7 @@ var Size = new Class({
      * If minimum and/or maximum dimensions have been specified, the values given to this method will be clamped into
      * that range prior to adjustment, but may still exceed them depending on the aspect mode.
      * 
-     * If this Size component has a parent set, and the aspect mode is `fit` or `envelope`, then the given sizes will
+     * If this Size component has a parent set, and the aspect mode is `fit` or `envelop`, then the given sizes will
      * be clamped to the range specified by the parent.
      *
      * @method Phaser.Structs.Size#setSize
@@ -350,7 +350,7 @@ var Size = new Class({
                 this.constrain(width, height, true);
                 break;
 
-            case Size.ENVELOPE:
+            case Size.ENVELOP:
                 this.constrain(width, height, false);
                 break;
         }
@@ -422,7 +422,7 @@ var Size = new Class({
      *
      * @param {number} [width=0] - The new width of the Size component.
      * @param {number} [height] - The new height of the Size component. If not given, it will use the width value.
-     * @param {boolean} [fit=true] - Perform a `fit` (true) constraint, or an `envelope` (false) constraint.
+     * @param {boolean} [fit=true] - Perform a `fit` (true) constraint, or an `envelop` (false) constraint.
      *
      * @return {this} This Size component instance.
      */
@@ -501,14 +501,14 @@ var Size = new Class({
     },
 
     /**
-     * The current `width` and `height` are adjusted to fit inside the given dimensions, while keeping the aspect ratio.
+     * The current `width` and `height` are adjusted so that they fully envlop the given dimensions, while keeping the aspect ratio.
      * 
      * The size may extend further out than the target area if the aspect ratios differ.
      * 
      * If this Size component has a parent set, then the values are clamped so that it never exceeds the parent
      * on the longest axis.
      *
-     * @method Phaser.Structs.Size#fitTo
+     * @method Phaser.Structs.Size#envelop
      * @since 3.16.0
      *
      * @param {number} [width=0] - The new width of the Size component.
@@ -516,7 +516,7 @@ var Size = new Class({
      *
      * @return {this} This Size component instance.
      */
-    envelope: function (width, height)
+    envelop: function (width, height)
     {
         return this.constrain(width, height, false);
     },
@@ -685,11 +685,11 @@ Size.FIT = 3;
 /**
  * The width and height are automatically adjusted to make the size cover the entire target area while keeping the aspect ratio. This may extend further out than the target size.
  * 
- * @name Phaser.Structs.Size.ENVELOPE
+ * @name Phaser.Structs.Size.ENVELOP
  * @constant
  * @type {integer}
  * @since 3.16.0
  */
-Size.ENVELOPE = 4;
+Size.ENVELOP = 4;
 
 module.exports = Size;
