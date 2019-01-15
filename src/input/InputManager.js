@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
+ * @copyright    2019 Photon Storm Ltd.
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
@@ -77,7 +77,7 @@ var InputManager = new Class({
          * The Game Configuration object, as set during the game boot.
          *
          * @name Phaser.Input.InputManager#config
-         * @type {Phaser.Boot.Config}
+         * @type {Phaser.Core.Config}
          * @since 3.0.0
          */
         this.config = config;

@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
+ * @copyright    2019 Photon Storm Ltd.
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
@@ -14,7 +14,7 @@ var Features = require('../device/Features');
  *
  * Relies upon two webpack global flags to be defined: `WEBGL_RENDERER` and `CANVAS_RENDERER` during build time, but not at run-time.
  *
- * @function Phaser.Boot.CreateRenderer
+ * @function Phaser.Core.CreateRenderer
  * @since 3.0.0
  *
  * @param {Phaser.Game} game - The Phaser.Game instance on which the renderer will be set.

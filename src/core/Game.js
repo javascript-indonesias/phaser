@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
+ * @copyright    2019 Photon Storm Ltd.
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
@@ -16,6 +16,7 @@ var DebugHeader = require('./DebugHeader');
 var Device = require('../device');
 var DOMContentLoaded = require('../dom/DOMContentLoaded');
 var EventEmitter = require('eventemitter3');
+var Events = require('./events');
 var InputManager = require('../input/InputManager');
 var PluginCache = require('../plugins/PluginCache');
 var PluginManager = require('../plugins/PluginManager');
@@ -49,6 +50,10 @@ if (typeof PLUGIN_FBINSTANT)
  * @class Game
  * @memberof Phaser
  * @constructor
+ * @fires Phaser.Core.Events#BLUR
+ * @fires Phaser.Core.Events#FOCUS
+ * @fires Phaser.Core.Events#HIDDEN
+ * @fires Phaser.Core.Events#VISIBLE
  * @since 3.0.0
  *
  * @param {GameConfig} [GameConfig] - The configuration object for your Phaser Game instance.
@@ -65,7 +70,7 @@ var Game = new Class({
          * The values stored within this object are read-only and should not be changed at run-time.
          *
          * @name Phaser.Game#config
-         * @type {Phaser.Boot.Config}
+         * @type {Phaser.Core.Config}
          * @readonly
          * @since 3.0.0
          */
@@ -232,7 +237,7 @@ var Game = new Class({
          * The Scale Manager is a global system responsible for handling game scaling events.
          *
          * @name Phaser.Game#scale
-         * @type {Phaser.Boot.ScaleManager}
+         * @type {Phaser.Core.ScaleManager}
          * @since 3.15.0
          */
         this.scale = new ScaleManager(this, this.config);
@@ -255,7 +260,7 @@ var Game = new Class({
          * them and calculating delta values. It then automatically calls the game step.
          *
          * @name Phaser.Game#loop
-         * @type {Phaser.Boot.TimeStep}
+         * @type {Phaser.Core.TimeStep}
          * @since 3.0.0
          */
         this.loop = new TimeStep(this, this.config.fps);
@@ -334,22 +339,14 @@ var Game = new Class({
     },
 
     /**
-     * Game boot event.
-     *
-     * This is an internal event dispatched when the game has finished booting, but before it is ready to start running.
-     * The global systems use this event to know when to set themselves up, dispatching their own `ready` events as required.
-     *
-     * @event Phaser.Game#boot
-     */
-
-    /**
      * This method is called automatically when the DOM is ready. It is responsible for creating the renderer,
      * displaying the Debug Header, adding the game canvas to the DOM and emitting the 'boot' event.
      * It listens for a 'ready' event from the base systems and once received it will call `Game.start`.
      *
      * @method Phaser.Game#boot
      * @protected
-     * @fires Phaser.Game#boot
+     * @fires Phaser.Core.Events#BOOT
+     * @fires Phaser.Core.Events#TEXTURES_READY
      * @since 3.0.0
      */
     boot: function ()
@@ -377,11 +374,11 @@ var Game = new Class({
 
         AddToDOM(this.canvas, this.config.parent);
 
-        this.events.emit('boot');
+        this.events.emit(Events.BOOT);
 
         //  The Texture Manager has to wait on a couple of non-blocking events before it's fully ready.
         //  So it will emit this internal event when done:
-        this.events.once('texturesready', this.texturesReady, this);
+        this.events.once(Events.TEXTURES_READY, this.texturesReady, this);
     },
 
     /**
@@ -396,7 +393,7 @@ var Game = new Class({
     texturesReady: function ()
     {
         //  Start all the other systems
-        this.events.emit('ready');
+        this.events.emit(Events.READY);
 
         this.start();
     },
@@ -436,71 +433,6 @@ var Game = new Class({
     },
 
     /**
-     * Game Pre-Step event.
-     * 
-     * Listen for it using the event type `prestep`.
-     *
-     * This event is dispatched before the main Step starts.
-     * By this point none of the Scene updates have happened.
-     * Hook into it from plugins or systems that need to update before the Scene Manager does.
-     *
-     * @event Phaser.Game#prestepEvent
-     * @param {number} time - The current time. Either a High Resolution Timer value if it comes from Request Animation Frame, or Date.now if using SetTimeout.
-     * @param {number} delta - The delta time in ms since the last frame. This is a smoothed and capped value based on the FPS rate.
-     */
-
-    /**
-     * Game Step event.
-     * 
-     * Listen for it using the event type `step`.
-     *
-     * This event is dispatched after Pre-Step and before the Scene Manager steps.
-     * Hook into it from plugins or systems that need to update before the Scene Manager does, but after core Systems.
-     *
-     * @event Phaser.Game#stepEvent
-     * @param {number} time - The current time. Either a High Resolution Timer value if it comes from Request Animation Frame, or Date.now if using SetTimeout.
-     * @param {number} delta - The delta time in ms since the last frame. This is a smoothed and capped value based on the FPS rate.
-     */
-
-    /**
-     * Game Post-Step event.
-     * 
-     * Listen for it using the event type `poststep`.
-     *
-     * This event is dispatched after the Scene Manager has updated.
-     * Hook into it from plugins or systems that need to do things before the render starts.
-     *
-     * @event Phaser.Game#poststepEvent
-     * @param {number} time - The current time. Either a High Resolution Timer value if it comes from Request Animation Frame, or Date.now if using SetTimeout.
-     * @param {number} delta - The delta time in ms since the last frame. This is a smoothed and capped value based on the FPS rate.
-     */
-
-    /**
-     * Game Pre-Render event.
-     * 
-     * Listen for it using the event type `prerender`.
-     *
-     * This event is dispatched immediately before any of the Scenes have started to render.
-     * The renderer will already have been initialized this frame, clearing itself and preparing to receive
-     * the Scenes for rendering, but it won't have actually drawn anything yet.
-     *
-     * @event Phaser.Game#prerenderEvent
-     * @param {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)} renderer - A reference to the current renderer.
-     */
-
-    /**
-     * Game Post-Render event.
-     * 
-     * Listen for it using the event type `postrender`.
-     *
-     * This event is dispatched right at the end of the render process.
-     * Every Scene will have rendered and drawn to the canvas.
-     *
-     * @event Phaser.Game#postrenderEvent
-     * @param {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)} renderer - A reference to the current renderer.
-     */
-
-    /**
      * The main Game Step. Called automatically by the Time Step, once per browser frame (typically as a result of
      * Request Animation Frame, or Set Timeout on very old browsers.)
      *
@@ -509,11 +441,11 @@ var Game = new Class({
      * It will then render each Scene in turn, via the Renderer. This process emits `prerender` and `postrender` events.
      *
      * @method Phaser.Game#step
-     * @fires Phaser.Game#prestepEvent
-     * @fires Phaser.Game#stepEvent
-     * @fires Phaser.Game#poststepEvent
-     * @fires Phaser.Game#prerenderEvent
-     * @fires Phaser.Game#postrenderEvent
+     * @fires Phaser.Core.Events#PRE_STEP_EVENT
+     * @fires Phaser.Core.Events#STEP_EVENT
+     * @fires Phaser.Core.Events#POST_STEP_EVENT
+     * @fires Phaser.Core.Events#PRE_RENDER_EVENT
+     * @fires Phaser.Core.Events#POST_RENDER_EVENT
      * @since 3.0.0
      *
      * @param {number} time - The current time. Either a High Resolution Timer value if it comes from Request Animation Frame, or Date.now if using SetTimeout.
@@ -530,11 +462,11 @@ var Game = new Class({
 
         //  Global Managers like Input and Sound update in the prestep
 
-        eventEmitter.emit('prestep', time, delta);
+        eventEmitter.emit(Events.PRE_STEP, time, delta);
 
         //  This is mostly meant for user-land code and plugins
 
-        eventEmitter.emit('step', time, delta);
+        eventEmitter.emit(Events.STEP, time, delta);
 
         //  Update the Scene Manager and all active Scenes
 
@@ -542,7 +474,7 @@ var Game = new Class({
 
         //  Our final event before rendering starts
 
-        eventEmitter.emit('poststep', time, delta);
+        eventEmitter.emit(Events.POST_STEP, time, delta);
 
         var renderer = this.renderer;
 
@@ -550,7 +482,7 @@ var Game = new Class({
 
         renderer.preRender();
 
-        eventEmitter.emit('prerender', renderer, time, delta);
+        eventEmitter.emit(Events.PRE_RENDER, renderer, time, delta);
 
         //  The main render loop. Iterates all Scenes and all Cameras in those scenes, rendering to the renderer instance.
 
@@ -562,7 +494,7 @@ var Game = new Class({
 
         //  The final event before the step repeats. Your last chance to do anything to the canvas before it all starts again.
 
-        eventEmitter.emit('postrender', renderer, time, delta);
+        eventEmitter.emit(Events.POST_RENDER, renderer, time, delta);
     },
 
     /**
@@ -589,32 +521,22 @@ var Game = new Class({
 
         //  Global Managers
 
-        eventEmitter.emit('prestep', time, delta);
+        eventEmitter.emit(Events.PRE_STEP, time, delta);
 
-        eventEmitter.emit('step', time, delta);
+        eventEmitter.emit(Events.STEP, time, delta);
 
         //  Scenes
 
         this.scene.update(time, delta);
 
-        eventEmitter.emit('poststep', time, delta);
+        eventEmitter.emit(Events.POST_STEP, time, delta);
 
         //  Render
 
-        eventEmitter.emit('prerender');
+        eventEmitter.emit(Events.PRE_RENDER);
 
-        eventEmitter.emit('postrender');
+        eventEmitter.emit(Events.POST_RENDER);
     },
-
-    /**
-     * Game Pause event.
-     * 
-     * Listen for it using the event type `pause`.
-     *
-     * This event is dispatched when the game loop enters a paused state, usually as a result of the Visibility Handler.
-     *
-     * @event Phaser.Game#pauseEvent
-     */
 
     /**
      * Called automatically by the Visibility Handler.
@@ -622,25 +544,15 @@ var Game = new Class({
      *
      * @method Phaser.Game#onHidden
      * @protected
-     * @fires Phaser.Game#pauseEvent
+     * @fires Phaser.Core.Events#PAUSE
      * @since 3.0.0
      */
     onHidden: function ()
     {
         this.loop.pause();
 
-        this.events.emit('pause');
+        this.events.emit(Events.PAUSE);
     },
-
-    /**
-     * Game Resume event.
-     * 
-     * Listen for it using the event type `resume`.
-     *
-     * This event is dispatched when the game loop leaves a paused state and resumes running.
-     *
-     * @event Phaser.Game#resumeEvent
-     */
 
     /**
      * Called automatically by the Visibility Handler.
@@ -648,14 +560,14 @@ var Game = new Class({
      *
      * @method Phaser.Game#onVisible
      * @protected
-     * @fires Phaser.Game#resumeEvent
+     * @fires Phaser.Core.Events#RESUME
      * @since 3.0.0
      */
     onVisible: function ()
     {
         this.loop.resume();
 
-        this.events.emit('resume');
+        this.events.emit(Events.RESUME);
     },
 
     /**
@@ -717,14 +629,6 @@ var Game = new Class({
     },
 
     /**
-     * Game Destroy event.
-     * 
-     * Listen for it using the event type `destroy`.
-     *
-     * @event Phaser.Game#destroyEvent
-     */
-
-    /**
      * Flags this Game instance as needing to be destroyed on the next frame.
      * It will wait until the current frame has completed and then call `runDestroy` internally.
      * 
@@ -732,7 +636,7 @@ var Game = new Class({
      * memory being held by the core Phaser plugins. If you do need to create another game instance on the same page, leave this as `false`.
      *
      * @method Phaser.Game#destroy
-     * @fires Phaser.Game#destroyEvent
+     * @fires Phaser.Core.Events#DESTROY
      * @since 3.0.0
      *
      * @param {boolean} removeCanvas - Set to `true` if you would like the parent canvas element removed from the DOM, or `false` to leave it in place.
@@ -757,7 +661,7 @@ var Game = new Class({
      */
     runDestroy: function ()
     {
-        this.events.emit('destroy');
+        this.events.emit(Events.DESTROY);
 
         this.events.removeAllListeners();
 

@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
+ * @copyright    2019 Photon Storm Ltd.
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
@@ -16,9 +16,10 @@ var Extend = require('./utils/object/Extend');
 var Phaser = {
 
     Actions: require('./actions'),
-    Animation: require('./animations'),
+    Animations: require('./animations'),
     Cache: require('./cache'),
     Cameras: require('./cameras'),
+    Core: require('./core'),
     Class: require('./utils/Class'),
     Create: require('./create'),
     Curves: require('./curves'),
