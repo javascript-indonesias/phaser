@@ -7,6 +7,8 @@
 var Class = require('../utils/Class');
 var CONST = require('./const');
 var EventEmitter = require('eventemitter3');
+var Events = require('./events');
+var GameEvents = require('../core/events');
 var Keyboard = require('./keyboard/KeyboardManager');
 var Mouse = require('./mouse/MouseManager');
 var Pointer = require('./Pointer');
@@ -133,10 +135,10 @@ var InputManager = new Class({
         this.isOver = true;
 
         /**
-         * isOver state change property.
+         * The DOM Event that was fired when the canvas dispatched an over or out event.
          *
          * @name Phaser.Input.InputManager#_emitIsOverEvent
-         * @type {boolean}
+         * @type {(MouseEvent|TouchEvent)}
          * @private
          * @since 3.16.0
          */
@@ -382,7 +384,7 @@ var InputManager = new Class({
          */
         this._tempMatrix2 = new TransformMatrix();
 
-        game.events.once('boot', this.boot, this);
+        game.events.once(GameEvents.BOOT, this.boot, this);
     },
 
     /**
@@ -391,6 +393,7 @@ var InputManager = new Class({
      *
      * @method Phaser.Input.InputManager#boot
      * @protected
+     * @fires Phaser.Input.Events#MANAGER_BOOT
      * @since 3.0.0
      */
     boot: function ()
@@ -399,11 +402,11 @@ var InputManager = new Class({
 
         this.scaleManager = this.game.scale;
 
-        this.events.emit('boot');
+        this.events.emit(Events.MANAGER_BOOT);
 
-        this.game.events.on('prestep', this.update, this);
-        this.game.events.on('poststep', this.postUpdate, this);
-        this.game.events.once('destroy', this.destroy, this);
+        this.game.events.on(GameEvents.PRE_STEP, this.update, this);
+        this.game.events.on(GameEvents.POST_STEP, this.postUpdate, this);
+        this.game.events.once(GameEvents.DESTROY, this.destroy, this);
     },
 
     /**
@@ -413,7 +416,7 @@ var InputManager = new Class({
      * @private
      * @since 3.16.0
      *
-     * @param {number} event - The DOM Event.
+     * @param {(MouseEvent|TouchEvent)} event - The DOM Event.
      */
     setCanvasOver: function (event)
     {
@@ -429,7 +432,7 @@ var InputManager = new Class({
      * @private
      * @since 3.16.0
      *
-     * @param {number} event - The DOM Event.
+     * @param {(MouseEvent|TouchEvent)} event - The DOM Event.
      */
     setCanvasOut: function (event)
     {
@@ -443,6 +446,7 @@ var InputManager = new Class({
      *
      * @method Phaser.Input.InputManager#update
      * @private
+     * @fires Phaser.Input.Events#MANAGER_UPDATE
      * @since 3.0.0
      *
      * @param {number} time - The time stamp value of this game step.
@@ -453,7 +457,7 @@ var InputManager = new Class({
 
         this._setCursor = 0;
 
-        this.events.emit('update');
+        this.events.emit(Events.MANAGER_UPDATE);
 
         this.ignoreEvents = false;
 
@@ -522,7 +526,7 @@ var InputManager = new Class({
                     break;
 
                 case CONST.POINTER_LOCK_CHANGE:
-                    this.events.emit('pointerlockchange', event, this.mouse.locked);
+                    this.events.emit(Events.POINTERLOCK_CHANGE, event, this.mouse.locked);
                     break;
             }
         }
