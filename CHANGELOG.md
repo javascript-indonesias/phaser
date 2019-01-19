@@ -197,6 +197,19 @@ one set of bindings ever created, which makes things a lot cleaner.
 * `CanvasTexture.getData` is a new method that will extract an ImageData block from the CanvasTexture from the region given.
 * `CanvasTexture.putData` is a new method that will put an ImageData block at the given coordinates in a CanvasTexture.
 * `Line.Extend` is a new static function that allows you extend the start and/or end points of a Line by the given amounts.
+* `Vector2.LEFT` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector2.RIGHT` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector2.UP` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector2.DOWN` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector2.ONE` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector3.ZERO` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector3.LEFT` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector3.RIGHT` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector3.UP` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector3.DOWN` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector3.FORWARD` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector3.BACK` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
+* `Vector3.ONE` is a new constant that can be used in Vector comparison operations (thanks @Aedalus)
 
 ### Updates
 
@@ -239,6 +252,7 @@ one set of bindings ever created, which makes things a lot cleaner.
 * `Map.set` will now update an existing value if you provide it with a key that already exists within the Map. Previously, if you tried to set the value of a key that existed it would be skipped.
 * `MatterSprite` would set its `type` property to be `Image`. It now sets it to be `Sprite` as it should do.
 * `Matter.TileBody.setFromTileCollision` no longer checks if the shape is concave or convex before modifying the vertices, as the update to the Matter.js lib in 3.12 stopped this from working with Tiled collision shapes.
+* The Scene `transitionstart` event is now dispatched by the Target Scene of a transition, regardless if the Scene has a `create` method or not. Previously, it was only dispatched if the Scene had a create method.
 
 ### Bug Fixes
 
@@ -289,20 +303,24 @@ one set of bindings ever created, which makes things a lot cleaner.
 * The Alpha, Flip and Origin components have been removed from the Mesh Game Object (and by extension, Quad as well) as they are not used in the renderer and should be manipulated via the Mesh properties. Fix #4188 (thanks @enriqueto)
 * The `processDomCallbacks` method in the Input Manager wasn't correctly clearing the `once` arrays. Responsibility for this has now been passed to the queue methods `queueTouchStart`, `queueTouchMove`, `queueTouchEnd`, `queueMouseDown`, `queueMouseMove` and `queueMouseUp`. Fix #4257 (thanks @iArePJ)
 * The fontFamily in the Text object is now quoted when synced to the Canvas context, this fixes an issue where you couldn't use web fonts that had numbers in the name, such as "Press Start 2P" (thanks @BeFiveINFO)
+* Arcade Physics now manages when `postUpdate` should be applied better, stopping it from gaining a zero delta during a further check in the same frame. This fixes various issues, including the mass collision test demo. Fix #4154 (thanks @samme)
+* Arcade Physics could trigger a `collide` event on a Body even if it performing an overlap check, if the `onCollide` property was true (thanks @samme)
 
 ### Important Namespace Changes
 
 * The `Phaser.Boot` namespace has been renamed to `Phaser.Core`. As a result, the `boot` folder has been renamed to `core`. This  impacts the `TimeStep` class and `VisibilityHandler` function, which have been moved to be under the new namespace.
-* The `Phaser.Animations` namespace was incorrectly exposed in the Phaser entrypoints as `Animation` (note the lack of plural). This means that if you are creating any custom classes that extend Animation objects using the Phaser namespace, then please update them from `Phaser.Animation.X` to `Phaser.Animations.X`, i.e. `Phaser.Animation.AnimationFrame` to `Phaser.Animations.AnimationFrame`. This doesn't impact you if you created animations by creating them via the Animation Manager.
-* The keyed Data Manager change data event string has changed from `changedata_` to `changedata-` to keep it consistent with other keyed events.
+* The `Phaser.Animations` namespace was incorrectly exposed in the Phaser entrypoints as `Animation` (note the lack of plural). This means that if you are creating any custom classes that extend Animation objects using the Phaser namespace, then please update them from `Phaser.Animation` to `Phaser.Animations`, i.e. `Phaser.Animation.AnimationFrame` to `Phaser.Animations.AnimationFrame`. This doesn't impact you if you created animations directly via the Animation Manager.
+* The keyed Data Manager change data event string has changed from `changedata_` to `changedata-` to keep it consistent with other keyed events. Note the change from `_` to `-`.
 * The Keyboard Plugin `keydown` dynamic event string has changed from `keydown_` to `keydown-` to keep it consistent with other keyed events. Note the change from `_` to `-`.
 * The Keyboard Plugin `keyup` dynamic event string has changed from `keyup_` to `keyup-` to keep it consistent with other keyed events. Note the change from `_` to `-`.
 * The `texturesready` event emitted by the Texture Manager has been renamed to `ready`.
 * The `loadcomplete` event emitted by the Loader Plugin has been renamed to `postprocess` to be reflect what it's used for.
-* Game Objects used to emit a `collide` event if they had an Arcade Physics Body with `onCollide` set, that collided with a Tile. This has changed. The event has been renamed to `tilecollide`. You should now listen for this event from the Arcade Physics World itself: `this.physics.world.on('tilecollide')`. The Game Object will not emit the event any more.
-* Game Objects used to emit a `overlap` event if they had an Arcade Physics Body with `onOverlap` set, that overlapped with a Tile. This has changed. The event has been renamed to `tileoverlap`. You should now listen for this event from the Arcade Physics World itself: `this.physics.world.on('tileoverlap')`. The Game Object will not emit the event any more.
+* Game Objects used to emit a `collide` event if they had an Arcade Physics Body with `onCollide` set, that collided with a Tile. This has changed. The event has been renamed to `tilecollide` and you should now listen for this event from the Arcade Physics World itself: `this.physics.world.on('tilecollide')`. Game Objects no longer emit this event.
+* Game Objects used to emit an `overlap` event if they had an Arcade Physics Body with `onOverlap` set, that overlapped with a Tile. This has changed. The event has been renamed to `tileoverlap` and you should now listen for this event from the Arcade Physics World itself: `this.physics.world.on('tileoverlap')`. Game Objects no longer emit this event.
 * The function `Phaser.Physics.Impact.SeperateX` has been renamed to `SeparateX` to correct the spelling mistake.
 * The function `Phaser.Physics.Impact.SeperateY` has been renamed to `SeparateY` to correct the spelling mistake.
+* The `ended` event in `WebAudioSound` has been renamed to `complete` to make it more consistent with the rest of the API.
+* The `ended` event in `HTML5AudioSound` has been renamed to `complete` to make it more consistent with the rest of the API.
 
 ### Examples and TypeScript
 

@@ -6,7 +6,10 @@
 
 var Class = require('../utils/Class');
 var CONST = require('./const');
+var Events = require('./events');
+var GameEvents = require('../core/events');
 var GetValue = require('../utils/object/GetValue');
+var LoaderEvents = require('../loader/events');
 var NOOP = require('../utils/NOOP');
 var Scene = require('./Scene');
 var Systems = require('./Systems');
@@ -152,7 +155,7 @@ var SceneManager = new Class({
             }
         }
 
-        game.events.once('ready', this.bootQueue, this);
+        game.events.once(GameEvents.READY, this.bootQueue, this);
     },
 
     /**
@@ -439,6 +442,7 @@ var SceneManager = new Class({
      *
      * @method Phaser.Scenes.SceneManager#bootScene
      * @private
+     * @fires Phaser.Scenes.Events#TRANSITION_INIT
      * @since 3.0.0
      *
      * @param {Phaser.Scene} scene - The Scene to boot.
@@ -456,7 +460,7 @@ var SceneManager = new Class({
 
             if (settings.isTransition)
             {
-                sys.events.emit('transitioninit', settings.transitionFrom, settings.transitionDuration);
+                sys.events.emit(Events.TRANSITION_INIT, settings.transitionFrom, settings.transitionDuration);
             }
         }
 
@@ -483,7 +487,7 @@ var SceneManager = new Class({
                 settings.status = CONST.LOADING;
 
                 //  Start the loader going as we have something in the queue
-                loader.once('complete', this.loadComplete, this);
+                loader.once(LoaderEvents.COMPLETE, this.loadComplete, this);
 
                 loader.start();
             }
@@ -589,6 +593,7 @@ var SceneManager = new Class({
      *
      * @method Phaser.Scenes.SceneManager#create
      * @private
+     * @fires Phaser.Scenes.Events#TRANSITION_INIT
      * @since 3.0.0
      *
      * @param {Phaser.Scene} scene - The Scene to create.
@@ -603,11 +608,11 @@ var SceneManager = new Class({
             settings.status = CONST.CREATING;
 
             scene.create.call(scene, settings.data);
+        }
 
-            if (settings.isTransition)
-            {
-                sys.events.emit('transitionstart', settings.transitionFrom, settings.transitionDuration);
-            }
+        if (settings.isTransition)
+        {
+            sys.events.emit(Events.TRANSITION_START, settings.transitionFrom, settings.transitionDuration);
         }
 
         //  If the Scene has an update function we'll set it now, otherwise it'll remain as NOOP
@@ -1110,7 +1115,7 @@ var SceneManager = new Class({
                     {
                         scene.sys.settings.status = CONST.LOADING;
     
-                        loader.once('complete', this.payloadComplete, this);
+                        loader.once(LoaderEvents.COMPLETE, this.payloadComplete, this);
     
                         loader.start();
     
