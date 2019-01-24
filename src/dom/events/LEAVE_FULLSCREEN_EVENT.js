@@ -4,9 +4,9 @@
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
-var ClientHeight = function ()
-{
-    return Math.max(window.innerHeight, document.documentElement.clientHeight);
-};
-
-module.exports = ClientHeight;
+/**
+ * The Scale Manager Resize Event.
+ *
+ * @event Phaser.DOM.ScaleManager.Events#LEAVE_FULLSCREEN
+ */
+module.exports = 'leavefullscreen';

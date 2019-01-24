@@ -4,9 +4,11 @@
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
-var ClientWidth = function ()
-{
-    return Math.max(window.innerWidth, document.documentElement.clientWidth);
-};
-
-module.exports = ClientWidth;
+/**
+ * The Scale Manager Resize Event.
+ *
+ * @event Phaser.DOM.ScaleManager.Events#ORIENTATION_CHANGE
+ * 
+ * @param {string} orientation - 
+ */
+module.exports = 'orientationchange';

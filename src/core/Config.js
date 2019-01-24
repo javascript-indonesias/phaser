@@ -48,6 +48,7 @@ var ValueToColor = require('../display/color/ValueToColor');
  * @property {(boolean|GamepadInputConfig)} [gamepad=false] - Gamepad input configuration. `true` enables gamepad input.
  * @property {integer} [activePointers=1] - The maximum number of touch pointers. See {@link Phaser.Input.InputManager#pointers}.
  * @property {number} [smoothFactor=0] - The smoothing factor to apply during Pointer movement. See {@link Phaser.Input.Pointer#smoothFactor}.
+ * @property {boolean} [inputQueue=false] - Should Phaser use a queued input system for native DOM Events or not?
  */
 
 /**
@@ -113,11 +114,11 @@ var ValueToColor = require('../display/color/ValueToColor');
 /**
  * @typedef {object} ScaleConfig
  *
- * @property {(integer|string)} [width=1024] - The base width of your game.
- * @property {(integer|string)} [height=768] - The base height of your game.
+ * @property {(integer|string)} [width=1024] - The base width of your game. Can be an integer or a string: '100%'.
+ * @property {(integer|string)} [height=768] - The base height of your game. Can be an integer or a string: '100%'.
  * @property {integer} [zoom=1] - The zoom value of the game canvas.
- * @property {number} [resolution=1] - The rendering resolution of the canvas.
- * @property {(HTMLElement|string)} [parent] - The DOM element that will contain the game canvas, or its `id`. If null (the default) or if the named element doesn't exist, the game canvas is inserted directly into the document body.
+ * @property {number} [resolution=1] - The rendering resolution of the canvas. This is reserved for future use and is currently ignored.
+ * @property {(HTMLElement|string)} [parent] - The DOM element that will contain the game canvas, or its `id`. If undefined, or if the named element doesn't exist, the game canvas is inserted directly into the document body. If `null` no parent will be used and you are responsible for adding the canvas to your environment.
  * @property {boolean} [expandParent=true] - Is the Scale Manager allowed to adjust the CSS height property of the parent to be 100%?
  * @property {integer} [mode=0] - The scale mode.
  * @property {integer} [minWidth] - The minimum width the canvas can be scaled down to.
@@ -126,7 +127,7 @@ var ValueToColor = require('../display/color/ValueToColor');
  * @property {integer} [maxHeight] - The maximum height the canvas can be scaled up to.
  * @property {boolean} [autoRound=false] - Automatically round the display and style sizes of the canvas. This can help with performance in lower-powered devices.
  * @property {integer} [autoCenter=0] - Automatically center the canvas within the parent? 0 = No centering. 1 = Center both horizontally and vertically. 2 = Center horizontally. 3 = Center vertically.
- * @property {integer} [resizeInterval=500] - How many ms should elapse before checking if the browser size has changed?
+ * @property {integer} [resizeInterval=2000] - How many ms should elapse before checking if the browser size has changed?
  */
 
 /**
@@ -209,7 +210,7 @@ var ValueToColor = require('../display/color/ValueToColor');
  * @property {number} [zoom=1] - Simple scale applied to the game canvas. 2 is double size, 0.5 is half size, etc.
  * @property {number} [resolution=1] - The size of each game pixel, in canvas pixels. Values larger than 1 are "high" resolution.
  * @property {number} [type=CONST.AUTO] - Which renderer to use. Phaser.AUTO, Phaser.CANVAS, Phaser.HEADLESS, or Phaser.WEBGL. AUTO picks WEBGL if available, otherwise CANVAS.
- * @property {(HTMLElement|string)} [parent=null] - The DOM element that will contain the game canvas, or its `id`. If null (the default) or if the named element doesn't exist, the game canvas is inserted directly into the document body.
+ * @property {(HTMLElement|string)} [parent=null] - The DOM element that will contain the game canvas, or its `id`. If undefined or if the named element doesn't exist, the game canvas is inserted directly into the document body. If `null` no parent will be used and you are responsible for adding the canvas to your environment.
  * @property {HTMLCanvasElement} [canvas=null] - Provide your own Canvas element for Phaser to use instead of creating one.
  * @property {string} [canvasStyle=null] - CSS styles to apply to the game canvas instead of Phaser's default styles.
  * @property {CanvasRenderingContext2D} [context] - Provide your own Canvas Context for Phaser to use, instead of creating one.
@@ -287,7 +288,7 @@ var Config = new Class({
         /**
          * @const {?*} Phaser.Core.Config#parent - A parent DOM element into which the canvas created by the renderer will be injected.
          */
-        this.parent = GetValue(config, 'parent', null);
+        this.parent = GetValue(config, 'parent', undefined);
 
         /**
          * @const {integer} Phaser.Core.Config#scaleMode - The scale mode as used by the Scale Manager. The default is zero, which is no scaling.
@@ -481,6 +482,11 @@ var Config = new Class({
          * @const {integer} Phaser.Core.Config#inputSmoothFactor - The smoothing factor to apply during Pointer movement. See {@link Phaser.Input.Pointer#smoothFactor}.
          */
         this.inputSmoothFactor = GetValue(config, 'input.smoothFactor', 0);
+
+        /**
+         * @const {boolean} Phaser.Core.Config#inputQueue - Should Phaser use a queued input system for native DOM Events or not?
+         */
+        this.inputQueue = GetValue(config, 'input.queue', false);
 
         /**
          * @const {boolean} Phaser.Core.Config#inputGamepad - Enable the Gamepad Plugin. This can be disabled in games that don't need gamepad input.
