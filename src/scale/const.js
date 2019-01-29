@@ -5,9 +5,9 @@
  */
 
 /**
- * Phaser ScaleManager constants.
+ * Phaser Scale Manager constants.
  * 
- * @name Phaser.DOM.ScaleModes
+ * @name Phaser.Scale.ScaleModes
  * @enum {integer}
  * @memberof Phaser
  * @readonly
@@ -17,9 +17,12 @@
 module.exports = {
 
     /**
-     * No scaling happens at all. The canvas is the size given in the game config and Phaser doesn't change it.
+     * No scaling happens at all. The canvas is set to the size given in the game config and Phaser doesn't change it
+     * again from that point on. If you change the canvas size, either via CSS, or directly via code, then you need
+     * to call the Scale Managers `resize` method to give the new dimensions, or input events will stop working.
      * 
-     * @name Phaser.DOM.NONE
+     * @name Phaser.Scale.NONE
+     * @enum {integer}
      * @since 3.16.0
      */
     NONE: 0,
@@ -27,7 +30,8 @@ module.exports = {
     /**
      * 
      * 
-     * @name Phaser.DOM.WIDTH_CONTROLS_HEIGHT
+     * @name Phaser.Scale.WIDTH_CONTROLS_HEIGHT
+     * @enum {integer}
      * @since 3.16.0
      */
     WIDTH_CONTROLS_HEIGHT: 1,
@@ -35,7 +39,8 @@ module.exports = {
     /**
      * 
      * 
-     * @name Phaser.DOM.HEIGHT_CONTROLS_WIDTH
+     * @name Phaser.Scale.HEIGHT_CONTROLS_WIDTH
+     * @enum {integer}
      * @since 3.16.0
      */
     HEIGHT_CONTROLS_WIDTH: 2,
@@ -43,7 +48,8 @@ module.exports = {
     /**
      * 
      * 
-     * @name Phaser.DOM.FIT
+     * @name Phaser.Scale.FIT
+     * @enum {integer}
      * @since 3.16.0
      */
     FIT: 3,
@@ -51,7 +57,8 @@ module.exports = {
     /**
      * 
      * 
-     * @name Phaser.DOM.ENVELOP
+     * @name Phaser.Scale.ENVELOP
+     * @enum {integer}
      * @since 3.16.0
      */
     ENVELOP: 4,
@@ -59,7 +66,8 @@ module.exports = {
     /**
      * Canvas is resized to fit all available parent space, regardless of aspect ratio.
      * 
-     * @name Phaser.DOM.RESIZE
+     * @name Phaser.Scale.RESIZE
+     * @enum {integer}
      * @since 3.16.0
      */
     RESIZE: 5,
@@ -67,7 +75,8 @@ module.exports = {
     /**
      * Canvas is not centered within the parent.
      * 
-     * @name Phaser.DOM.NO_CENTER
+     * @name Phaser.Scale.NO_CENTER
+     * @enum {integer}
      * @since 3.16.0
      */
     NO_CENTER: 0,
@@ -75,7 +84,8 @@ module.exports = {
     /**
      * Canvas is centered both horizontally and vertically within the parent.
      * 
-     * @name Phaser.DOM.CENTER_BOTH
+     * @name Phaser.Scale.CENTER_BOTH
+     * @enum {integer}
      * @since 3.16.0
      */
     CENTER_BOTH: 1,
@@ -83,7 +93,8 @@ module.exports = {
     /**
      * Canvas is centered horizontally within the parent.
      * 
-     * @name Phaser.DOM.CENTER_HORIZONTALLY
+     * @name Phaser.Scale.CENTER_HORIZONTALLY
+     * @enum {integer}
      * @since 3.16.0
      */
     CENTER_HORIZONTALLY: 2,
@@ -91,7 +102,8 @@ module.exports = {
     /**
      * Canvas is centered vertically within the parent.
      * 
-     * @name Phaser.DOM.CENTER_VERTICALLY
+     * @name Phaser.Scale.CENTER_VERTICALLY
+     * @enum {integer}
      * @since 3.16.0
      */
     CENTER_VERTICALLY: 3,
@@ -99,7 +111,8 @@ module.exports = {
     /**
      * Browser is in landscape orientation.
      * 
-     * @name Phaser.DOM.LANDSCAPE
+     * @name Phaser.Scale.LANDSCAPE
+     * @enum {string}
      * @since 3.16.0
      */
     LANDSCAPE: 'landscape-primary',
@@ -107,9 +120,20 @@ module.exports = {
     /**
      * Browser is in portrait orientation.
      * 
-     * @name Phaser.DOM.PORTRAIT
+     * @name Phaser.Scale.PORTRAIT
+     * @enum {string}
      * @since 3.16.0
      */
-    PORTRAIT: 'portrait-primary'
+    PORTRAIT: 'portrait-primary',
+
+    /**
+     * Calculate the zoom value based on the maximum multiplied game size that will
+     * fit into the parent, or browser window if no parent is set.
+     * 
+     * @name Phaser.Scale.MAX_ZOOM
+     * @enum {integer}
+     * @since 3.16.0
+     */
+    MAX_ZOOM: -1
 
 };
