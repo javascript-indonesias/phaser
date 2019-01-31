@@ -5,10 +5,5 @@
  */
 
 /**
- * The Scale Manager Resize Event.
- *
- * @event Phaser.Scale.Events#ORIENTATION_CHANGE
- * 
- * @param {string} orientation - 
+ * @namespace Phaser.Animations.Types
  */
-module.exports = 'orientationchange';

@@ -212,6 +212,7 @@ one set of bindings ever created, which makes things a lot cleaner.
 * The function `Phaser.Physics.Impact.SeperateY` has been renamed to `SeparateY` to correct the spelling mistake.
 * The `ended` event in `WebAudioSound` has been renamed to `complete` to make it more consistent with the rest of the API.
 * The `ended` event in `HTML5AudioSound` has been renamed to `complete` to make it more consistent with the rest of the API.
+* The `Phaser.Utils.Objects` namespace was incorrectly exposed in the Phaser entrypoints as `Object` (note the lack of plural), this has now been fixed so all associated functions are properly namespaced.
 
 ### New Features
 
@@ -279,6 +280,7 @@ one set of bindings ever created, which makes things a lot cleaner.
 * `CanvasRenderer.snapshotArea` is a new method that allows you to grab an image of the given region of the canvas during the post-render step and have it sent to your defined callback. This is the same as `snapshot` except you control the area being grabbed, so is more efficient if you only need a smaller area.
 * `CanvasRenderer.snapshotPixel` is a new method that allows you to grab a single pixel from the game canvas, post-render. It returns the result as a `Color` object to your specified callback.
 * `SceneManager.getScenes` is a new method that will return all current Scenes being managed by the Scene Manager. You can optionally return only active scenes and reverse the order in which they are returned in the array.
+* `DOM.GetTarget` is a new helper function that will return a reference to a DOM Element based on the given string or node.
 
 ### Updates
 
@@ -335,6 +337,8 @@ one set of bindings ever created, which makes things a lot cleaner.
 * `CanvasRenderer.snapshotState` is a new object that contains the snapshot configuration data, the same as the WebGL Renderer.
 * The signature of the `WebGLSnapshot` function has changed. It now takes a Snapshot Configuration object as the second parameter.
 * The signature of the `CanvasSnapshot` function has changed. It now takes a Snapshot Configuration object as the second parameter.
+* A Tween Timeline will now set it's internal destroy state _before_ calling either the `onComplete` callback or sending the `COMPLETE` event. This means you can now call methods that will change the state of the Timeline, such as `play`, during the callback handlers, where-as before doing this would have had the internal state changed immediately, preventing it (thanks Lucas Knight)
+* The `AddToDOM` method has had the `overflowHidden` argument removed. The DOM element the canvas is inserted into no longer has `overflow: hidden` applied to its style. If you wish to have this, please add it directly via CSS.
 
 ### Bug Fixes
 
