@@ -1,5 +1,18 @@
 # Change Log
 
+## Version 3.17.0 - Togusa - in development
+
+### Bug Fixes
+
+* The `Mesh.setAlpha` method has been restored, even though it's empty and does nothing, to prevent runtime errors when adding a Mesh or Quad object to a Container. Fix #4338 #4343 (thanks @pfdtravalmatic @charmingny)
+
+### Examples, Documentation and TypeScript
+
+My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
+
+@maretana
+
+
 ## Version 3.16.0 / 3.16.1 - Ishikawa - 5th February 2019
 
 Phaser 3.16 is a massive update. The single largest in the history of Phaser 3 and it contains _breaking changes_. If you're upgrading from an earlier version please do check the log entries below.
