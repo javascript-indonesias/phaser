@@ -1,8 +1,8 @@
 # Change Log
 
-## Version 3.16.2 - Ishikawa - 8th February 2019
+## Version 3.16.2 - Ishikawa - 11th February 2019
 
-A small point release to fix a couple of important issues that slipped into 3.16.
+This is point release primarily fixes a few important issues that surfaced in 3.16.0.
 
 ### Matter Pointer Constraint Changes
 
@@ -30,12 +30,15 @@ The following changes all effect the Matter JS Pointer Constraint class:
 * The `scale` property has been added to the `Scene` class (thanks @strangeweekend)
 * `Matter.World.remove` now uses the `Composite.remove` method internally. Previously, it used `Composite.removeBody` which only allowed it to remove bodies from the simulation. Now, it can remove any type of Matter object.
 * When the Matter World creates its wall bounds, the left and right walls now extend further up and down than before, so that in a 4-wall setting there are no gaps in the corners, which previously allowed for fast moving objects that hit a corner intersection point to sometimes travel through it.
+* Touch inputs will now trigger a `POINTER_OUT` event if they leave the game (i.e. are released), where-as before they would only trigger the `POINTER_UP` event. Now, both happen (thanks @rgk)
 
 ### Bug Fixes
 
 * The `Mesh.setAlpha` method has been restored, even though it's empty and does nothing, to prevent runtime errors when adding a Mesh or Quad object to a Container. Fix #4338 #4343 (thanks @pfdtravalmatic @charmingny)
 * `KeyboardPlugin.checkDown` would always fail if using the new event system, because the time value it was checking wasn't updated.
-
+* Entering `Fullscreen` mode in the Scale Manager and then pressing ESC would leave the injected fullsceen div in the DOM, causing it to throw a node insertion failure the second time you wanted to enter fullscreen mode. Fix #4352 (thanks @ngdevr)
+* Due to the changes in the Input event system, the `GAME_OUT` event would never fire unless the input system was in legacy mode. The OUT and OVER handlers have been refactored and will now fire as soon as the DOM event happens. As a result the `InputManager._emitIsOverEvent` property has been removed, as the native event is sent directly to the handler and doesn't need storing locally any more. Fix #4344 (thanks @RademCZ)
+* Added `Zone.setBlendMode` method as a NOOP function, fixing a bug where if you added a Zone to a Container when running under Canvas it would fail. Fix #4295 (thanks @emanuel15)
 
 ### Examples, Documentation and TypeScript
 
