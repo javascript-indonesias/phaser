@@ -315,18 +315,19 @@ var World = new Class({
         this.maxEntries = GetValue(config, 'maxEntries', 16);
 
         /**
-         * Should this Arcade Physics World use an RTree for Dynamic Physics bodies or not?
+         * Should this Arcade Physics World use an RTree for Dynamic and Static Physics bodies?
          *
-         * An RTree is a fast way of spatially sorting of all the moving bodies in the world.
+         * An RTree is a fast way of spatially sorting of all the bodies in the world.
          * However, at certain limits, the cost of clearing and inserting the bodies into the
          * tree every frame becomes more expensive than the search speed gains it provides.
          *
          * If you have a large number of dynamic bodies in your world then it may be best to
-         * disable the use of the RTree by setting this property to `true`.
+         * disable the use of the RTree by setting this property to `false` in the physics config.
+         * 
          * The number it can cope with depends on browser and device, but a conservative estimate
          * of around 5,000 bodies should be considered the max before disabling it.
          *
-         * Note this only applies to dynamic bodies. Static bodies are always kept in an RTree,
+         * This only applies to dynamic bodies. Static bodies are always kept in an RTree,
          * because they don't have to be cleared every frame, so you benefit from the
          * massive search speeds all the time.
          *
@@ -2041,7 +2042,7 @@ var World = new Class({
      *
      * @method Phaser.Physics.Arcade.World#collideTiles
      * @fires Phaser.Physics.Arcade.Events#TILE_COLLIDE
-     * @since 3.16.3
+     * @since 3.17.0
      *
      * @param {Phaser.GameObjects.GameObject} sprite - The first object to check for collision.
      * @param {Phaser.Tilemaps.Tile[]} tiles - An array of Tiles to check for collision against.
@@ -2076,7 +2077,7 @@ var World = new Class({
      *
      * @method Phaser.Physics.Arcade.World#overlapTiles
      * @fires Phaser.Physics.Arcade.Events#TILE_OVERLAP
-     * @since 3.16.3
+     * @since 3.17.0
      *
      * @param {Phaser.GameObjects.GameObject} sprite - The first object to check for collision.
      * @param {Phaser.Tilemaps.Tile[]} tiles - An array of Tiles to check for collision against.
@@ -2170,7 +2171,7 @@ var World = new Class({
      * @fires Phaser.Physics.Arcade.Events#TILE_COLLIDE
      * @fires Phaser.Physics.Arcade.Events#TILE_OVERLAP
      * @private
-     * @since 3.16.3
+     * @since 3.17.0
      *
      * @param {Phaser.GameObjects.GameObject} sprite - The first object to check for collision.
      * @param {(Phaser.Tilemaps.DynamicTilemapLayer|Phaser.Tilemaps.StaticTilemapLayer)} tilemapLayer - The second object to check for collision.
@@ -2300,7 +2301,6 @@ var World = new Class({
             this.wrapObject(object, padding);
         }
     },
-
 
     /**
      * Wrap each object's coordinates within {@link Phaser.Physics.Arcade.World#bounds}.

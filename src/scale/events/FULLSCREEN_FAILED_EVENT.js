@@ -5,9 +5,9 @@
  */
 
 /**
- * The Scale Manager tried to enter fullscreen mode, but it is unsupported by the browser.
+ * The Scale Manager tried to enter fullscreen mode but failed.
  *
- * @event Phaser.Scale.Events#FULLSCREEN_UNSUPPORTED
- * @since 3.16.1
+ * @event Phaser.Scale.Events#FULLSCREEN_FAILED
+ * @since 3.17.0
  */
-module.exports = 'fullscreenunsupported';
+module.exports = 'fullscreenfailed';

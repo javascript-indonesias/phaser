@@ -1,12 +1,17 @@
 # Change Log
 
-## Version 3.16.3 - Ishikawa - in dev
+## Version 3.17.0 - Ishikawa - in dev
 
-### Arcade Physics New Features, Updates and Fixes
+### Arcade Physics
 
-* `World.overlapTiles` is a new method that allows you to check for overlaps between a physics enabled Game Object and an array of Tiles. The Tiles don't have to have been enable for collision, or even be on the same layer, for the overlap check to work. You can provide your own process callback and/or overlap callback. This is handy for testing for overlap for a specific Tile in your map, not just based on a tile index.
-* `World.collideTiles` is a new method that allows you to check for collision between a physics enabled Game Object and an array of Tiles. The Tiles don't have to have been enable for collision, or even be on the same layer, for the collision to work. You can provide your own process callback and/or overlap callback. There are some limitations in using this method, please consult the API Docs for details, but on the whole, it allows for dynamic collision on small sets of Tile instances.
-* The `Body.delta` values are now able to be read and acted upon during a Scene update, due to the new game step flow. This means you can now call `this.physics.collide` during a Scene `update` and it will work properly again. Fix #4370 (thanks @NokFrt)
+#### New Features
+
+* `overlapTiles` is a new method that allows you to check for overlaps between a physics enabled Game Object and an array of Tiles. The Tiles don't have to have been enable for collision, or even be on the same layer, for the overlap check to work. You can provide your own process callback and/or overlap callback. This is handy for testing for overlap for a specific Tile in your map, not just based on a tile index. This is available via `this.physics.overlapTiles` and the World instance.
+* `collideTiles` is a new method that allows you to check for collision between a physics enabled Game Object and an array of Tiles. The Tiles don't have to have been enable for collision, or even be on the same layer, for the collision to work. You can provide your own process callback and/or overlap callback. There are some limitations in using this method, please consult the API Docs for details, but on the whole, it allows for dynamic collision on small sets of Tile instances. This is available via `this.physics.collideTiles` and the World instance.
+* `overlapRect` is a new method that allows you to return an array of all physics bodies within the given rectangular region of the World. It can return dynamic or static bodies and will use the RTree for super-fast searching, if enabled (which it is by default)
+
+#### Updates
+
 * `Body.preUpdate` is a new method that is called only once per game step. It resets all collision status properties and syncs the Body with the parent Game Object.
 * `Body.update` has been rewritten to just perform one single physics step and no longer re-syncs with the Game Object. It can be called multiple times per game step, depending on the World FPS rate.
 * `Body.postUpdate` has been rewritten to make it more compact. It syncs the body data back to the parent Game Object and is only called once per game step now (previously it was called whenever the Body updated)
@@ -17,6 +22,12 @@
 * The internal method `SeparateTile` now has a new argument `isLayer` which controls if the set comes from a layer or an array.
 * The internal method `TileCheckX` now has a new argument `isLayer` which controls if the set comes from a layer or an array.
 * The internal method `TileCheckY` now has a new argument `isLayer` which controls if the set comes from a layer or an array.
+
+#### Bug Fixes
+
+* The `Body.delta` values are now able to be read and acted upon during a Scene update, due to the new game step flow. This means you can now call `this.physics.collide` during a Scene `update` and it will work properly again. Fix #4370 (thanks @NokFrt)
+* `ArcadePhysics.furthest` now iterates the bodies Set, rather than the RTree, which keeps it working even if the RTree has been disabled.
+* `ArcadePhysics.closest` now iterates the bodies Set, rather than the RTree, which keeps it working even if the RTree has been disabled.
 
 ### New Features
 
@@ -31,11 +42,13 @@
 * `AnimationManager.generateFrameNumbers` can now accept a start number greater than the end number, and will generate them in reverse (thanks @cruzdanilo)
 * The return from the `ScenePlugin.add` method has changed. Previously, it would return the ScenePlugin, but now it returns a reference to the Scene that was added to the Scene Manager, keeping it in-line with all other `add` methods in the API. Fix #4359 (thanks @BigZaphod)
 * The `PluginManager.installScenePlugin` method has a new optional boolean parameter `fromLoader` which controls if the plugin is coming in from the result of a Loader operation or not. If it is, it no longer throws a console warning if the plugin already exists. This fixes an issue where if you return to a Scene that loads a Scene Plugin it would throw a warning and then not install the plugin to the Scene.
+* The Scale Manager has a new event `FULLSCREEN_FAILED` which is fired if you try to enter fullscreen mode, but the browser rejects it for some reason.
 
 ### Bug Fixes
 
 * The parent bounds are reset when exiting fullscreen mode in the Scale Manager. This fixes an issue when leaving fullscreen mode by pressing ESC (instead of programmatically) would leave the canvas in the full screen size. Fix #4357 (thanks @khutchins and @HeyStevenXu)
 * `GetAdvancedValue` now uses the correct Math RND reference, which means anything that used the `randInt` or `randFloat` features of this function, such as creating a Sprite from a Config object, or Bitmap Text sizing, will no longer throw an error about a null object reference. Fix #4369 (thanks @sanadov)
+* Trying to enter Fullscreen mode on Android / Chrome, or iOS / Safari, would throw an error regarding an unhandled Promise and a failure to invoke the event from a user gesture. This has been tightened up, using a proper Promise handler internally and the documentation clarified to explicitly say that you must call the function from a `pointerup` handler, and not `pointerdown`. Fix #4355 (thanks @matrizet)
 
 ### Examples, Documentation and TypeScript
 
