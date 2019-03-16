@@ -18,6 +18,7 @@ var FuzzyLessThan = require('../../math/fuzzy/LessThan');
 var GetOverlapX = require('./GetOverlapX');
 var GetOverlapY = require('./GetOverlapY');
 var GetValue = require('../../utils/object/GetValue');
+var IntersectsRect = require('./IntersectsRect');
 var ProcessQueue = require('../../structs/ProcessQueue');
 var ProcessTileCallbacks = require('./tilemap/ProcessTileCallbacks');
 var Rectangle = require('../../geom/rectangle/Rectangle');
@@ -293,11 +294,14 @@ var World = new Class({
          */
         this.defaults = {
             debugShowBody: GetValue(config, 'debugShowBody', true),
+            debugShowBlocked: GetValue(config, 'debugShowBlocked', true),
             debugShowStaticBody: GetValue(config, 'debugShowStaticBody', true),
             debugShowVelocity: GetValue(config, 'debugShowVelocity', true),
             bodyDebugColor: GetValue(config, 'debugBodyColor', 0xff00ff),
             staticBodyDebugColor: GetValue(config, 'debugStaticBodyColor', 0x0000ff),
-            velocityDebugColor: GetValue(config, 'debugVelocityColor', 0x00ff00)
+            velocityDebugColor: GetValue(config, 'debugVelocityColor', 0x00ff00),
+            sleepDebugColor: GetValue(config, 'debugSleepColor', 0xffffff),
+            blockedDebugColor: GetValue(config, 'debugBlockedColor', 0xff0000)
         };
 
         /**
@@ -1012,13 +1016,16 @@ var World = new Class({
         var dynamic = this.bodies;
         var staticBodies = this.staticBodies;
 
-        for (i = 0; i < len; i++)
+        if (!this.isPaused)
         {
-            body = bodies[i];
-
-            if (body.enable)
+            for (i = 0; i < len; i++)
             {
-                body.postUpdate();
+                body = bodies[i];
+    
+                if (body.enable)
+                {
+                    body.postUpdate();
+                }
             }
         }
 
@@ -1161,12 +1168,14 @@ var World = new Class({
      */
     computeVelocity: function (body, delta)
     {
-        var velocityX = body.velocity.x;
+        var velocity = body.velocity;
+
+        var velocityX = velocity.x;
         var accelerationX = body.acceleration.x;
         var dragX = body.drag.x;
         var maxX = body.maxVelocity.x;
 
-        var velocityY = body.velocity.y;
+        var velocityY = velocity.y;
         var accelerationY = body.acceleration.y;
         var dragY = body.drag.y;
         var maxY = body.maxVelocity.y;
@@ -1178,8 +1187,18 @@ var World = new Class({
 
         if (body.allowGravity)
         {
-            velocityX += (this.gravity.x + body.gravity.x) * delta;
-            velocityY += (this.gravity.y + body.gravity.y) * delta;
+            var gravityX = (this.gravity.x + body.gravity.x) * delta;
+            var gravityY = (this.gravity.y + body.gravity.y) * delta;
+
+            if (gravityX < 0 && !body.worldBlocked.left || gravityX > 0 && !body.worldBlocked.right)
+            {
+                velocityX += gravityX;
+            }
+
+            if (gravityY > 0 && !body.worldBlocked.down || gravityY < 0 && !body.worldBlocked.up)
+            {
+                velocityY += gravityY;
+            }
         }
 
         if (accelerationX)
@@ -1254,12 +1273,12 @@ var World = new Class({
             }
         }
 
-        body.velocity.x = Clamp(velocityX, -maxX, maxX);
-        body.velocity.y = Clamp(velocityY, -maxY, maxY);
+        velocity.x = Clamp(velocityX, -maxX, maxX);
+        velocity.y = Clamp(velocityY, -maxY, maxY);
 
-        if (maxSpeed > -1 && body.velocity.length() > maxSpeed)
+        if (maxSpeed > -1 && velocity.length() > maxSpeed)
         {
-            body.velocity.normalize().scale(maxSpeed);
+            velocity.normalize().scale(maxSpeed);
         }
     },
 
@@ -1591,13 +1610,7 @@ var World = new Class({
 
         if (!body1.isCircle && !body2.isCircle)
         {
-            //  Rect vs. Rect
-            return !(
-                body1.right <= body2.x ||
-                body1.bottom <= body2.y ||
-                body1.x >= body2.right ||
-                body1.y >= body2.bottom
-            );
+            return IntersectsRect(body1, body2, 1);
         }
         else if (body1.isCircle)
         {
@@ -1759,17 +1772,12 @@ var World = new Class({
             if (!object2)
             {
                 //  Special case for array vs. self
-                for (i = 0; i < object1.length; i++)
+                for (i = 0; i < object1.length - 1; i++)
                 {
                     var child = object1[i];
 
                     for (j = i + 1; j < object1.length; j++)
                     {
-                        if (i === j)
-                        {
-                            continue;
-                        }
-
                         this.collideHandler(child, object1[j], collideCallback, processCallback, callbackContext, overlapOnly);
                     }
                 }
