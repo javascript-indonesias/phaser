@@ -1190,15 +1190,11 @@ var World = new Class({
             var gravityX = (this.gravity.x + body.gravity.x) * delta;
             var gravityY = (this.gravity.y + body.gravity.y) * delta;
 
-            if (gravityX < 0 && !body.worldBlocked.left || gravityX > 0 && !body.worldBlocked.right)
-            {
-                velocityX += gravityX;
-            }
+            velocityX += gravityX;
+            velocityY += gravityY;
 
-            if (gravityY > 0 && !body.worldBlocked.down || gravityY < 0 && !body.worldBlocked.up)
-            {
-                velocityY += gravityY;
-            }
+            body._gx = gravityX;
+            body._gy = gravityY;
         }
 
         if (accelerationX)
@@ -1610,7 +1606,7 @@ var World = new Class({
 
         if (!body1.isCircle && !body2.isCircle)
         {
-            return IntersectsRect(body1, body2, 1);
+            return IntersectsRect(body1, body2);
         }
         else if (body1.isCircle)
         {
