@@ -156,6 +156,16 @@ var World = new Class({
         this.fps = GetValue(config, 'fps', 60);
 
         /**
+         * The number of times all of the active dynamic bodies will be iterated through,
+         * in order to settle down their positions.
+         *
+         * @name Phaser.Physics.Arcade.World#positionIterations
+         * @type {integer}
+         * @since 3.17.0
+         */
+        this.positionIterations = 6;
+
+        /**
          * The amount of elapsed ms since the last frame.
          *
          * @name Phaser.Physics.Arcade.World#_elapsed
@@ -310,9 +320,9 @@ var World = new Class({
             bodyDebugColor: GetValue(config, 'debugBodyColor', 0xff00ff),
             staticBodyDebugColor: GetValue(config, 'debugStaticBodyColor', 0x0000ff),
             velocityDebugColor: GetValue(config, 'debugVelocityColor', 0x00ff00),
-            sleepDebugColor: GetValue(config, 'debugSleepColor', 0x8d8d8d),
-            blockedDebugColor: GetValue(config, 'debugBlockedColor', 0xff0000),
-            worldBlockedDebugColor: GetValue(config, 'debugWorldBlockedColor', 0xffff00)
+            sleepDebugColor: GetValue(config, 'debugSleepColor', 0x636363),
+            blockedDebugColor: GetValue(config, 'debugBlockedColor', 0x00bff3),
+            worldBlockedDebugColor: GetValue(config, 'debugWorldBlockedColor', 0xec008c)
         };
 
         /**
@@ -1009,8 +1019,6 @@ var World = new Class({
                 collider.update();
             }
         }
-
-        this._frame++;
     },
 
     /**
@@ -1031,13 +1039,16 @@ var World = new Class({
 
         if (!this.isPaused)
         {
-            for (i = 0; i < len; i++)
+            for (var c = 0; c < this.positionIterations; c++)
             {
-                body = bodies[i];
-    
-                if (body.enable)
+                for (i = 0; i < len; i++)
                 {
-                    body.postUpdate();
+                    body = bodies[i];
+        
+                    if (body.enable)
+                    {
+                        body.postUpdate();
+                    }
                 }
             }
         }
@@ -1103,6 +1114,8 @@ var World = new Class({
 
             pending.clear();
         }
+
+        this._frame++;
     },
 
     /**
@@ -1208,6 +1221,17 @@ var World = new Class({
 
             body._gx = gravityX;
             body._gy = gravityY;
+
+            if (velocityY === gravityY)
+            {
+                // console.log(this._frame, '///// gravity check', body.gameObject.name, body.isBlockedUp(), body.isBlockedDown());
+
+                if ((gravityY < 0 && body.isBlockedUp()) || (gravityY > 0 && body.isBlockedDown()))
+                {
+                    // console.log(this._frame, '///// gravity reset', body.gameObject.name, gravityY, body.isBlockedUp(), body.isBlockedDown());
+                    velocityY = 0;
+                }
+            }
         }
 
         if (accelerationX)
@@ -1364,7 +1388,7 @@ var World = new Class({
         //  Do we separate on x or y first?
         if (this.forceX || Math.abs(this.gravity.y + body1.gravity.y) < Math.abs(this.gravity.x + body1.gravity.x))
         {
-            resultX = SeparateX(body1, body2, overlapOnly, this.OVERLAP_BIAS);
+            // resultX = SeparateX(body1, body2, overlapOnly, this.OVERLAP_BIAS);
 
             //  Are they still intersecting? Let's do the other axis then
             if (this.intersects(body1, body2))
