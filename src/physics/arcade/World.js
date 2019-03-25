@@ -15,8 +15,7 @@ var Events = require('./events');
 var FuzzyEqual = require('../../math/fuzzy/Equal');
 var FuzzyGreaterThan = require('../../math/fuzzy/GreaterThan');
 var FuzzyLessThan = require('../../math/fuzzy/LessThan');
-var GetOverlapX = require('./GetOverlapX');
-var GetOverlapY = require('./GetOverlapY');
+var GetOverlap = require('./GetOverlap');
 var GetValue = require('../../utils/object/GetValue');
 var IntersectsRect = require('./IntersectsRect');
 var ProcessQueue = require('../../structs/ProcessQueue');
@@ -1385,26 +1384,24 @@ var World = new Class({
         var resultX = false;
         var resultY = false;
 
+        var collisionInfo = GetOverlap(body1, body2, overlapOnly, this.OVERLAP_BIAS);
+
         //  Do we separate on x or y first?
-        if (this.forceX || Math.abs(this.gravity.y + body1.gravity.y) < Math.abs(this.gravity.x + body1.gravity.x))
-        {
-            // resultX = SeparateX(body1, body2, overlapOnly, this.OVERLAP_BIAS);
 
-            //  Are they still intersecting? Let's do the other axis then
-            if (this.intersects(body1, body2))
+        if (collisionInfo.intersects)
+        {
+            console.log('');
+            console.log('%c World frame ' + body1.world._frame + '                                                                                     ', 'background-color: orange');
+            collisionInfo.dump();
+
+            if (collisionInfo.forceX)
             {
-                resultY = SeparateY(body1, body2, overlapOnly, this.OVERLAP_BIAS);
+                resultX = SeparateX(collisionInfo);
             }
-        }
-        else
-        {
-            resultY = SeparateY(body1, body2, overlapOnly, this.OVERLAP_BIAS);
-
-            //  Are they still intersecting? Let's do the other axis then
-            // if (this.intersects(body1, body2))
-            // {
-                // resultX = SeparateX(body1, body2, overlapOnly, this.OVERLAP_BIAS);
-            // }
+            else
+            {
+                resultY = SeparateY(collisionInfo);
+            }
         }
 
         var result = (resultX || resultY);

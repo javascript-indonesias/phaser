@@ -5,7 +5,6 @@
  */
 
 var CONST = require('./const');
-var GetOverlapY = require('./GetOverlapY');
 
 /**
  * Separates two overlapping bodies on the Y-axis (vertically).
@@ -26,24 +25,18 @@ var GetOverlapY = require('./GetOverlapY');
  *
  * @return {boolean} `true` if the two bodies overlap vertically, otherwise `false`.
  */
-var SeparateY = function (body1, body2, overlapOnly, bias)
+var SeparateY = function (collisionInfo)
 {
-    console.log('');
-    console.log('%c frame ' + body1.world._frame + '                                                                                     ', 'background-color: orange');
-    console.log('body1:', body1.gameObject.name, 'vs body2:', body2.gameObject.name);
-    console.log('pre-GetOverlap by = body1', body1.y, 'body2', body2.y);
-    console.log('pre-GetOverlap gy = body1', body1.gameObject.y, 'body2', body2.gameObject.y);
-
-    var collisionInfo = GetOverlapY(body1, body2, overlapOnly, bias);
-
-    // console.log(collisionInfo);
-    console.log('post-GetOverlap by = body1', body1.y, 'body2', body2.y);
-    console.log('post-GetOverlap gy = body1', body1.gameObject.y, 'body2', body2.gameObject.y);
-
     var overlap = collisionInfo.overlapY;
-    var topFace = collisionInfo.face === CONST.FACING_UP;
+    var overlapOnly = collisionInfo.overlapOnly;
+
+    var topFace = collisionInfo.faceY === CONST.FACING_UP;
     var bottomFace = !topFace;
+
     var intersects = collisionInfo.intersects;
+
+    var body1 = collisionInfo.body1;
+    var body2 = collisionInfo.body2;
 
     var velocity1 = body1.velocity;
     var velocity2 = body2.velocity;
@@ -54,7 +47,19 @@ var SeparateY = function (body1, body2, overlapOnly, bias)
     var body1Immovable = (body1.physicsType === CONST.STATIC_BODY || body1.immovable);
     var body2Immovable = (body2.physicsType === CONST.STATIC_BODY || body2.immovable);
 
-    console.log('body1 overlaps body2 across the', ((topFace) ? 'top' : 'bottom'), 'by', overlap, 'px');
+    // console.log('');
+    // console.log('%c Y frame ' + body1.world._frame + '                                                                                     ', 'background-color: pink');
+    // console.log('body1:', body1.gameObject.name, 'vs body2:', body2.gameObject.name);
+
+    console.log('pre-GetOverlap by = body1', body1.y, 'body2', body2.y);
+    console.log('pre-GetOverlap compare = body1', body1.bottom, 'body2', body2.y);
+    console.log('pre-GetOverlap gy = body1', body1.gameObject.y, 'body2', body2.gameObject.y);
+
+    // console.log(collisionInfo);
+    // console.log('post-GetOverlap by = body1', body1.y, 'body2', body2.y);
+    // console.log('post-GetOverlap gy = body1', body1.gameObject.y, 'body2', body2.gameObject.y);
+
+    // console.log('body1 overlaps body2 across the', ((topFace) ? 'top' : 'bottom'), 'by', overlap, 'px');
 
     //  Can't separate two immovable bodies, or a body with its own custom separation logic
     if (!intersects || overlapOnly || (body1Immovable && body2Immovable) || body1.customSeparateY || body2.customSeparateY)
@@ -172,10 +177,10 @@ var SeparateY = function (body1, body2, overlapOnly, bias)
         ny2 = 0;
     }
 
-    var totalA = collisionInfo.share1;
-    var totalB = collisionInfo.share2;
+    var totalA = collisionInfo.shareY1;
+    var totalB = collisionInfo.shareY2;
     
-    // console.log('split at', totalA, totalB, 'of', overlap);
+    console.log('split at', totalA, totalB, 'of', overlap);
 
     if (totalA === 0 && totalB === 0 && overlap !== 0)
     {
@@ -185,7 +190,7 @@ var SeparateY = function (body1, body2, overlapOnly, bias)
         return true;
     }
 
-    //  FLip flop?
+    //  Flip flop?
     var flip1 = (v1 < 0 && ny1 > 0) || (v1 > 0 && ny1 < 0);
     var flip2 = (v2 < 0 && ny2 > 0) || (v2 > 0 && ny2 < 0);
 
@@ -202,12 +207,12 @@ var SeparateY = function (body1, body2, overlapOnly, bias)
     }
 
     //  By this stage the bodies have their separation distance calculated (stored in totalA/B)
-    //  and they have their new post-impact velocity. So now we need to  work out block state based on direction.
+    //  and they have their new post-impact velocity. So now we need to work out block state based on direction.
 
     if (ny1 !== 0)
     {
-        //  ny1 < 0 = Body1 is moving UP
-        //  ny1 > 0 = Body1 is moving DOWN
+        //  ny1 < 0 = Body1 is now moving UP
+        //  ny1 > 0 = Body1 is now moving DOWN
 
         if (topFace)
         {
@@ -267,7 +272,7 @@ var SeparateY = function (body1, body2, overlapOnly, bias)
         else if (bottomFace)
         {
             //  The bottom of Body1 overlaps with the top of Body2
-            if (totalA !== 0 && !body1.isBlockedDown())
+            if (totalA !== 0 && !body1.isBlockedUp())
             {
                 // console.log('body1 stationary bottomface add', body1.y);
                 body1.y += body1.getMoveY(totalA);
@@ -403,6 +408,9 @@ var SeparateY = function (body1, body2, overlapOnly, bias)
 
     velocity1.y = ny1;
     velocity2.y = ny2;
+
+    console.log('post-GetOverlap by = body1', body1.y, 'body2', body2.y);
+    console.log('post-GetOverlap compare = body1', body1.bottom, 'body2', body2.y);
 
     //  If we got this far then there WAS overlap, and separation is complete, so return true
     return true;
