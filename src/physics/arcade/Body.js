@@ -5,17 +5,19 @@
  */
 
 var ArrayAdd = require('../../utils/array/Add');
-var CircleContains = require('../../geom/circle/Contains');
+var BaseBody = require('./BaseBody');
 var CheckOverlap = require('./CheckOverlap');
+var Clamp = require('../../math/Clamp');
 var Class = require('../../utils/Class');
 var CONST = require('./const');
+var DistanceBetween = require('../../math/distance/DistanceBetween');
 var Events = require('./events');
 var FuzzyEqual = require('../../math/fuzzy/Equal');
 var FuzzyGreaterThan = require('../../math/fuzzy/GreaterThan');
 var FuzzyLessThan = require('../../math/fuzzy/LessThan');
+var OverlapRect = require('./components/OverlapRect');
 var RadToDeg = require('../../math/RadToDeg');
 var Rectangle = require('../../geom/rectangle/Rectangle');
-var RectangleContains = require('../../geom/rectangle/Contains');
 var Vector2 = require('../../math/Vector2');
 
 /**
@@ -25,6 +27,7 @@ var Vector2 = require('../../math/Vector2');
  * Its static counterpart is {@link Phaser.Physics.Arcade.StaticBody}.
  *
  * @class Body
+ * @extends Phaser.Physics.Arcade.BaseBody
  * @memberof Phaser.Physics.Arcade
  * @constructor
  * @since 3.0.0
@@ -34,30 +37,27 @@ var Vector2 = require('../../math/Vector2');
  */
 var Body = new Class({
 
+    Extends: BaseBody,
+
     initialize:
 
-    function Body (world, gameObject)
+    function Body (world, gameObject, x, y, width, height)
     {
-        var width = (gameObject.width) ? gameObject.width : 64;
-        var height = (gameObject.height) ? gameObject.height : 64;
+        BaseBody.call(this, world, gameObject, CONST.DYNAMIC_BODY, x, y, width, height);
 
-        /**
-         * The Arcade Physics simulation this Body belongs to.
-         *
-         * @name Phaser.Physics.Arcade.Body#world
-         * @type {Phaser.Physics.Arcade.World}
-         * @since 3.0.0
-         */
-        this.world = world;
-
-        /**
-         * The Game Object this Body belongs to.
-         *
-         * @name Phaser.Physics.Arcade.Body#gameObject
-         * @type {Phaser.GameObjects.GameObject}
-         * @since 3.0.0
-         */
-        this.gameObject = gameObject;
+        if (!gameObject)
+        {
+            gameObject = {
+                x: x,
+                y: y,
+                angle: 0,
+                rotation: 0,
+                scaleX: 1,
+                scaleY: 1,
+                displayOriginX: 0.5,
+                displayOriginY: 0.5
+            };
+        }
 
         /**
          * Transformations applied to this Body.
@@ -75,103 +75,6 @@ var Body = new Class({
             displayOriginX: gameObject.displayOriginX,
             displayOriginY: gameObject.displayOriginY
         };
-
-        /**
-         * Whether the Body's boundary is drawn to the debug display.
-         *
-         * @name Phaser.Physics.Arcade.Body#debugShowBody
-         * @type {boolean}
-         * @since 3.0.0
-         */
-        this.debugShowBody = world.defaults.debugShowBody;
-
-        /**
-         * Whether the Body's velocity is drawn to the debug display.
-         *
-         * @name Phaser.Physics.Arcade.Body#debugShowVelocity
-         * @type {boolean}
-         * @since 3.0.0
-         */
-        this.debugShowVelocity = world.defaults.debugShowVelocity;
-
-        /**
-         * Whether the Body's blocked faces are drawn to the debug display.
-         *
-         * @name Phaser.Physics.Arcade.Body#debugShowVelocity
-         * @type {boolean}
-         * @since 3.17.0
-         */
-        this.debugShowBlocked = world.defaults.debugShowBlocked;
-
-        /**
-         * The color of this Body on the debug display.
-         *
-         * @name Phaser.Physics.Arcade.Body#debugBodyColor
-         * @type {integer}
-         * @since 3.0.0
-         */
-        this.debugBodyColor = world.defaults.bodyDebugColor;
-
-        /**
-         * Whether this Body is updated by the physics simulation.
-         *
-         * @name Phaser.Physics.Arcade.Body#enable
-         * @type {boolean}
-         * @default true
-         * @since 3.0.0
-         */
-        this.enable = true;
-
-        /**
-         * Whether this Body's boundary is circular (true) or rectangular (false).
-         *
-         * @name Phaser.Physics.Arcade.Body#isCircle
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         * @see Phaser.Physics.Arcade.Body#setCircle
-         */
-        this.isCircle = false;
-
-        /**
-         * If this Body is circular, this is the unscaled radius of the Body's boundary, as set by setCircle(), in source pixels.
-         * The true radius is equal to `halfWidth`.
-         *
-         * @name Phaser.Physics.Arcade.Body#radius
-         * @type {number}
-         * @default 0
-         * @since 3.0.0
-         * @see Phaser.Physics.Arcade.Body#setCircle
-         */
-        this.radius = 0;
-
-        /**
-         * The offset of this Body's position from its Game Object's position, in source pixels.
-         *
-         * @name Phaser.Physics.Arcade.Body#offset
-         * @type {Phaser.Math.Vector2}
-         * @since 3.0.0
-         * @see Phaser.Physics.Arcade.Body#setOffset
-         */
-        this.offset = new Vector2();
-
-        /**
-         * The position of this Body within the simulation.
-         *
-         * @name Phaser.Physics.Arcade.Body#position
-         * @type {Phaser.Math.Vector2}
-         * @since 3.0.0
-         */
-        this.position = new Vector2(gameObject.x, gameObject.y);
-
-        /**
-         * The position of this Body during the previous step.
-         *
-         * @name Phaser.Physics.Arcade.Body#prev
-         * @type {Phaser.Math.Vector2}
-         * @since 3.0.0
-         */
-        this.prev = new Vector2(gameObject.x, gameObject.y);
 
         /**
          * Whether this Body's `rotation` is affected by its angular acceleration and angular velocity.
@@ -204,28 +107,6 @@ var Body = new Class({
         this.preRotation = gameObject.angle;
 
         /**
-         * The width of the Body's boundary, in pixels.
-         * If the Body is circular, this is also the Body's diameter.
-         *
-         * @name Phaser.Physics.Arcade.Body#width
-         * @type {number}
-         * @default 64
-         * @since 3.0.0
-         */
-        this.width = width;
-
-        /**
-         * The height of the Body's boundary, in pixels.
-         * If the Body is circular, this is also the Body's diameter.
-         *
-         * @name Phaser.Physics.Arcade.Body#height
-         * @type {number}
-         * @default 64
-         * @since 3.0.0
-         */
-        this.height = height;
-
-        /**
          * The unscaled width of the Body, in source pixels, as set by setSize().
          * The default is the width of the Body's Game Object's texture frame.
          *
@@ -234,7 +115,7 @@ var Body = new Class({
          * @since 3.0.0
          * @see Phaser.Physics.Arcade.Body#setSize
          */
-        this.sourceWidth = width;
+        this.sourceWidth = this.width;
 
         /**
          * The unscaled height of the Body, in source pixels, as set by setSize().
@@ -245,41 +126,13 @@ var Body = new Class({
          * @since 3.0.0
          * @see Phaser.Physics.Arcade.Body#setSize
          */
-        this.sourceHeight = height;
+        this.sourceHeight = this.height;
 
         if (gameObject.frame)
         {
             this.sourceWidth = gameObject.frame.realWidth;
             this.sourceHeight = gameObject.frame.realHeight;
         }
-
-        /**
-         * Half the Body's width, in pixels.
-         *
-         * @name Phaser.Physics.Arcade.Body#halfWidth
-         * @type {number}
-         * @since 3.0.0
-         */
-        this.halfWidth = Math.abs(width / 2);
-
-        /**
-         * Half the Body's height, in pixels.
-         *
-         * @name Phaser.Physics.Arcade.Body#halfHeight
-         * @type {number}
-         * @since 3.0.0
-         */
-        this.halfHeight = Math.abs(height / 2);
-
-        /**
-         * The center of the Body's boundary.
-         * The midpoint of its `position` (top-left corner) and its bottom-right corner.
-         *
-         * @name Phaser.Physics.Arcade.Body#center
-         * @type {Phaser.Math.Vector2}
-         * @since 3.0.0
-         */
-        this.center = new Vector2(gameObject.x + this.halfWidth, gameObject.y + this.halfHeight);
 
         /**
          * The Body's velocity, in pixels per second.
@@ -300,10 +153,17 @@ var Body = new Class({
          */
         this.minVelocity = new Vector2(15, 15);
 
+        /**
+         * The Body's velocity in the previous frame, in pixels per second.
+         *
+         * @name Phaser.Physics.Arcade.Body#prevVelocity
+         * @type {Phaser.Math.Vector2}
+         * @since 3.17.0
+         */
         this.prevVelocity = new Vector2();
 
         /**
-         * Is the Body asleep?.
+         * Is the Body asleep?
          *
          * @name Phaser.Physics.Arcade.Body#sleeping
          * @type {boolean}
@@ -312,23 +172,65 @@ var Body = new Class({
          */
         this.sleeping = false;
 
+        /**
+         * Internal sleep tracking property.
+         *
+         * @name Phaser.Physics.Arcade.Body#_sleep
+         * @private
+         * @type {integer}
+         * @since 3.17.0
+         */
         this._sleep = 0;
 
+        /**
+         * The number of iterations before this body can fall asleep.
+         *
+         * @name Phaser.Physics.Arcade.Body#sleepIterations
+         * @type {integer}
+         * @since 3.17.0
+         */
         this.sleepIterations = 60 * world.positionIterations;
 
-        //  0 = none
-        //  1 = soft up
-        //  2 = soft down
-        //  3 = soft left
-        //  4 = soft right
-        //  5 = world bounds
-        //  6 = hard up
-        //  7 = hard down
-        //  8 = hard left
-        //  9 = hard right
-        //  10 = riding
+        /**
+         * Can this Body ever fall asleep? Typically you should leave this as `true`, but some
+         * bodies, such as those under the control of tweens, should never sleep.
+         *
+         * @name Phaser.Physics.Arcade.Body#canSleep
+         * @type {boolean}
+         * @since 3.17.0
+         */
+        this.canSleep = true;
+
+        /**
+         * The position this Body will be forced to assume during postUpdate, if any.
+         * 
+         * 0 = none
+         * 1 = soft up
+         * 2 = soft down
+         * 3 = soft left
+         * 4 = soft right
+         * 5 = world bounds
+         * 6 = hard up
+         * 7 = hard down
+         * 8 = hard left
+         * 9 = hard right
+         * 10 = riding
+         *
+         * @name Phaser.Physics.Arcade.Body#forcePosition
+         * @private
+         * @type {integer}
+         * @since 3.17.0
+         */
         this.forcePosition = 0;
 
+        /**
+         * The Body this one will snap to during postUpdate.
+         *
+         * @name Phaser.Physics.Arcade.Body#snapTo
+         * @private
+         * @type {Phaser.Physics.Arcade.Body}
+         * @since 3.17.0
+         */
         this.snapTo = null;
 
         /**
@@ -377,18 +279,6 @@ var Body = new Class({
         this.drag = new Vector2();
 
         /**
-         * Whether this Body's position is affected by gravity (local or world).
-         *
-         * @name Phaser.Physics.Arcade.Body#allowGravity
-         * @type {boolean}
-         * @default true
-         * @since 3.0.0
-         * @see Phaser.Physics.Arcade.Body#gravity
-         * @see Phaser.Physics.Arcade.World#gravity
-         */
-        this.allowGravity = true;
-
-        /**
          * Acceleration due to gravity (specific to this Body), in pixels per second squared.
          * Total gravity is the sum of this vector and the simulation's `gravity`.
          *
@@ -418,41 +308,6 @@ var Body = new Class({
          * @since 3.0.0
          */
         this.worldBounce = null;
-
-        //  If true this Body will dispatch events
-
-        /**
-         * Whether the simulation emits a `worldbounds` event when this Body collides with the world boundary (and `collideWorldBounds` is also true).
-         *
-         * @name Phaser.Physics.Arcade.Body#onWorldBounds
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         * @see Phaser.Physics.Arcade.Events#WORLD_BOUNDS
-         */
-        this.onWorldBounds = false;
-
-        /**
-         * Whether the simulation emits a `collide` event when this Body collides with another.
-         *
-         * @name Phaser.Physics.Arcade.Body#onCollide
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         * @see Phaser.Physics.Arcade.Events#COLLIDE
-         */
-        this.onCollide = false;
-
-        /**
-         * Whether the simulation emits an `overlap` event when this Body overlaps with another.
-         *
-         * @name Phaser.Physics.Arcade.Body#onOverlap
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         * @see Phaser.Physics.Arcade.Events#OVERLAP
-         */
-        this.onOverlap = false;
 
         /**
          * The Body's absolute maximum velocity, in pixels per second.
@@ -550,17 +405,6 @@ var Body = new Class({
         this.maxAngular = 1000;
 
         /**
-         * The Body's inertia, relative to a default unit (1).
-         * With `bounce`, this affects the exchange of momentum (velocities) during collisions.
-         *
-         * @name Phaser.Physics.Arcade.Body#mass
-         * @type {number}
-         * @default 1
-         * @since 3.0.0
-         */
-        this.mass = 1;
-
-        /**
          * The calculated angle of this Body's velocity vector, in degrees, during the last step.
          *
          * @name Phaser.Physics.Arcade.Body#angle
@@ -591,16 +435,6 @@ var Body = new Class({
         this.facing = CONST.FACING_NONE;
 
         /**
-         * Whether this Body can be moved by collisions with another Body.
-         *
-         * @name Phaser.Physics.Arcade.Body#immovable
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         */
-        this.immovable = false;
-
-        /**
          * Whether the Body's position and rotation are affected by its velocity, acceleration, drag, and gravity.
          *
          * @name Phaser.Physics.Arcade.Body#moves
@@ -609,6 +443,8 @@ var Body = new Class({
          * @since 3.0.0
          */
         this.moves = true;
+
+        this.directControl = false;
 
         /**
          * Can this body be ridden like a platform?
@@ -621,28 +457,6 @@ var Body = new Class({
         this.rideable = false;
 
         /**
-         * A flag disabling the default horizontal separation of colliding bodies.
-         * Pass your own `collideCallback` to the collider.
-         *
-         * @name Phaser.Physics.Arcade.Body#customSeparateX
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         */
-        this.customSeparateX = false;
-
-        /**
-         * A flag disabling the default vertical separation of colliding bodies.
-         * Pass your own `collideCallback` to the collider.
-         *
-         * @name Phaser.Physics.Arcade.Body#customSeparateY
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         */
-        this.customSeparateY = false;
-
-        /**
          * Whether this Body is overlapped with another and both are not moving.
          *
          * @name Phaser.Physics.Arcade.Body#embedded
@@ -653,70 +467,14 @@ var Body = new Class({
         this.embedded = false;
 
         /**
-         * Whether this Body interacts with the world boundary.
+         * An internal object holding the list of current frame blockers for this Body.
          *
-         * @name Phaser.Physics.Arcade.Body#collideWorldBounds
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         */
-        this.collideWorldBounds = false;
-
-        /**
-         * Whether this Body is checked for collisions and for which directions.
-         * You can set `checkCollision.none = true` to disable collision checks.
-         *
-         * @name Phaser.Physics.Arcade.Body#checkCollision
-         * @type {Phaser.Physics.Arcade.Types.ArcadeBodyCollision}
-         * @since 3.0.0
-         */
-        this.checkCollision = { none: false, up: true, down: true, left: true, right: true };
-
-        /**
-         * Whether this Body is colliding with another and in which direction.
-         *
-         * @name Phaser.Physics.Arcade.Body#touching
-         * @type {Phaser.Physics.Arcade.Types.ArcadeBodyCollision}
-         * @since 3.0.0
-         */
-        this.touching = { none: true, up: false, down: false, left: false, right: false };
-
-        /**
-         * Whether this Body was colliding with another during the last step, and in which direction.
-         *
-         * @name Phaser.Physics.Arcade.Body#wasTouching
-         * @type {Phaser.Physics.Arcade.Types.ArcadeBodyCollision}
-         * @since 3.0.0
-         */
-        this.wasTouching = { none: true, up: false, down: false, left: false, right: false };
-
-        /**
-         * Whether this Body is blocked from moving in a given direction.
-         *
-         * @name Phaser.Physics.Arcade.Body#blocked
-         * @type {Phaser.Physics.Arcade.Types.ArcadeBodyCollision}
-         * @since 3.0.0
-         */
-        this.blocked = { none: true, up: false, down: false, left: false, right: false };
-
-        /**
-         * Whether this Body is colliding with a tile or the world boundary.
-         *
-         * @name Phaser.Physics.Arcade.Body#worldBlocked
-         * @type {Phaser.Physics.Arcade.Types.ArcadeBodyCollision}
+         * @name Phaser.Physics.Arcade.Body#blockers
+         * @type {Object}
+         * @private
+         * @default 0
          * @since 3.17.0
          */
-        this.worldBlocked = { none: true, up: false, down: false, left: false, right: false };
-
-        /**
-         * 
-         *
-         * @name Phaser.Physics.Arcade.Body#hardBlocked
-         * @type {Phaser.Physics.Arcade.Types.ArcadeBodyCollision}
-         * @since 3.17.0
-         */
-        this.hardBlocked = { none: true, up: false, down: false, left: false, right: false };
-
         this.blockers = { up: [], down: [], left: [], right: [] };
 
         /**
@@ -729,19 +487,6 @@ var Body = new Class({
          * @see Phaser.GameObjects.Components.GetBounds#getBounds
          */
         this.syncBounds = false;
-
-        //  read-only
-
-        /**
-         * The Body's physics type (dynamic or static).
-         *
-         * @name Phaser.Physics.Arcade.Body#physicsType
-         * @type {integer}
-         * @readonly
-         * @default Phaser.Physics.Arcade.DYNAMIC_BODY
-         * @since 3.0.0
-         */
-        this.physicsType = CONST.DYNAMIC_BODY;
 
         /**
          * Cached horizontal scale of the Body's Game Object.
@@ -762,28 +507,6 @@ var Body = new Class({
          * @since 3.0.0
          */
         this._sy = gameObject.scaleY;
-
-        /**
-         * The calculated change in the Body's horizontal position during the last step.
-         *
-         * @name Phaser.Physics.Arcade.Body#_dx
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._dx = 0;
-
-        /**
-         * The calculated change in the Body's vertical position during the last step.
-         *
-         * @name Phaser.Physics.Arcade.Body#_dy
-         * @type {number}
-         * @private
-         * @default 0
-         * @since 3.0.0
-         */
-        this._dy = 0;
 
         /**
          * Stores the Game Object's bounds.
@@ -817,8 +540,33 @@ var Body = new Class({
          */
         this._gy = 0;
 
+        /**
+         * The sleep check cached value.
+         *
+         * @name Phaser.Physics.Arcade.Body#_sleepX
+         * @type {number}
+         * @private
+         * @default 0
+         * @since 3.17.0
+         */
         this._sleepX = 0;
+
+        /**
+         * The sleep check cached value.
+         *
+         * @name Phaser.Physics.Arcade.Body#_sleepY
+         * @type {number}
+         * @private
+         * @default 0
+         * @since 3.17.0
+         */
         this._sleepY = 0;
+
+        this.distanceThreshold = 8;
+
+        this._cs = false;
+        this._cx = this.x;
+        this._cy = this.y;
     },
 
     /**
@@ -831,6 +579,11 @@ var Body = new Class({
     updateBounds: function ()
     {
         var sprite = this.gameObject;
+
+        if (!sprite)
+        {
+            return;
+        }
 
         //  Container?
 
@@ -893,17 +646,6 @@ var Body = new Class({
     },
 
     /**
-     * Updates the Body's `center` from its `position`, `width`, and `height`.
-     *
-     * @method Phaser.Physics.Arcade.Body#updateCenter
-     * @since 3.0.0
-     */
-    updateCenter: function ()
-    {
-        this.center.set(this.position.x + this.halfWidth, this.position.y + this.halfHeight);
-    },
-
-    /**
      * Prepares the Body for a physics step by resetting all the states and syncing the position
      * with the parent Game Object.
      * 
@@ -948,19 +690,35 @@ var Body = new Class({
         this.forcePosition = 0;
 
         //  Updates the transform values
-        this.updateBounds();
 
-        //  Reset deltas (world bounds checks have no effect on this)
-        this.prev.x = this.x;
-        this.prev.y = this.y;
+        if (this.gameObject)
+        {
+            this.updateBounds();
+
+            var parent = this.transform;
+    
+            this.x = parent.x + parent.scaleX * (this.offset.x - parent.displayOriginX);
+            this.y = parent.y + parent.scaleY * (this.offset.y - parent.displayOriginY);
+
+            if (this._cs)
+            {
+                if (DistanceBetween(this._cx, this._cy, this.x, this.y) > this.distanceThreshold)
+                {
+                    this.setPosition(this._cx, this._cy, 1);
+                }
+                else
+                {
+                    this._cs = false;
+                }
+            }
+    
+            this.rotation = parent.rotation;
+
+            this.prev.x = this.x;
+            this.prev.y = this.y;
+        }
+
         this.preRotation = this.rotation;
-
-        var parent = this.transform;
-
-        this.x = parent.x + parent.scaleX * (this.offset.x - parent.displayOriginX);
-        this.y = parent.y + parent.scaleY * (this.offset.y - parent.displayOriginY);
-
-        this.rotation = parent.rotation;
 
         if (this.collideWorldBounds)
         {
@@ -971,6 +729,46 @@ var Body = new Class({
 
         this.prevVelocity.x = this.velocity.x;
         this.prevVelocity.y = this.velocity.y;
+    },
+
+    setPosition: function (x, y, lerp)
+    {
+        if (lerp === undefined) { lerp = 1; }
+
+        var maxSpeed = this.maxSpeed;
+
+        this.calculateVelocity(x, y, lerp, maxSpeed);
+
+        this.wake();
+
+        this._cs = true;
+        this._cx = x;
+        this._cy = y;
+    },
+
+    calculateVelocity: function (x, y, lerp, maxSpeed)
+    {
+        var maxX = this.maxVelocity.x;
+        var maxY = this.maxVelocity.x;
+
+        var velocity = this.velocity;
+
+        var px = this.x;
+        var py = this.y;
+
+        var angle = Math.atan2(y - py, x - px);
+
+        var speed = DistanceBetween(px, py, x, y) / (this.world._frameTime * lerp);
+
+        velocity.setToPolar(angle, speed);
+
+        velocity.x = Clamp(velocity.x, -maxX, maxX);
+        velocity.y = Clamp(velocity.y, -maxY, maxY);
+
+        if (maxSpeed > -1 && velocity.length() > maxSpeed)
+        {
+            velocity.normalize().scale(maxSpeed);
+        }
     },
 
     /**
@@ -1005,15 +803,15 @@ var Body = new Class({
                 return;
             }
 
-            if (this.collideWorldBounds && !this.worldBlocked.none)
+            if (this.collideWorldBounds)
             {
                 this.checkWorldRebound();
             }
-        
+
             if (this.forcePosition < 5)
             {
-                position.x += this.getMoveX(velocity.x * delta);
-                position.y += this.getMoveY(velocity.y * delta);
+                this.moveX(velocity.x * delta);
+                this.moveY(velocity.y * delta);
             }
         }
 
@@ -1045,60 +843,59 @@ var Body = new Class({
     {
         var dx = this.position.x - this.prev.x;
         var dy = this.position.y - this.prev.y;
+        var dz = this.deltaZ();
+
+        var mx = this.deltaMax.x;
+        var my = this.deltaMax.y;
+
+        if (mx !== 0 && dx !== 0)
+        {
+            if (dx < 0 && dx < -mx)
+            {
+                dx = -mx;
+            }
+            else if (dx > 0 && dx > mx)
+            {
+                dx = mx;
+            }
+        }
+
+        if (my !== 0 && dy !== 0)
+        {
+            if (dy < 0 && dy < -my)
+            {
+                dy = -my;
+            }
+            else if (dy > 0 && dy > my)
+            {
+                dy = my;
+            }
+        }
+
+        if (dx < 0)
+        {
+            this.facing = CONST.FACING_LEFT;
+        }
+        else if (dx > 0)
+        {
+            this.facing = CONST.FACING_RIGHT;
+        }
+
+        if (dy < 0)
+        {
+            this.facing = CONST.FACING_UP;
+        }
+        else if (dy > 0)
+        {
+            this.facing = CONST.FACING_DOWN;
+        }
 
         var gameObject = this.gameObject;
 
         if (this.moves)
         {
-            var mx = this.deltaMax.x;
-            var my = this.deltaMax.y;
-
-            if (mx !== 0 && dx !== 0)
-            {
-                if (dx < 0 && dx < -mx)
-                {
-                    dx = -mx;
-                }
-                else if (dx > 0 && dx > mx)
-                {
-                    dx = mx;
-                }
-            }
-
-            if (my !== 0 && dy !== 0)
-            {
-                if (dy < 0 && dy < -my)
-                {
-                    dy = -my;
-                }
-                else if (dy > 0 && dy > my)
-                {
-                    dy = my;
-                }
-            }
-
-            if (dx < 0)
-            {
-                this.facing = CONST.FACING_LEFT;
-            }
-            else if (dx > 0)
-            {
-                this.facing = CONST.FACING_RIGHT;
-            }
-    
-            if (dy < 0)
-            {
-                this.facing = CONST.FACING_UP;
-            }
-            else if (dy > 0)
-            {
-                this.facing = CONST.FACING_DOWN;
-            }
-
             if (this.forcePosition > 0)
             {
-                // console.log(this.world._frame, this.gameObject.name, 'forcePosition. Type: ', this.forcePosition);
-
                 var snapX = this.x;
                 var snapY = this.y;
 
@@ -1120,21 +917,24 @@ var Body = new Class({
                         snapX = this.snapTo.x - this.width;
                         break;
                 }
-    
-                gameObject.x = snapX;
-                gameObject.y = snapY;
+
+                if (gameObject)
+                {
+                    gameObject.x += (snapX - this.prev.x);
+                    gameObject.y += (snapY - this.prev.y);
+                }
 
                 dx = 0;
                 dy = 0;
             }
-            else if (!this.sleeping)
+            else if (!this.sleeping && gameObject)
             {
-                gameObject.x += dx / this.world.positionIterations;
-                gameObject.y += dy / this.world.positionIterations;
+                gameObject.x += dx;
+                gameObject.y += dy;
 
                 if (this.allowRotation)
                 {
-                    gameObject.angle += this.deltaZ();
+                    gameObject.angle += dz;
                 }
             }
         }
@@ -1142,7 +942,15 @@ var Body = new Class({
         this._dx = dx;
         this._dy = dy;
 
-        this.checkSleep(dx, dy);
+        this.checkSleep(dx, dy, dz);
+
+        this._sleepX = this.x;
+        this._sleepY = this.y;
+
+        if (this.directControl)
+        {
+            this.velocity.set(0);
+        }
 
         //  Store collision flags
         var wasTouching = this.wasTouching;
@@ -1157,11 +965,12 @@ var Body = new Class({
 
     sleep: function (forceY)
     {
-        if (!this.sleeping)
+        if (!this.sleeping && this.canSleep)
         {
+            this._cs = false;
             this.sleeping = true;
 
-            // console.log(this.gameObject.name, 'put to sleep on frame', this.world._frame, 'force?', forceY, 'at', this.y);
+            // console.log(this.gameObject.name, 'put to sleep on frame', this.world._frame, 'force?', forceY, 'at', this.x);
     
             this.velocity.set(0);
             this.prevVelocity.set(0);
@@ -1193,23 +1002,22 @@ var Body = new Class({
             if (worldBlocked.up)
             {
                 this.y = worldBounds.y;
-                this.forcePosition = 5;
             }
             else if (worldBlocked.down)
             {
                 this.bottom = worldBounds.bottom;
-                this.forcePosition = 5;
             }
-            else if (worldBlocked.left)
+
+            if (worldBlocked.left)
             {
                 this.x = worldBounds.x;
-                this.forcePosition = 5;
             }
             else if (worldBlocked.right)
             {
                 this.right = worldBounds.right;
-                this.forcePosition = 5;
             }
+
+            this.forcePosition = 5;
         }
         else if (!blocked.none)
         {
@@ -1349,58 +1157,6 @@ var Body = new Class({
         }
     },
 
-    //  Is this body moving OR can it be made to move?
-    //  Return 'false' if it's immovable, otherwise 'true'
-    movingX: function ()
-    {
-        if (this.physicsType === CONST.STATIC_BODY || this.immovable || !this.moves)
-        {
-            //  Static bodies don't move
-            return false;
-        }
-        else if (!this.isWorldBlockedLeft() && !this.isWorldBlockedRight())
-        {
-            //  Non-blocked bodies, that aren't static, can always move
-            return true;
-        }
-
-        var velocityX = this.velocity.x;
-
-        if ((velocityX < 0 && this.isWorldBlockedLeft()) || (velocityX > 0 && this.isWorldBlockedRight()))
-        {
-            return false;
-        }
-
-        var actualVelocityX = Math.abs(velocityX) - Math.abs(this._gx);
-
-        return (actualVelocityX > this.minVelocity.x);
-    },
-
-    movingY: function ()
-    {
-        if (this.physicsType === CONST.STATIC_BODY || this.immovable || !this.moves)
-        {
-            //  Static bodies don't move
-            return false;
-        }
-        else if (!this.isWorldBlockedUp() && !this.isWorldBlockedDown())
-        {
-            //  Non-blocked bodies, that aren't static, can always move
-            return true;
-        }
-
-        var velocityY = this.velocity.y;
-
-        if ((velocityY < 0 && this.isWorldBlockedUp()) || (velocityY > 0 && this.isWorldBlockedDown()))
-        {
-            return false;
-        }
-
-        var actualVelocityY = Math.abs(velocityY) - Math.abs(this._gy);
-
-        return (actualVelocityY > this.minVelocity.y);
-    },
-
     //  Return true if body can be repositioned after this call, otherwise return false to stop positioning in the update
     checkWorldRebound: function ()
     {
@@ -1412,12 +1168,10 @@ var Body = new Class({
         var bx = (this.worldBounce) ? this.worldBounce.x : this.bounce.x;
         var by = (this.worldBounce) ? this.worldBounce.y : this.bounce.y;
 
-        if (!this.collideWorldBounds || worldBlocked.none || velocity.equals(0) || (bx === 0 && by === 0))
+        if (worldBlocked.none || velocity.equals(0) || (bx === 0 && by === 0))
         {
             //  Nothing to do
-            // console.log('CWB abort', this.collideWorldBounds, worldBlocked.none, velocity.equals(0));
-
-            return true;
+            return;
         }
 
         var testX = (bx !== 0) && ((worldCollision.right && worldBlocked.right && !blocked.left && velocity.x > 0) || (worldCollision.left && worldBlocked.left && !blocked.right && velocity.x < 0));
@@ -1425,7 +1179,7 @@ var Body = new Class({
 
         if (this.sleeping || (!testX && !testY))
         {
-            return false;
+            return;
         }
 
         var sleepX = false;
@@ -1442,20 +1196,11 @@ var Body = new Class({
                 //  Gravity is pulling them down
                 if (newVelocityX > 0 && (newVelocityX < gravityX || FuzzyLessThan(newVelocityX, gravityX, this.minVelocity.x)))
                 {
-                    // console.log('frame', this.world._frame, this.gameObject.name, 'rebound up too small, sending to sleep', newVelocityY, gravityY);
-
                     sleepX = true;
                 }
                 else
                 {
                     velocity.x *= -bx;
-                    
-                    // console.log(this.gameObject.name, 'rebounded up', newVelocityY, gravityY, 'frame', this.world._frame);
-
-                    if (this.forcePosition === 5)
-                    {
-                        this.forcePosition = 0;
-                    }
 
                     emitBoundsEvent = true;
                 }
@@ -1465,20 +1210,11 @@ var Body = new Class({
                 //  Gravity is pulling them up
                 if (newVelocityX < 0 && (newVelocityX > gravityX || FuzzyGreaterThan(newVelocityX, gravityX, this.minVelocity.x)))
                 {
-                    // console.log(this.gameObject.name, 'rebound down too small, sending to sleep', newVelocityY, gravityY);
-
                     sleepX = true;
                 }
                 else
                 {
                     velocity.x *= -bx;
-
-                    // console.log(this.gameObject.name, 'rebounded down', newVelocityY, gravityY, 'frame', this.world._frame);
-
-                    if (this.forcePosition === 5)
-                    {
-                        this.forcePosition = 0;
-                    }
 
                     emitBoundsEvent = true;
                 }
@@ -1488,21 +1224,11 @@ var Body = new Class({
                 if (FuzzyEqual(newVelocityX, 0, this.minVelocity.x))
                 {
                     //  Gravity is zero, so rebound must have been from velocity alone
-    
-                    // console.log(this.gameObject.name, 'rebound zero g too small, sending to sleep', newVelocityY, gravityY, 'y pos', this.bottom);
-    
                     sleepX = true;
                 }
                 else
                 {
                     velocity.x *= -bx;
-    
-                    // console.log(this.gameObject.name, 'rebounded zero-g', newVelocityY, velocity.y);
-    
-                    if (this.forcePosition === 5)
-                    {
-                        this.forcePosition = 0;
-                    }
     
                     emitBoundsEvent = true;
                 }
@@ -1524,20 +1250,11 @@ var Body = new Class({
                 //  Gravity is pulling them down
                 if (newVelocityY > 0 && (newVelocityY < gravityY || FuzzyLessThan(newVelocityY, gravityY, this.minVelocity.y)))
                 {
-                    // console.log('frame', this.world._frame, this.gameObject.name, 'rebound up too small, sending to sleep', newVelocityY, gravityY);
-
                     sleepY = true;
                 }
                 else
                 {
                     velocity.y *= -by;
-                    
-                    // console.log(this.gameObject.name, 'rebounded up', newVelocityY, gravityY, 'frame', this.world._frame);
-
-                    if (this.forcePosition === 5)
-                    {
-                        this.forcePosition = 0;
-                    }
 
                     emitBoundsEvent = true;
                 }
@@ -1547,20 +1264,11 @@ var Body = new Class({
                 //  Gravity is pulling them up
                 if (newVelocityY < 0 && (newVelocityY > gravityY || FuzzyGreaterThan(newVelocityY, gravityY, this.minVelocity.y)))
                 {
-                    // console.log(this.gameObject.name, 'rebound down too small, sending to sleep', newVelocityY, gravityY);
-
                     sleepY = true;
                 }
                 else
                 {
                     velocity.y *= -by;
-
-                    // console.log(this.gameObject.name, 'rebounded down', newVelocityY, gravityY, 'frame', this.world._frame);
-
-                    if (this.forcePosition === 5)
-                    {
-                        this.forcePosition = 0;
-                    }
 
                     emitBoundsEvent = true;
                 }
@@ -1570,21 +1278,11 @@ var Body = new Class({
                 if (FuzzyEqual(newVelocityY, 0, this.minVelocity.y))
                 {
                     //  Gravity is zero, so rebound must have been from velocity alone
-    
-                    // console.log(this.gameObject.name, 'rebound zero g too small, sending to sleep', newVelocityY, gravityY, 'y pos', this.bottom);
-    
                     sleepY = true;
                 }
                 else
                 {
                     velocity.y *= -by;
-    
-                    // console.log(this.gameObject.name, 'rebounded zero-g', newVelocityY, velocity.y);
-    
-                    if (this.forcePosition === 5)
-                    {
-                        this.forcePosition = 0;
-                    }
     
                     emitBoundsEvent = true;
                 }
@@ -1623,10 +1321,10 @@ var Body = new Class({
         return (gy === 0 || (gy < 0 && this.isBlockedUp()) || (gy > 0 && this.isBlockedDown()));
     },
 
-    //  Check for sleeping state (called during postUpdate AFTER positioning)
-    checkSleep: function (dx, dy)
+    //  Check for sleeping state
+    checkSleep: function (dx, dy, dz)
     {
-        if (!this.moves)
+        if (!this.moves || !this.canSleep)
         {
             return;
         }
@@ -1635,34 +1333,44 @@ var Body = new Class({
 
         dx = Math.abs(dx);
         dy = Math.abs(dy);
+        dz = Math.abs(dz);
 
-        if (!this.sleeping && this.isGravityBlockedX() && this.isGravityBlockedY())
+        if (!this.sleeping && (dx < 1 && dy < 1 && dz < 1) && this.isGravityBlockedX() && this.isGravityBlockedY())
         {
             //  Falling asleep?
+            var lowX = FuzzyEqual(this.x, this._sleepX, 0.01);
+            var lowY = FuzzyEqual(this.y, this._sleepY, 0.01);
+            var rotating = (this.angularAcceleration !== 0 || this.angularVelocity !== 0);
 
-            if (dx < 1 && dy < 1 && FuzzyEqual(this.x, this._sleepX, 0.01) && FuzzyEqual(this.y, this._sleepY, 0.01))
+            if (lowX && lowY && !rotating)
             {
                 if (this._sleep < this.sleepIterations)
                 {
                     this._sleep++;
 
+                    // console.log(this.world._frame, 'sleeping ...', this._sleepY, this.y);
                     // console.log(this.gameObject.name, 'sleep y', this.y);
     
                     if (this._sleep >= this.sleepIterations)
                     {
-                        // console.log(this.world._frame, 'checkSleep sending ...');
+                        // console.log(this.world._frame, 'checkSleep sending ...', dx, this._dx, this._sleepX, this.x, 'dy', dy, this._dy, this._sleepY, this.y);
 
                         this.sleep(true);
 
                         // console.log(this.world._frame, 'slept by checkSleep');
 
-                        var gameObject = this.gameObject;
+                        // var gameObject = this.gameObject;
 
-                        gameObject.x = this.x;
-                        gameObject.y = this.y;
+                        // gameObject.x = this.x;
+                        // gameObject.y = this.y;
                     }
                 }
             }
+        }
+        else if (this.sleeping && (!this.velocity.equals(this.prevVelocity) || this.angularAcceleration !== 0 || this.angularVelocity !== 0))
+        {
+            // console.log('body woken from significant change in velocity =', this.velocity.x);
+            this.wake();
         }
         else if (this.sleeping && (!this.isGravityBlockedX() || !this.isGravityBlockedY()))
         {
@@ -1681,14 +1389,6 @@ var Body = new Class({
                 }
             }
         }
-        else if (this.sleeping && !this.velocity.equals(this.prevVelocity))
-        {
-            // console.log('body woken from significant change in velocity =', this.velocity.x);
-            this.wake();
-        }
-
-        this._sleepX = this.x;
-        this._sleepY = this.y;
     },
 
     /**
@@ -1711,8 +1411,6 @@ var Body = new Class({
         }
         else if (worldCollision.down && this.bottom >= (worldBounds.bottom - 1) && velocity.y >= 0)
         {
-            // console.log(this.world._frame, 'via check world bounds');
-
             this.setWorldBlockedDown(true);
         }
 
@@ -1722,8 +1420,6 @@ var Body = new Class({
         }
         else if (worldCollision.right && this.right >= (worldBounds.right - 1) && velocity.x >= 0)
         {
-            // console.log(this.world._frame, 'via check world bounds');
-
             this.setWorldBlockedRight(true);
         }
     },
@@ -1768,14 +1464,17 @@ var Body = new Class({
 
         var gameObject = this.gameObject;
 
-        if (!width && gameObject.frame)
+        if (gameObject)
         {
-            width = gameObject.frame.realWidth;
-        }
-
-        if (!height && gameObject.frame)
-        {
-            height = gameObject.frame.realHeight;
+            if (!width && gameObject.frame)
+            {
+                width = gameObject.frame.realWidth;
+            }
+    
+            if (!height && gameObject.frame)
+            {
+                height = gameObject.frame.realHeight;
+            }
         }
 
         this.sourceWidth = width;
@@ -1789,7 +1488,7 @@ var Body = new Class({
 
         this.updateCenter();
 
-        if (center && gameObject.getCenter)
+        if (center && gameObject && gameObject.getCenter)
         {
             var ox = gameObject.displayWidth / 2;
             var oy = gameObject.displayHeight / 2;
@@ -1862,14 +1561,18 @@ var Body = new Class({
 
         var gameObject = this.gameObject;
 
-        gameObject.setPosition(x, y);
+        if (gameObject)
+        {
+            gameObject.setPosition(x, y);
 
-        gameObject.getTopLeft(this.position);
+            gameObject.getTopLeft(this.position);
 
-        this.prev.copy(this.position);
+            this.rotation = gameObject.angle;
+            this.preRotation = gameObject.angle;
+        }
 
-        this.rotation = gameObject.angle;
-        this.preRotation = gameObject.angle;
+        this.position.set(x, y);
+        this.prev.set(x, y);
 
         this.updateBounds();
         this.updateCenter();
@@ -1892,42 +1595,6 @@ var Body = new Class({
         this.angularAcceleration = 0;
 
         return this;
-    },
-
-    /**
-     * Copies the coordinates of this Body's edges into an object.
-     *
-     * @method Phaser.Physics.Arcade.Body#getBounds
-     * @since 3.0.0
-     *
-     * @param {Phaser.Physics.Arcade.Types.ArcadeBodyBounds} obj - An object to copy the values into.
-     *
-     * @return {Phaser.Physics.Arcade.Types.ArcadeBodyBounds} - An object with {x, y, right, bottom}.
-     */
-    getBounds: function (obj)
-    {
-        obj.x = this.x;
-        obj.y = this.y;
-        obj.right = this.right;
-        obj.bottom = this.bottom;
-
-        return obj;
-    },
-
-    /**
-     * Tests if the coordinates are within this Body's boundary.
-     *
-     * @method Phaser.Physics.Arcade.Body#hitTest
-     * @since 3.0.0
-     *
-     * @param {number} x - The horizontal coordinate.
-     * @param {number} y - The vertical coordinate.
-     *
-     * @return {boolean} True if (x, y) is within this Body.
-     */
-    hitTest: function (x, y)
-    {
-        return (this.isCircle) ? CircleContains(this, x, y) : RectangleContains(this, x, y);
     },
 
     /**
@@ -2040,150 +1707,45 @@ var Body = new Class({
     },
 
     /**
-     * Disables this Body and marks it for deletion by the simulation.
-     *
-     * @method Phaser.Physics.Arcade.Body#destroy
-     * @since 3.0.0
-     */
-    destroy: function ()
-    {
-        this.enable = false;
-
-        if (this.world)
-        {
-            this.world.pendingDestroy.set(this);
-        }
-    },
-
-    /**
-     * Draws this Body's boundary and velocity, if enabled.
-     *
-     * @method Phaser.Physics.Arcade.Body#drawDebug
-     * @since 3.0.0
-     *
-     * @param {Phaser.GameObjects.Graphics} graphic - The Graphics object to draw on.
-     */
-    drawDebug: function (graphic)
-    {
-        var pos = this.position;
-
-        var x = pos.x + this.halfWidth;
-        var y = pos.y + this.halfHeight;
-
-        var worldBlockedColor = this.world.defaults.worldBlockedDebugColor;
-        var blockedColor = this.world.defaults.blockedDebugColor;
-        var sleepColor = this.world.defaults.sleepDebugColor;
-
-        // var thickness = graphic.defaultStrokeWidth;
-
-        var thickness = 2;
-        var halfThickness = thickness / 2;
-
-        //  Top Left
-        var x1 = pos.x;
-        var y1 = pos.y;
-
-        //  Top Right
-        var x2 = this.right;
-        var y2 = y1;
-
-        //  Bottom Left
-        var x3 = x1;
-        var y3 = this.bottom;
-
-        //  Bottom Right
-        var x4 = x2;
-        var y4 = y3;
-
-        var blocked = this.blocked;
-        var worldBlocked = this.worldBlocked;
-        var hardBlocked = this.hardBlocked;
-
-        var color;
-
-        if (this.debugShowBody)
-        {
-            //  Top
-            color = (this.sleeping) ? sleepColor : this.debugBodyColor;
-
-            if (blocked.up || worldBlocked.up || hardBlocked.up)
-            {
-                color = (worldBlocked.up || hardBlocked.up) ? worldBlockedColor : blockedColor;
-            }
-
-            graphic.lineStyle(thickness, color).lineBetween(x1, y1 + halfThickness, x2, y2 + halfThickness);
-
-            //  Bottom
-            color = (this.sleeping) ? sleepColor : this.debugBodyColor;
-
-            if (blocked.down || worldBlocked.down || hardBlocked.down)
-            {
-                color = (worldBlocked.down || hardBlocked.down) ? worldBlockedColor : blockedColor;
-            }
-
-            graphic.lineStyle(thickness, color).lineBetween(x3, y3 - halfThickness, x4, y4 - halfThickness);
-
-            //  Left
-            color = (this.sleeping) ? sleepColor : this.debugBodyColor;
-
-            if (blocked.left || worldBlocked.left)
-            {
-                color = (worldBlocked.left) ? worldBlockedColor : blockedColor;
-            }
-
-            graphic.lineStyle(thickness, color).lineBetween(x1 + halfThickness, y1, x3 + halfThickness, y3);
-
-            //  Right
-            color = (this.sleeping) ? sleepColor : this.debugBodyColor;
-
-            if (blocked.right || worldBlocked.right)
-            {
-                color = (worldBlocked.right) ? worldBlockedColor : blockedColor;
-            }
-
-            graphic.lineStyle(thickness, color).lineBetween(x2 - halfThickness, y2, x4 - halfThickness, y4);
-        }
-
-        // if (this.isCircle)
-        // {
-        //     graphic.strokeCircle(x, y, this.width / 2);
-        // }
-
-        if (this.debugShowVelocity)
-        {
-            graphic.lineStyle(graphic.defaultStrokeWidth, this.world.defaults.velocityDebugColor, 1);
-            graphic.lineBetween(x, y, x + this.velocity.x / 2, y + this.velocity.y / 2);
-        }
-    },
-
-    /**
-     * Whether this Body will be drawn to the debug display.
-     *
-     * @method Phaser.Physics.Arcade.Body#willDrawDebug
-     * @since 3.0.0
-     *
-     * @return {boolean} True if either `debugShowBody` or `debugShowVelocity` are enabled.
-     */
-    willDrawDebug: function ()
-    {
-        return (this.debugShowBody || this.debugShowVelocity);
-    },
-
-    /**
      * Sets whether this Body collides with the world boundary.
+     * 
+     * Optionally also sets the World Bounce values. If the `Body.worldBounce` is null, it's set to a new Vec2 first.
      *
      * @method Phaser.Physics.Arcade.Body#setCollideWorldBounds
      * @since 3.0.0
      *
-     * @param {boolean} [value=true] - True (collisions) or false (no collisions).
+     * @param {boolean} [value=true] - `true` if this body should collide with the world bounds, otherwise `false`.
+     * @param {number} [bounceX] - If given this will be replace the `worldBounce.x` value.
+     * @param {number} [bounceY] - If given this will be replace the `worldBounce.y` value.
      *
      * @return {Phaser.Physics.Arcade.Body} This Body object.
      */
-    setCollideWorldBounds: function (value)
+    setCollideWorldBounds: function (value, bounceX, bounceY)
     {
         if (value === undefined) { value = true; }
 
         this.collideWorldBounds = value;
+
+        var setBounceX = (bounceX !== undefined);
+        var setBounceY = (bounceY !== undefined);
+
+        if (setBounceX || setBounceY)
+        {
+            if (!this.worldBounce)
+            {
+                this.worldBounce = new Vector2();
+            }
+
+            if (setBounceX)
+            {
+                this.worldBounce.x = bounceX;
+            }
+
+            if (setBounceY)
+            {
+                this.worldBounce.y = bounceY;
+            }
+        }
 
         return this;
     },
@@ -2346,86 +1908,6 @@ var Body = new Class({
         return this;
     },
 
-    setTouchingUp: function ()
-    {
-        var touching = this.touching;
-
-        touching.up = true;
-        touching.none = false;
-
-        return this;
-    },
-
-    setTouchingDown: function ()
-    {
-        var touching = this.touching;
-
-        touching.down = true;
-        touching.none = false;
-
-        return this;
-    },
-
-    setTouchingLeft: function ()
-    {
-        var touching = this.touching;
-
-        touching.left = true;
-        touching.none = false;
-
-        return this;
-    },
-
-    setTouchingRight: function ()
-    {
-        var touching = this.touching;
-
-        touching.right = true;
-        touching.none = false;
-
-        return this;
-    },
-
-    setHardBlockedUp: function ()
-    {
-        var hardBlocked = this.hardBlocked;
-
-        hardBlocked.none = false;
-        hardBlocked.up = true;
-
-        return this;
-    },
-
-    setHardBlockedDown: function ()
-    {
-        var hardBlocked = this.hardBlocked;
-
-        hardBlocked.none = false;
-        hardBlocked.down = true;
-
-        return this;
-    },
-
-    setHardBlockedLeft: function ()
-    {
-        var hardBlocked = this.hardBlocked;
-
-        hardBlocked.none = false;
-        hardBlocked.left = true;
-
-        return this;
-    },
-
-    setHardBlockedRight: function ()
-    {
-        var hardBlocked = this.hardBlocked;
-
-        hardBlocked.none = false;
-        hardBlocked.right = true;
-
-        return this;
-    },
-
     setBlockedUp: function (collisionInfo, body2)
     {
         var blocked = this.blocked;
@@ -2458,7 +1940,7 @@ var Body = new Class({
                 return this;
             }
 
-            if (body2 && !collisionInfo.set && !this.snapTo)
+            if (body2 && !this.immovable && !collisionInfo.set && !this.snapTo)
             {
                 // console.log(this.gameObject.name, 'setBlockedUp', body2.bottom);
 
@@ -2507,7 +1989,7 @@ var Body = new Class({
                 return this;
             }
 
-            if (body2 && !collisionInfo.set && !this.snapTo)
+            if (body2 && !this.immovable && !collisionInfo.set && !this.snapTo)
             {
                 // console.log(this.gameObject.name, 'setBlockedDown', body2.y);
 
@@ -2556,7 +2038,7 @@ var Body = new Class({
                 return this;
             }
 
-            if (body2 && !collisionInfo.set && !this.snapTo)
+            if (body2 && !this.immovable && !collisionInfo.set && !this.snapTo)
             {
                 // console.log(this.gameObject.name, 'setBlockedUp', body2.bottom);
 
@@ -2605,7 +2087,7 @@ var Body = new Class({
                 return this;
             }
 
-            if (body2 && !collisionInfo.set && !this.snapTo)
+            if (body2 && !this.immovable && !collisionInfo.set && !this.snapTo)
             {
                 // console.log(this.gameObject.name, 'setBlockedDown', body2.y);
 
@@ -2622,318 +2104,139 @@ var Body = new Class({
         return this;
     },
 
-    setWorldBlockedUp: function (forceY)
-    {
-        var worldBounds = this.world.bounds;
-        var worldBlocked = this.worldBlocked;
-        var worldCollision = this.world.checkCollision;
-
-        if (!worldCollision.up)
-        {
-            return;
-        }
-
-        worldBlocked.up = true;
-        worldBlocked.none = false;
-
-        if (forceY && this.y !== worldBounds.y)
-        {
-            this.y = worldBounds.y;
-
-            this.forcePosition = 5;
-
-            // console.log(this.world._frame, this.gameObject.name, 'world blocked up + position', this.y);
-        }
-
-        return this;
-    },
-
-    setWorldBlockedDown: function (forceY)
-    {
-        var worldBounds = this.world.bounds;
-        var worldBlocked = this.worldBlocked;
-        var worldCollision = this.world.checkCollision;
-
-        if (!worldCollision.down)
-        {
-            return;
-        }
-
-        worldBlocked.down = true;
-        worldBlocked.none = false;
-
-        if (forceY && this.bottom !== worldBounds.bottom)
-        {
-            this.bottom = worldBounds.bottom;
-
-            this.forcePosition = 5;
-
-            // console.log(this.world._frame, this.gameObject.name, 'world blocked down + position', this.y);
-        }
-
-        return this;
-    },
-
-    setWorldBlockedLeft: function (forceX)
-    {
-        var worldBounds = this.world.bounds;
-        var worldBlocked = this.worldBlocked;
-        var worldCollision = this.world.checkCollision;
-
-        if (!worldCollision.left)
-        {
-            return;
-        }
-
-        worldBlocked.left = true;
-        worldBlocked.none = false;
-
-        if (forceX && this.x !== worldBounds.x)
-        {
-            this.x = worldBounds.x;
-
-            this.forcePosition = 5;
-
-            // console.log(this.world._frame, this.gameObject.name, 'world blocked up + position', this.y);
-        }
-
-        return this;
-    },
-
-    setWorldBlockedRight: function (forceX)
-    {
-        var worldBounds = this.world.bounds;
-        var worldBlocked = this.worldBlocked;
-        var worldCollision = this.world.checkCollision;
-
-        if (!worldCollision.right)
-        {
-            return;
-        }
-
-        worldBlocked.right = true;
-        worldBlocked.none = false;
-
-        if (forceX && this.right !== worldBounds.right)
-        {
-            this.right = worldBounds.right;
-
-            this.forcePosition = 5;
-
-            // console.log(this.world._frame, this.gameObject.name, 'world blocked up + position', this.y);
-        }
-
-        return this;
-    },
-
-    isBlocked: function ()
-    {
-        return (!this.blocked.none || !this.worldBlocked.none || !this.hardBlocked.none);
-    },
-
-    isBlockedUp: function ()
-    {
-        return (this.immovable || this.blocked.up || this.worldBlocked.up || this.hardBlocked.up);
-    },
-
-    isBlockedDown: function ()
-    {
-        return (this.immovable || this.blocked.down || this.worldBlocked.down || this.hardBlocked.down);
-    },
-
-    isBlockedLeft: function ()
-    {
-        return (this.immovable || this.blocked.left || this.worldBlocked.left || this.hardBlocked.left);
-    },
-
-    isBlockedRight: function ()
-    {
-        return (this.immovable || this.blocked.right || this.worldBlocked.right || this.hardBlocked.right);
-    },
-
-    isWorldBlockedUp: function ()
-    {
-        return (this.immovable || this.worldBlocked.up || this.hardBlocked.up);
-    },
-
-    isWorldBlockedDown: function ()
-    {
-        return (this.immovable || this.worldBlocked.down || this.hardBlocked.down);
-    },
-
-    isWorldBlockedLeft: function ()
-    {
-        return (this.immovable || this.worldBlocked.left || this.hardBlocked.left);
-    },
-
-    isWorldBlockedRight: function ()
-    {
-        return (this.immovable || this.worldBlocked.right || this.hardBlocked.right);
-    },
-
-    //  Is this body world blocked AND blocked on the opposite face?
-    isBlockedX: function ()
-    {
-        var blocked = this.blocked;
-        var worldBlocked = this.worldBlocked;
-        var hardBlocked = this.hardBlocked;
-
-        return (
-            ((worldBlocked.right || hardBlocked.right) && blocked.left) ||
-            ((worldBlocked.left || hardBlocked.left) && blocked.right)
-        );
-    },
-
-    isBlockedY: function ()
-    {
-        var blocked = this.blocked;
-        var worldBlocked = this.worldBlocked;
-        var hardBlocked = this.hardBlocked;
-
-        return (
-            ((worldBlocked.down || hardBlocked.down) && blocked.up) ||
-            ((worldBlocked.up || hardBlocked.up) && blocked.down)
-        );
-    },
-
-    getMoveX: function (amount)
+    moveX: function (amount)
     {
         var diff = amount;
         var bounds = this.world.bounds;
 
-        if (amount === 0)
+        if (this.collideWorldBounds)
         {
-            return diff;
-        }
-        else
-        {
-            if (this.collideWorldBounds)
+            var worldCollision = this.world.checkCollision;
+
+            if (amount < 0 && worldCollision.left && this.x + amount < bounds.x)
             {
-                var worldCollision = this.world.checkCollision;
-    
-                if (amount < 0 && worldCollision.left && this.x + amount < bounds.x)
+                diff = amount - ((this.x + amount) - bounds.x);
+
+                if (diff !== 0)
                 {
-                    diff = amount - ((this.x + amount) - bounds.x);
-
-                    if (diff !== 0)
-                    {
-                        this.wake();
-                    }
-                
-                    this.setWorldBlockedLeft(true);
-
-                    return diff;
+                    this.wake();
                 }
-                else if (amount > 0 && worldCollision.right && this.right + amount > bounds.right)
-                {
-                    diff = amount - ((this.right + amount) - bounds.right);
+            
+                this.setWorldBlockedLeft(true);
 
-                    if (diff !== 0)
-                    {
-                        this.wake();
-                    }
-                
-                    this.setWorldBlockedRight(true);
+                this.x += diff;
 
-                    return diff;
-                }
+                return diff;
             }
-
-            if (amount < 0 && this.isBlockedLeft())
+            else if (amount > 0 && worldCollision.right && this.right + amount > bounds.right)
             {
-                bounds = this.getBlocker(this.blockers.left);
+                diff = amount - ((this.right + amount) - bounds.right);
 
-                if (bounds && this.x + amount < bounds.x)
+                if (diff !== 0)
                 {
-                    diff = amount - ((this.x + amount) - bounds.x);
+                    this.wake();
                 }
-            }
-            else if (amount > 0 && this.isBlockedRight())
-            {
-                bounds = this.getBlocker(this.blockers.right);
-    
-                if (bounds && this.right + amount > bounds.right)
-                {
-                    diff = amount - ((this.right + amount) - bounds.right);
-                }
+            
+                this.setWorldBlockedRight(true);
+
+                this.x += diff;
+
+                return diff;
             }
         }
 
-        if (diff !== 0)
+        if (amount < 0 && this.isBlockedLeft())
         {
-            // console.log('gmx3', diff);
-            this.wake();
-        }
+            bounds = this.getBlocker(this.blockers.left);
 
-        return diff;
-    },
-
-    getMoveY: function (amount)
-    {
-        var diff = amount;
-        var bounds = this.world.bounds;
-
-        if (amount === 0)
-        {
-            return diff;
-        }
-        else
-        {
-            if (this.collideWorldBounds)
+            if (bounds && this.x + amount < bounds.x)
             {
-                var worldCollision = this.world.checkCollision;
-    
-                if (amount < 0 && worldCollision.up && this.y + amount < bounds.y)
-                {
-                    diff = amount - ((this.y + amount) - bounds.y);
-
-                    if (diff !== 0)
-                    {
-                        this.wake();
-                    }
-                
-                    this.setWorldBlockedUp(true);
-
-                    return diff;
-                }
-                else if (amount > 0 && worldCollision.down && this.bottom + amount > bounds.bottom)
-                {
-                    diff = amount - ((this.bottom + amount) - bounds.bottom);
-
-                    if (diff !== 0)
-                    {
-                        this.wake();
-                    }
-                
-                    this.setWorldBlockedDown(true);
-
-                    return diff;
-                }
+                diff = amount - ((this.x + amount) - bounds.x);
             }
+        }
+        else if (amount > 0 && this.isBlockedRight())
+        {
+            bounds = this.getBlocker(this.blockers.right);
 
-            if (amount < 0 && this.isBlockedUp())
+            if (bounds && this.right + amount > bounds.right)
             {
-                bounds = this.getBlocker(this.blockers.up);
-
-                if (bounds && this.y + amount < bounds.y)
-                {
-                    diff = amount - ((this.y + amount) - bounds.y);
-                }
-            }
-            else if (amount > 0 && this.isBlockedDown())
-            {
-                bounds = this.getBlocker(this.blockers.down);
-    
-                if (bounds && this.bottom + amount > bounds.bottom)
-                {
-                    diff = amount - ((this.bottom + amount) - bounds.bottom);
-                }
+                diff = amount - ((this.right + amount) - bounds.right);
             }
         }
 
         if (diff !== 0)
         {
             this.wake();
+
+            this.x += diff;
+        }
+    },
+
+    moveY: function (amount)
+    {
+        var diff = amount;
+        var bounds = this.world.bounds;
+
+        if (this.collideWorldBounds)
+        {
+            var worldCollision = this.world.checkCollision;
+
+            if (amount < 0 && worldCollision.up && this.y + amount < bounds.y)
+            {
+                diff = amount - ((this.y + amount) - bounds.y);
+
+                if (diff !== 0)
+                {
+                    this.wake();
+                }
+            
+                this.setWorldBlockedUp(true);
+
+                this.y += diff;
+
+                return diff;
+            }
+            else if (amount > 0 && worldCollision.down && this.bottom + amount > bounds.bottom)
+            {
+                diff = amount - ((this.bottom + amount) - bounds.bottom);
+
+                if (diff !== 0)
+                {
+                    this.wake();
+                }
+            
+                this.setWorldBlockedDown(true);
+
+                this.y += diff;
+
+                return diff;
+            }
+        }
+
+        if (amount < 0 && this.isBlockedUp())
+        {
+            bounds = this.getBlocker(this.blockers.up);
+
+            if (bounds && this.y + amount < bounds.y)
+            {
+                diff = amount - ((this.y + amount) - bounds.y);
+            }
+        }
+        else if (amount > 0 && this.isBlockedDown())
+        {
+            bounds = this.getBlocker(this.blockers.down);
+
+            if (bounds && this.bottom + amount > bounds.bottom)
+            {
+                diff = amount - ((this.bottom + amount) - bounds.bottom);
+            }
+        }
+
+        if (diff !== 0)
+        {
+            this.wake();
+
+            this.y += diff;
         }
 
         return diff;
@@ -3205,6 +2508,11 @@ var Body = new Class({
     {
         this.angularVelocity = value;
 
+        if (value !== 0)
+        {
+            this.wake();
+        }
+
         return this;
     },
 
@@ -3222,6 +2530,11 @@ var Body = new Class({
     {
         this.angularAcceleration = value;
 
+        if (value !== 0)
+        {
+            this.wake();
+        }
+
         return this;
     },
 
@@ -3238,23 +2551,6 @@ var Body = new Class({
     setAngularDrag: function (value)
     {
         this.angularDrag = value;
-
-        return this;
-    },
-
-    /**
-     * Sets the Body's mass.
-     *
-     * @method Phaser.Physics.Arcade.Body#setMass
-     * @since 3.0.0
-     *
-     * @param {number} value - The mass value, relative to 1.
-     *
-     * @return {Phaser.Physics.Arcade.Body} This Body object.
-     */
-    setMass: function (value)
-    {
-        this.mass = value;
 
         return this;
     },
@@ -3278,10 +2574,21 @@ var Body = new Class({
         return this;
     },
 
-    setDirectControl: function ()
+    setDirectControl: function (value)
     {
-        this.immovable = true;
-        this.moves = false;
+        if (value === undefined) { value = true; }
+
+        if (value)
+        {
+            this.directControl = true;
+            // this.canSleep = false;
+            this.maxSpeed = 2000;
+        }
+        else
+        {
+            this.directControl = false;
+            // this.canSleep = true;
+        }
 
         return this;
     },
@@ -3291,25 +2598,6 @@ var Body = new Class({
         this.immovable = true;
         this.rideable = true;
         this.moves = false;
-
-        return this;
-    },
-
-    /**
-     * Sets the Body's `enable` property.
-     *
-     * @method Phaser.Physics.Arcade.Body#setEnable
-     * @since 3.15.0
-     *
-     * @param {boolean} [value=true] - The value to assign to `enable`.
-     *
-     * @return {Phaser.Physics.Arcade.Body} This Body object.
-     */
-    setEnable: function (value)
-    {
-        if (value === undefined) { value = true; }
-
-        this.enable = value;
 
         return this;
     },
@@ -3369,6 +2657,11 @@ var Body = new Class({
         get: function ()
         {
             return this.position.x;
+        },
+
+        set: function (value)
+        {
+            this.position.x = value;
         }
 
     },
@@ -3407,6 +2700,11 @@ var Body = new Class({
         get: function ()
         {
             return this.position.y;
+        },
+
+        set: function (value)
+        {
+            this.position.y = value;
         }
 
     },

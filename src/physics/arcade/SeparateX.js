@@ -51,7 +51,7 @@ var SeparateX = function (collisionInfo)
     // console.log('%c X frame ' + body1.world._frame + '                                                                                     ', 'background-color: orange');
     // console.log('body1:', body1.gameObject.name, 'vs body2:', body2.gameObject.name);
     // console.log('pre-GetOverlap bx = body1', body1.x, 'body2', body2.x);
-    console.log('x compare (PRE-SX):', body1.right, 'body2', body2.x, '=', (body1.right - body2.x));
+    // console.log('x compare (PRE-SX):', body1.right, 'body2', body2.x, '=', (body1.right - body2.x));
 
     // console.log('pre-GetOverlap by = body1', body1.y, 'body2', body2.y);
     // console.log('pre-GetOverlap gy = body1', body1.gameObject.y, 'body2', body2.gameObject.y);
@@ -65,7 +65,7 @@ var SeparateX = function (collisionInfo)
     //  Can't separate two immovable bodies, or a body with its own custom separation logic
     if (!intersects || overlapOnly || (body1Immovable && body2Immovable) || body1.customSeparateX || body2.customSeparateX)
     {
-        console.log(this.world._frame, 'SeparateX aborted');
+        // console.log(this.world._frame, 'SeparateX aborted');
 
         //  return true if there was some overlap, otherwise false.
         return ((intersects && overlap !== 0) || (body1.embedded && body2.embedded));
@@ -81,10 +81,10 @@ var SeparateX = function (collisionInfo)
     //  At this point, the velocity from gravity, world rebounds, etc has been factored in.
     //  The body is moving the direction it wants to, but may be blocked and rebound.
 
-    var moving1 = body1.movingX();
-    var moving2 = body2.movingX();
+    var canMove1 = body1.canMoveX();
+    var canMove2 = body2.canMoveX();
 
-    if (moving1 && moving2)
+    if (canMove1 && canMove2)
     {
         //  Neither body is immovable, so they get a new velocity based on mass
         var mass1 = body1.mass;
@@ -113,7 +113,7 @@ var SeparateX = function (collisionInfo)
         nx1 = avg + nv1 * bounce1.x;
         nx2 = avg + nv2 * bounce2.x;
 
-        // console.log('resolution 1');
+        // console.log('resolution 1x');
         // console.log('pre-impact v = body1', x1, 'body2', x2);
         // console.log('post-impact v = body1', nx1, 'body2', nx2);
         // console.log('pre-impact x = body1', body1.gameObject.x, 'body2', body2.gameObject.x);
@@ -124,20 +124,13 @@ var SeparateX = function (collisionInfo)
         // console.log('sqrt mult', bnx1, bnx2);
         // console.log('delta', body1.deltaY(), body2.deltaY());
     }
-    else if (!moving1 && moving2)
+    else if (!canMove1 && canMove2)
     {
         //  Body1 is immovable, so adjust body2 speed
 
-        if (body1.rideable)
-        {
-            nx2 = (leftFace) ? 1 : -1;
-        }
-        else
-        {
-            nx2 = x1 - x2 * bounce2.x;
-        }
+        nx2 = x1 - x2 * bounce2.x;
 
-        // console.log('%cresolution 2', 'background-color: red; color: white');
+        // console.log('%cresolution 2x', 'background-color: red; color: white');
         // console.log('pre-impact v = body1', x1, 'body2', x2);
         // console.log('post-impact v = body1', nx1, 'body2', nx2);
         // console.log('pre-impact by = body1', body1.y, 'body2', body2.y);
@@ -145,20 +138,13 @@ var SeparateX = function (collisionInfo)
         // console.log('wb = body1', body1.worldBlocked.down, 'body2', body2.worldBlocked.down);
         // console.log('sleeping? = body1', body1.sleeping, 'body2', body2.sleeping);
     }
-    else if (moving1 && !moving2)
+    else if (canMove1 && !canMove2)
     {
         //  Body2 is immovable, so adjust body1 speed
 
-        if (body2.rideable)
-        {
-            nx1 = (leftFace) ? 1 : -1;
-        }
-        else
-        {
-            nx1 = x2 - x1 * bounce1.x;
-        }
+        nx1 = x2 - x1 * bounce1.x;
 
-        // console.log('resolution 4');
+        // console.log('resolution 3x');
         // console.log('pre-impact v = body1', x1, 'body2', x2);
         // console.log('post-impact v = body1', nx1, 'body2', nx2);
         // console.log('pre-impact y = body1', body1.gameObject.y, 'body2', body2.gameObject.y);
@@ -167,9 +153,9 @@ var SeparateX = function (collisionInfo)
     }
     else
     {
-        // console.log('neither moving, or both immovable');
+        // console.log('neither moving, or both immovable x');
 
-        // console.log('resolution 5');
+        // console.log('resolution 4x');
         // console.log('pre-impact v = body1', x1, 'body2', x2);
         // console.log('post-impact v = body1', nx1, 'body2', nx2);
         // console.log('sleeping? = body1', body1.sleeping, 'body2', body2.sleeping);
@@ -220,13 +206,13 @@ var SeparateX = function (collisionInfo)
             //  The left of Body1 overlaps with the right of Body2
             if (body2.isBlockedLeft())
             {
-                console.log('nx1 <> 0 left block left', body1.x);
+                // console.log('nx1 <> 0 left block left', body1.x);
                 body1.setBlockedLeft(collisionInfo, body2);
             }
             else
             {
-                console.log('nx1 <> 0 left add', body1.x);
-                body1.x += body1.getMoveX(totalA);
+                // console.log('nx1 <> 0 left add', body1.x);
+                body1.moveX(totalA);
             }
         }
         else if (rightFace)
@@ -234,26 +220,26 @@ var SeparateX = function (collisionInfo)
             //  The right of Body1 overlaps with the left of Body2
             if (body2.isBlockedRight())
             {
-                console.log('nx1 <> 0 right block right', body1.x);
+                // console.log('nx1 <> 0 right block right', body1.x);
                 body1.setBlockedRight(collisionInfo, body2);
             }
             else
             {
-                console.log('nx1 <> 0 right add', body1.x);
-                body1.x += body1.getMoveX(totalA);
+                // console.log('nx1 <> 0 right add', body1.x);
+                body1.moveX(totalA);
             }
         }
 
         //  If Body1 cannot move up, it doesn't matter what new velocity it has.
         if (body1.sleeping && (nx1 < 0 && body1.isBlockedLeft()) || (nx1 > 0 && body1.isBlockedRight()))
         {
-            console.log('nx1 <> 0 zero sleep');
+            // console.log('nx1 <> 0 zero sleep');
             nx1 = 0;
         }
     }
     else if (body1.moves)
     {
-        console.log('body1 stationary', body1.right);
+        // console.log('body1 stationary', body1.right);
 
         //  Body1 is now stationary
 
@@ -267,7 +253,7 @@ var SeparateX = function (collisionInfo)
             // if (totalA !== 0 && !body1.isBlockedRight())
             // {
                 // console.log('body1 stationary leftface add', body1.x, 'totalA', totalA);
-                body1.x += body1.getMoveX(totalA);
+                body1.moveX(totalA);
             // }
     
             if (body2.isBlockedLeft())
@@ -287,7 +273,7 @@ var SeparateX = function (collisionInfo)
             // if (totalA !== 0 && !body1.isBlockedLeft())
             // {
                 // console.log('body1 stationary rightface add', body1.x);
-                body1.x += body1.getMoveX(totalA);
+                body1.moveX(totalA);
             // }
     
             if (body2.isBlockedRight())
@@ -308,13 +294,13 @@ var SeparateX = function (collisionInfo)
             //  The bottom of Body2 overlaps with the top of Body1
             if (body1.isBlockedRight())
             {
-                console.log('nx2 <> 0 leftface down', body2.x);
+                // console.log('nx2 <> 0 leftface down', body2.x);
                 body2.setBlockedRight(collisionInfo, body1);
             }
             else
             {
-                console.log('nx2 <> 0 leftface add', body2.x);
-                body2.x += body2.getMoveX(totalB);
+                // console.log('nx2 <> 0 leftface add', body2.x);
+                body2.moveX(totalB);
             }
         }
         else if (rightFace)
@@ -322,26 +308,26 @@ var SeparateX = function (collisionInfo)
             //  The top of Body2 overlaps with the bottom of Body1
             if (body1.isBlockedLeft())
             {
-                console.log('nx2 <> 0 rightface down', body2.x);
+                // console.log('nx2 <> 0 rightface down', body2.x);
                 body2.setBlockedLeft(collisionInfo, body1);
             }
             else
             {
-                console.log('nx2 <> 0 rightface add', body2.x);
-                body2.x += body2.getMoveX(totalB);
+                // console.log('nx2 <> 0 rightface add', body2.x);
+                body2.moveX(totalB);
             }
         }
 
         //  If Body2 cannot move up or down, it doesn't matter what new velocity it has
         if (body2.sleeping && (nx2 < 0 && body2.isBlockedLeft()) || (nx2 > 0 && body2.isBlockedRight()))
         {
-            console.log('nx2 <> 0 zero sleep');
+            // console.log('nx2 <> 0 zero sleep');
             nx2 = 0;
         }
     }
     else if (body2.moves)
     {
-        console.log('body2 stationary', body2.x);
+        // console.log('body2 stationary', body2.x);
 
         //  Body2 is stationary
         if (leftFace)
@@ -354,7 +340,7 @@ var SeparateX = function (collisionInfo)
             // if (totalB !== 0 && !body2.isBlockedRight())
             // {
                 // console.log('body2 stationary leftface add', body2.x);
-                body2.x += body2.getMoveX(totalB);
+                body2.moveX(totalB);
             // }
     
             if (body1.isBlockedRight())
@@ -373,7 +359,7 @@ var SeparateX = function (collisionInfo)
             // if (totalB !== 0 && !body2.isBlockedLeft())
             // {
                 // console.log('body2 stationary rightface add', body2.x);
-                body2.x += body2.getMoveX(totalB);
+                body2.moveX(totalB);
             // }
     
             if (body1.isBlockedLeft())
@@ -434,7 +420,7 @@ var SeparateX = function (collisionInfo)
     // console.log('post-GetOverlap bx = body1', body1.x, 'body2', body2.x);
     // console.log('post-GetOverlap bs = body1', body1.right, 'body2', body2.right);
 
-    console.log('x compare (POST-SX):', body1.right, 'body2', body2.x, '=', (body1.right - body2.x));
+    // console.log('x compare (POST-SX):', body1.right, 'body2', body2.x, '=', (body1.right - body2.x));
 
     //  If we got this far then there WAS overlap, and separation is complete, so return true
     return true;

@@ -16,6 +16,7 @@ Notes:
 * `collideTiles` is a new method that allows you to check for collision between a physics enabled Game Object and an array of Tiles. The Tiles don't have to have been enable for collision, or even be on the same layer, for the collision to work. You can provide your own process callback and/or overlap callback. There are some limitations in using this method, please consult the API Docs for details, but on the whole, it allows for dynamic collision on small sets of Tile instances. This is available via `this.physics.collideTiles` and the World instance.
 * `overlapRect` is a new method that allows you to return an array of all physics bodies within the given rectangular region of the World. It can return dynamic or static bodies and will use the RTree for super-fast searching, if enabled (which it is by default)
 * `debugShowBlocked`, `sleepDebugColor`, `blockedDebugColor`
+* The `Body.setCollideWorldBounds` method has two new optional arguments `bounceX` and `bounceY` which, if given, will set the World Bounce values for the body.
 
 #### Updates
 
@@ -67,6 +68,7 @@ Notes:
 * The `PluginManager.installScenePlugin` method has a new optional boolean parameter `fromLoader` which controls if the plugin is coming in from the result of a Loader operation or not. If it is, it no longer throws a console warning if the plugin already exists. This fixes an issue where if you return to a Scene that loads a Scene Plugin it would throw a warning and then not install the plugin to the Scene.
 * The Scale Manager has a new event `FULLSCREEN_FAILED` which is fired if you try to enter fullscreen mode, but the browser rejects it for some reason.
 * The `ScaleMode` Component has been removed from every Game Object, and along with it the `scaleMode` property and `setScaleMode` method. These did nothing anyway as they were not hooked to the render pipeline and scale mode should be set on the texture, not the Game Object. Fix #4413 (thanks @jcyuan)
+* The `Clock.now` property value is now synced to be the `TimeStep.time` value when the Clock plugin boots and is no longer `Date.now()` until the first update (thanks @Antriel)
 
 ### Bug Fixes
 

@@ -27,15 +27,18 @@ var GetOverlap = function (body1, body2, overlapOnly, bias)
 
     var collisionInfo = CollisionInfo.get(body1, body2, overlapOnly, bias);
 
-    if (overlapOnly)
+    console.log('');
+    console.log('%c GetOverlap ' + body1.world._frame + '                               ', 'background-color: aqua');
+    collisionInfo.dump();
+    debugger;
+
+    if (overlapOnly || collisionInfo.embedded)
     {
         return collisionInfo;
     }
 
     if (collisionInfo.face === CONST.FACING_LEFT)
     {
-        // console.log('GetOverlap leftFace');
-
         if (collisionInfo.body1 === body1)
         {
             body1.setTouchingLeft();
@@ -52,8 +55,6 @@ var GetOverlap = function (body1, body2, overlapOnly, bias)
     }
     else if (collisionInfo.face === CONST.FACING_RIGHT)
     {
-        // console.log('GetOverlap rightFace');
-
         if (collisionInfo.body1 === body1)
         {
             body1.setTouchingRight();
@@ -70,8 +71,6 @@ var GetOverlap = function (body1, body2, overlapOnly, bias)
     }
     else if (collisionInfo.face === CONST.FACING_UP)
     {
-        // console.log('GetOverlap topFace');
-
         if (collisionInfo.body1 === body1)
         {
             body1.setTouchingUp();
@@ -88,8 +87,6 @@ var GetOverlap = function (body1, body2, overlapOnly, bias)
     }
     else if (collisionInfo.face === CONST.FACING_DOWN)
     {
-        // console.log('GetOverlap bottomFace');
-
         if (collisionInfo.body1 === body1)
         {
             body1.setTouchingDown();
