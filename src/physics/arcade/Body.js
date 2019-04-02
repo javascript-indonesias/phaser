@@ -189,7 +189,7 @@ var Body = new Class({
          * @type {integer}
          * @since 3.17.0
          */
-        this.sleepIterations = 60 * world.positionIterations;
+        this.sleepIterations = 60;
 
         /**
          * Can this Body ever fall asleep? Typically you should leave this as `true`, but some
@@ -700,25 +700,21 @@ var Body = new Class({
             this.x = parent.x + parent.scaleX * (this.offset.x - parent.displayOriginX);
             this.y = parent.y + parent.scaleY * (this.offset.y - parent.displayOriginY);
 
-            if (this._cs)
-            {
-                if (DistanceBetween(this._cx, this._cy, this.x, this.y) > this.distanceThreshold)
-                {
-                    this.setPosition(this._cx, this._cy, 1);
-                }
-                else
-                {
-                    this._cs = false;
-                }
-            }
-    
-            this.rotation = parent.rotation;
-
             this.prev.x = this.x;
             this.prev.y = this.y;
         }
 
         this.preRotation = this.rotation;
+
+        if (this._cs)
+        {
+            if (DistanceBetween(this._cx, this._cy, this.x, this.y) > this.distanceThreshold)
+            {
+                this.setDirectPosition(this._cx, this._cy, 1);
+            }
+            
+            this._cs = false;
+        }
 
         if (this.collideWorldBounds)
         {
@@ -731,30 +727,57 @@ var Body = new Class({
         this.prevVelocity.y = this.velocity.y;
     },
 
-    setPosition: function (x, y, lerp)
+    setDirectPosition: function (x, y, lerp)
     {
         if (lerp === undefined) { lerp = 1; }
 
-        var maxSpeed = this.maxSpeed;
+        if (!this.directControl)
+        {
+            return this;
+        }
 
-        this.calculateVelocity(x, y, lerp, maxSpeed);
+        if ((x > this.x && this.isBlockedRight()) || (x < this.x && this.isBlockedLeft()))
+        {
+            x = this.x;
+        }
 
-        this.wake();
+        if ((y > this.y && this.isBlockedDown()) || (y < this.y && this.isBlockedUp()))
+        {
+            y = this.y;
+        }
 
-        this._cs = true;
-        this._cx = x;
-        this._cy = y;
+        if (this.calculateVelocity(x, y, lerp, this.maxSpeed))
+        {
+            this.wake();
+
+            this._cs = true;
+            this._cx = x;
+            this._cy = y;
+        }
+        else
+        {
+            this._cs = false;
+        }
+
+        return this;
     },
 
     calculateVelocity: function (x, y, lerp, maxSpeed)
     {
         var maxX = this.maxVelocity.x;
-        var maxY = this.maxVelocity.x;
+        var maxY = this.maxVelocity.y;
 
         var velocity = this.velocity;
 
         var px = this.x;
         var py = this.y;
+
+        if (x === this.x && y === this.y)
+        {
+            velocity.set(0);
+
+            return true;
+        }
 
         var angle = Math.atan2(y - py, x - px);
 
@@ -769,6 +792,8 @@ var Body = new Class({
         {
             velocity.normalize().scale(maxSpeed);
         }
+
+        return (velocity.x !== 0 || velocity.y !== 0);
     },
 
     /**
@@ -1347,36 +1372,25 @@ var Body = new Class({
                 if (this._sleep < this.sleepIterations)
                 {
                     this._sleep++;
-
-                    // console.log(this.world._frame, 'sleeping ...', this._sleepY, this.y);
-                    // console.log(this.gameObject.name, 'sleep y', this.y);
     
                     if (this._sleep >= this.sleepIterations)
                     {
-                        // console.log(this.world._frame, 'checkSleep sending ...', dx, this._dx, this._sleepX, this.x, 'dy', dy, this._dy, this._sleepY, this.y);
-
                         this.sleep(true);
-
-                        // console.log(this.world._frame, 'slept by checkSleep');
-
-                        // var gameObject = this.gameObject;
-
-                        // gameObject.x = this.x;
-                        // gameObject.y = this.y;
                     }
                 }
+            }
+            else
+            {
+                this._sleep = 0;
             }
         }
         else if (this.sleeping && (!this.velocity.equals(this.prevVelocity) || this.angularAcceleration !== 0 || this.angularVelocity !== 0))
         {
-            // console.log('body woken from significant change in velocity =', this.velocity.x);
             this.wake();
         }
         else if (this.sleeping && (!this.isGravityBlockedX() || !this.isGravityBlockedY()))
         {
             //  Waking up?
-            // console.log('waking???');
-
             if (this._sleep > 0)
             {
                 //  Do it progressively, not instantly, to ensure it isn't just a step fluctuation
@@ -1384,7 +1398,6 @@ var Body = new Class({
     
                 if (this._sleep <= 0)
                 {
-                    // console.log('body woken from postUpdate', dy);
                     this.wake();
                 }
             }
@@ -1952,6 +1965,12 @@ var Body = new Class({
 
                 collisionInfo.set = true;
             }
+
+            if (this.directControl)
+            {
+                this._cy = this.y;
+                this._cs = true;
+            }
         }
 
         return this;
@@ -2000,6 +2019,12 @@ var Body = new Class({
                 this.forcePosition = 2;
 
                 collisionInfo.set = true;
+            }
+
+            if (this.directControl)
+            {
+                this._cy = this.y;
+                this._cs = true;
             }
         }
 
@@ -2050,6 +2075,12 @@ var Body = new Class({
 
                 collisionInfo.set = true;
             }
+
+            if (this.directControl)
+            {
+                this._cx = this.x;
+                this._cs = true;
+            }
         }
 
         return this;
@@ -2098,6 +2129,12 @@ var Body = new Class({
                 this.forcePosition = 4;
 
                 collisionInfo.set = true;
+            }
+
+            if (this.directControl)
+            {
+                this._cx = this.x;
+                this._cs = true;
             }
         }
 
@@ -2726,6 +2763,50 @@ var Body = new Class({
         set: function (value)
         {
             this.position.y = value - this.height;
+        }
+
+    },
+
+    /**
+     * The horizontal position of the Body when under direct control.
+     * Setting this causes the current velocity to change.
+     *
+     * @name Phaser.Physics.Arcade.Body#directX
+     * @type {number}
+     * @since 3.17.0
+     */
+    directX: {
+
+        get: function ()
+        {
+            return this._cx;
+        },
+
+        set: function (value)
+        {
+            this.setDirectPosition(value, this._cy);
+        }
+
+    },
+
+    /**
+     * The vertical position of the Body when under direct control.
+     * Setting this causes the current velocity to change.
+     *
+     * @name Phaser.Physics.Arcade.Body#directY
+     * @type {number}
+     * @since 3.17.0
+     */
+    directY: {
+
+        get: function ()
+        {
+            return this._cy;
+        },
+
+        set: function (value)
+        {
+            this.setDirectPosition(this._cx, value);
         }
 
     }
