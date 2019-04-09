@@ -419,6 +419,11 @@ var Tween = new Class({
      */
     restart: function ()
     {
+        if (this.state === TWEEN_CONST.PENDING_ADD)
+        {
+            return this;
+        }
+
         if (this.state === TWEEN_CONST.REMOVED)
         {
             this.seek(0);
@@ -480,7 +485,10 @@ var Tween = new Class({
         }
 
         //  Excludes loop values
-        this.duration = max;
+
+        //  If duration has been set to 0 then we give it a super-low value so that it always
+        //  renders at least 1 frame, but no more, without causing divided by zero errors elsewhere.
+        this.duration = Math.max(max, 0.001);
 
         this.loopCounter = (this.loop === -1) ? 999999999999 : this.loop;
 
@@ -515,7 +523,7 @@ var Tween = new Class({
             var gen = tweenData.gen;
 
             tweenData.delay = gen.delay(i, totalTargets, target);
-            tweenData.duration = gen.duration(i, totalTargets, target);
+            tweenData.duration = Math.max(gen.duration(i, totalTargets, target), 0.001);
             tweenData.hold = gen.hold(i, totalTargets, target);
             tweenData.repeat = gen.repeat(i, totalTargets, target);
             tweenData.repeatDelay = gen.repeatDelay(i, totalTargets, target);
@@ -627,25 +635,34 @@ var Tween = new Class({
      * Starts a Tween playing.
      * 
      * You only need to call this method if you have configured the tween to be paused on creation.
+     * 
+     * If the Tween is already playing, calling this method again will have no effect. If you wish to
+     * restart the Tween, use `Tween.restart` instead.
+     * 
+     * Calling this method after the Tween has completed will start the Tween playing again from the start.
+     * This is the same as calling `Tween.seek(0)` and then `Tween.play()`.
      *
      * @method Phaser.Tweens.Tween#play
      * @since 3.0.0
      *
-     * @param {boolean} resetFromTimeline - Is this Tween being played as part of a Timeline?
+     * @param {boolean} [resetFromTimeline=false] - Is this Tween being played as part of a Timeline?
      *
      * @return {this} This Tween instance.
      */
     play: function (resetFromTimeline)
     {
-        if (this.state === TWEEN_CONST.ACTIVE)
+        if (resetFromTimeline === undefined) { resetFromTimeline = false; }
+
+        if (this.state === TWEEN_CONST.ACTIVE || this.state === TWEEN_CONST.PENDING_ADD)
         {
             return this;
         }
         else if (this.state === TWEEN_CONST.PENDING_REMOVE || this.state === TWEEN_CONST.REMOVED)
         {
-            this.init();
+            this.seek(0);
             this.parent.makeActive(this);
-            resetFromTimeline = true;
+
+            return this;
         }
 
         var onStart = this.callbacks.onStart;
@@ -728,14 +745,15 @@ var Tween = new Class({
 
                 tweenData.state = TWEEN_CONST.PLAYING_FORWARD;
             }
-            else if (tweenData.delay > 0)
-            {
-                tweenData.elapsed = tweenData.delay;
-                tweenData.state = TWEEN_CONST.DELAY;
-            }
             else
             {
                 tweenData.state = TWEEN_CONST.PENDING_RENDER;
+            }
+
+            if (tweenData.delay > 0)
+            {
+                tweenData.elapsed = tweenData.delay;
+                tweenData.state = TWEEN_CONST.DELAY;
             }
         }
     },
@@ -923,7 +941,7 @@ var Tween = new Class({
      * @method Phaser.Tweens.Tween#stop
      * @since 3.0.0
      *
-     * @param {number} [resetTo] - If you want to seek the tween, provide an value between 0 and 1.
+     * @param {number} [resetTo] - If you want to seek the tween, provide a value between 0 and 1.
      *
      * @return {this} This Tween instance.
      */
@@ -941,8 +959,16 @@ var Tween = new Class({
         {
             if (this.state === TWEEN_CONST.PAUSED || this.state === TWEEN_CONST.PENDING_ADD)
             {
-                this.parent._destroy.push(this);
-                this.parent._toProcess++;
+                if (this.parentIsTimeline)
+                {
+                    this.parent.manager._destroy.push(this);
+                    this.parent.manager._toProcess++;
+                }
+                else
+                {
+                    this.parent._destroy.push(this);
+                    this.parent._toProcess++;
+                }
             }
 
             this.state = TWEEN_CONST.PENDING_REMOVE;
