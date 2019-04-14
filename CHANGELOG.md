@@ -53,6 +53,8 @@ Notes:
 
 ### New Features
 
+* `Camera.setMask` is a new method that allows you to set a geometry or bitmap mask on any camera. The mask can be set to remain fixed in position, or to translate along with the camera. It will impact anything the camera renders. A reference to the mask is stored in the `Camera.mask` property.
+* `Camera.clearMask` is a new method that clears a previously set mask on a Camera.
 * There is a new Game Config property `input.windowEvents` which is true by default. It controls if Phaser will listen for any input events on the Window. If you disable this, Phaser will stop being able to emit events like `POINTER_UP_OUTSIDE`, or be aware of anything that happens outside of the Canvas re: input.
 * A Scene will now emit the new `CREATE` event after it has been created by the Scene Manager. If the Scene has a `create` method this event comes after that, so is useful to knowing when a Scene may have finished creating Game Objects, etc. (thanks @jackfreak)
 * `Tilemap.removeTile` is a new method that allows you to remove a tile, or an array of tiles, by passing in references to the tiles themselves, rather than coordinates. The tiles can be replaced with new tiles of the given index, or removed entirely, and the method can optionally recalculate interesting faces on the layer.
@@ -118,6 +120,8 @@ Notes:
 * `Tilemap.shuffle` now actually returns `null` if an invalid layer was given, as per the docs.
 * `Tilemap.swapByIndex` now actually returns `null` if an invalid layer was given, as per the docs.
 * `Tilemap.weightedRandomize` now actually returns `null` if an invalid layer was given, as per the docs.
+* `BaseCamera.cameraManager` is a new property that is a reference to the Camera Manager, set in the `setScene` method.
+* `CameraManager.default` is a new property that contains a single un-transformed instance of a Camera, that exists outside of the camera list and doesn't render. It's used by other systems as a default camera matrix.
 
 ### Bug Fixes
 
@@ -142,6 +146,9 @@ Notes:
 * The InputPlugin will now dispatch an update event regardless, allowing the Gamepad Plugin to update itself every frame, regardless of OM events. This allows Gamepads to work correctly again. Fix #4414 (thanks @CipSoft-Components)
 * Calling `Tween.play` on a tween that had already finished and was pending removal will stop the tween from getting stuck in an `isPlaying` state and will restart the tween again from the beginning. Calling `play` on a Tween that is already playing does nothing. Fix #4184 (thanks @SamCode)
 * Declared `Audio.dataset`, which fixes Internet Explorer 10 crashing when trying to access the dataset property of the object (thanks @SirLink)
+* Previously, setting a mask on a Particle Emitter wouldn't work (it had to be set on the Emitter Manager instance), even though the mask methods and properties existed. You can now set a geometry or bitmap mask directly on an emitter.
+* The Particle Emitter Manager was missing the Mask component, even though it fully supported masking. The Mask component has now been added. You can now mask the manager, which impacts all emitters you create through it, or a specific emitter. Different emitters can have different masks, although they override the parent mask, if set.
+* You can now apply a Bitmap Mask to a Camera or Container and a Geometry Mask to a child and have it work correctly.
 
 ### Examples, Documentation and TypeScript
 
