@@ -44,7 +44,7 @@ Notes:
 * The `Body.delta` values are now able to be read and acted upon during a Scene update, due to the new game step flow. This means you can now call `this.physics.collide` during a Scene `update` and it will work properly again. Fix #4370 (thanks @NokFrt)
 * `ArcadePhysics.furthest` now iterates the bodies Set, rather than the RTree, which keeps it working even if the RTree has been disabled.
 * `ArcadePhysics.closest` now iterates the bodies Set, rather than the RTree, which keeps it working even if the RTree has been disabled.
-* `Body.setVelocity` was cause the `speed` property to be set to `NaN` if you didn't provide a `y` argument.
+* `Body.setVelocity` caused the `speed` property to be set to `NaN` if you didn't provide a `y` argument.
 
 ### Facebook Instant Games Plugin
 
@@ -122,6 +122,7 @@ Notes:
 * `Tilemap.weightedRandomize` now actually returns `null` if an invalid layer was given, as per the docs.
 * `BaseCamera.cameraManager` is a new property that is a reference to the Camera Manager, set in the `setScene` method.
 * `CameraManager.default` is a new property that contains a single un-transformed instance of a Camera, that exists outside of the camera list and doesn't render. It's used by other systems as a default camera matrix.
+* The `Graphics` Game Object now has 3 new Transform Matrix instances called `_tempMatrix1` to `_tempMatrix3`, which are used by it during the WebGL Rendering process. This is because Graphics objects can be used as Geometry Masks, which need to retain their own matrix state mid-render of another object, so cannot share the renderer temp matrices that other Game Objects can use. This also indirectly fixes an issue where masked children (such as emitters or container children) would get incorrect camera scroll values.
 
 ### Bug Fixes
 
@@ -143,7 +144,7 @@ Notes:
 * Calling `Tween.restart` multiple times in a row would cause the tween to freeze. It will now disregard all additional calls to `restart` if it's already in a pending state (thanks @rgk)
 * Tween Timelines would only apply the `delay` value of a child tween once and not on loop. Fix #3841 (thanks @Edwin222 @Antriel)
 * `Texture.add` will no longer let you add a frame to a texture with the same name or index as one that already exists in the texture. Doing so will now return `null` instead of a Frame object, and the `frameTotal` will never be incremented. Fix #4459 (thanks @BigZaphod)
-* The InputPlugin will now dispatch an update event regardless, allowing the Gamepad Plugin to update itself every frame, regardless of OM events. This allows Gamepads to work correctly again. Fix #4414 (thanks @CipSoft-Components)
+* The InputPlugin will now dispatch an update event, allowing the Gamepad Plugin to update itself every frame, regardless of DOM events. This allows Gamepads to work correctly again. Fix #4414 (thanks @CipSoft-Components)
 * Calling `Tween.play` on a tween that had already finished and was pending removal will stop the tween from getting stuck in an `isPlaying` state and will restart the tween again from the beginning. Calling `play` on a Tween that is already playing does nothing. Fix #4184 (thanks @SamCode)
 * Declared `Audio.dataset`, which fixes Internet Explorer 10 crashing when trying to access the dataset property of the object (thanks @SirLink)
 * Previously, setting a mask on a Particle Emitter wouldn't work (it had to be set on the Emitter Manager instance), even though the mask methods and properties existed. You can now set a geometry or bitmap mask directly on an emitter.
