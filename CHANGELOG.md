@@ -8,6 +8,20 @@ Notes:
 3) GO auto-add to Scene
 4) GO move to another Scene
 
+### Geometry and Bitmap Masks
+
+* `Camera.setMask` is a new method that allows you to set a geometry or bitmap mask on any camera. The mask can be set to remain fixed in position, or to translate along with the camera. It will impact anything the camera renders. A reference to the mask is stored in the `Camera.mask` property.
+* `Camera.clearMask` is a new method that clears a previously set mask on a Camera.
+* There is a new Game Config property `input.windowEvents` which is true by default. It controls if Phaser will listen for any input events on the Window. If you disable this, Phaser will stop being able to emit events like `POINTER_UP_OUTSIDE`, or be aware of anything that happens outside of the Canvas re: input.
+* Containers can now contain masked children and have those masks respected, including the mask on the Container itself (if any). Masks work on any depth of child up to 255 children deep.
+* Geometry Masks are now batched. Previously, using the same mask on multiple Game Objects would create brand new stencil operations for every single Game Object, causing performance to tank. Now, the mask is only set if it's different from the previously masked object in the display list, allowing you to mask thousands of Game Objects and retain batching through-out.
+* `GeometryMask.setInvertAlpha` is a new method that allows you to set the `invertAlpha` property in a chainable call.
+* Previously, setting a mask on a Particle Emitter wouldn't work (it had to be set on the Emitter Manager instance), even though the mask methods and properties existed. You can now set a geometry or bitmap mask directly on an emitter.
+* The Particle Emitter Manager was missing the Mask component, even though it fully supported masking. The Mask component has now been added. You can now mask the manager, which impacts all emitters you create through it, or a specific emitter. Different emitters can have different masks, although they override the parent mask, if set.
+* You can now apply a Bitmap Mask to a Camera or Container and a Geometry Mask to a child and have it work correctly.
+* `WebGLRenderer.maskCount` is a new internal property that tracks the number of masks in the stack.
+* `WebGLRenderer.maskStack` is a new internal array that contains the current mask stack.
+
 ### Arcade Physics
 
 #### New Features
@@ -53,9 +67,6 @@ Notes:
 
 ### New Features
 
-* `Camera.setMask` is a new method that allows you to set a geometry or bitmap mask on any camera. The mask can be set to remain fixed in position, or to translate along with the camera. It will impact anything the camera renders. A reference to the mask is stored in the `Camera.mask` property.
-* `Camera.clearMask` is a new method that clears a previously set mask on a Camera.
-* There is a new Game Config property `input.windowEvents` which is true by default. It controls if Phaser will listen for any input events on the Window. If you disable this, Phaser will stop being able to emit events like `POINTER_UP_OUTSIDE`, or be aware of anything that happens outside of the Canvas re: input.
 * A Scene will now emit the new `CREATE` event after it has been created by the Scene Manager. If the Scene has a `create` method this event comes after that, so is useful to knowing when a Scene may have finished creating Game Objects, etc. (thanks @jackfreak)
 * `Tilemap.removeTile` is a new method that allows you to remove a tile, or an array of tiles, by passing in references to the tiles themselves, rather than coordinates. The tiles can be replaced with new tiles of the given index, or removed entirely, and the method can optionally recalculate interesting faces on the layer.
 * `TweenManager.remove` is a new method that immediately removes the given Tween from all of its internal arrays.
@@ -80,6 +91,11 @@ Notes:
 * `Geom.Intersects.GetTriangleToTriangle` is a new function that will return the point/s of intersection between two triangles (thanks @florianvazelle)
 * `Size.setCSS` is a new method that will set the Size components width and height to the respective CSS style properties of the given element.
 * `CSSFile` is a new Loader FileType that allows you to load css into the current document via the normal Phaser Loader, using the `load.css` method. As such, you can chain it with other load calls, load via config, use as part of a pack load or any other option available to all loader filetypes. The CSS is applied immediately to the document.
+* `MultiScriptFile` is a new Loader FileType that allows you to load multiple script files into the document via the Phaser Loader, using the new `load.scripts` method. The difference between this and `load.script` is that you must pass an array of script file URLs to this method and they will be loaded in parallel but _processed_ (i.e. added to the document) in the exact order specified in the array. This allows you to load a bundle of scripts that have dependencies on each other.
+* `Key.getDuration` is a new method that will return the duration, in ms, that the Key has been held down for. If the Key isn't down it will return zero.
+* The `Container.setScrollFactor` method has a new optional argument `updateChildren`. If set, it will change the `scrollFactor` values of all the Container children as well as the Container. Fix #4466 #4475 (thanks @pinkkis @enriqueto)
+* There is a new webpack config `FEATURE_SOUND` which is set to `true` by default, but if set to `false` it will exclude the Sound Manager and all of its systems into the build files. Fix #4428 (thanks @goldfire)
+* `Scene.Systems.renderer` is a new property that is a reference to the current renderer the game is using.
 
 ### Updates
 
@@ -124,6 +140,9 @@ Notes:
 * `BaseCamera.cameraManager` is a new property that is a reference to the Camera Manager, set in the `setScene` method.
 * `CameraManager.default` is a new property that contains a single un-transformed instance of a Camera, that exists outside of the camera list and doesn't render. It's used by other systems as a default camera matrix.
 * The `Graphics` Game Object now has 3 new Transform Matrix instances called `_tempMatrix1` to `_tempMatrix3`, which are used by it during the WebGL Rendering process. This is because Graphics objects can be used as Geometry Masks, which need to retain their own matrix state mid-render of another object, so cannot share the renderer temp matrices that other Game Objects can use. This also indirectly fixes an issue where masked children (such as emitters or container children) would get incorrect camera scroll values.
+* The `Key` method signature has changed. It now expects to receive a reference to the KeyboardPlugin instance that is creating the Key as the first argument. This is now stored in the new `Key.plugin` property, and cleared in `destroy`.
+* `KeyboardPlugin.removeKey` has a new optional argument `destroy` that will, if set, destroy the Key object being removed from the plugin.
+* `InteractiveObject.customHitArea` is a new property that records if the hitArea for the Interactive Object was created based on texture size (false), or a custom shape (true)
 
 ### Bug Fixes
 
@@ -148,9 +167,18 @@ Notes:
 * The InputPlugin will now dispatch an update event, allowing the Gamepad Plugin to update itself every frame, regardless of DOM events. This allows Gamepads to work correctly again. Fix #4414 (thanks @CipSoft-Components)
 * Calling `Tween.play` on a tween that had already finished and was pending removal will stop the tween from getting stuck in an `isPlaying` state and will restart the tween again from the beginning. Calling `play` on a Tween that is already playing does nothing. Fix #4184 (thanks @SamCode)
 * Declared `Audio.dataset`, which fixes Internet Explorer 10 crashing when trying to access the dataset property of the object (thanks @SirLink)
-* Previously, setting a mask on a Particle Emitter wouldn't work (it had to be set on the Emitter Manager instance), even though the mask methods and properties existed. You can now set a geometry or bitmap mask directly on an emitter.
-* The Particle Emitter Manager was missing the Mask component, even though it fully supported masking. The Mask component has now been added. You can now mask the manager, which impacts all emitters you create through it, or a specific emitter. Different emitters can have different masks, although they override the parent mask, if set.
-* You can now apply a Bitmap Mask to a Camera or Container and a Geometry Mask to a child and have it work correctly.
+* The `InputManager.update` method is now called every frame, as long as a native DOM event hasn't already fired it, which allows things like `setPollRate` to work again. Fix #4405 (thanks @Shucki)
+* `Pointer.getDuration` would only return zero until the pointer was released, or moved (basically any action that generated a DOM event). It now returns the duration regardless of the DOM events. Fix #4444 (thanks @plazicx)
+* `Keyboard.UpDuration` has been changed so the `duration` being checked is now against the current game clock. This means you can use it to check if a Key was released with `duration` ms ago, based on the time now, not the historic value of the Key.
+* `Keyboard.DownDuration` has been changed so the `duration` being checked is now against the current game clock. This fixes an issue where it couldn't be used while the Key was actively being held down. Fix #4484 (thanks @belen-albeza)
+* Keys would lose track of the state of a Scene when the Scene became paused. They're now updated regardless, stopping them from getting stuck if you pause and resume a Scene while holding them down. Fix #3822 (thanks @DannyT)
+* Changing any aspect of a Text object, such as the font size or content, wouldn't update its `hitArea` if it had been enabled for input, causing it to carry on using the old hit area size. Now, as long as the Text was created _without_ a custom hitArea, the hitArea size will be changed to match the new texture size on update. If you have provided your own custom hitArea shape, you need to modify it when the Text changes size yourself. Fix #4456 (thanks @thanh-taro and @rexrainbow)
+* `Camera.clearRenderToTexture` will check to see if the Scene is available before proceeding, avoiding potential errors when a Camera is destroyed multiple times during a Scene shutdown.
+* Destroying a Game object during its `pointerup` event handler on a touch device will no longer cause `Uncaught TypeError: Cannot read property 'localX' of undefined`. All InputPlugin process handlers now check to see if the Game Object has been destroyed at any stage and abort if it has. Fix #4463 (thanks @PatrickSachs)
+* `InputPlugin.clear` has a new argument `skipQueue` which is used to avoid clearing a Game Object twice. This, combined with the fix for 4463 means you will no longer get a `Cannot read property 'dragState'` error if you destroy a Game Object enabled for drag where another draggable object exists. Fix #4228 (thanks @YannCaron)
+* `Phaser.Physics.Arcade.Events` is now exposed in the namespace, preventing it from erroring if you use them in TypeScript. Fix #4481 (thanks @danielalves)
+* `UpdateList.remove` will now move the removed child to the internal `_pendingRemoval` array, instead of slicing it directly out of the active list. The pending list is cleared at the start of the next game frame. Fix #4365 (thanks @jcyuan)
+* Setting `pixelPerfect` when input enabling a Container would cause it to crash, because Containers don't have a texture to check. It will now throw a run-time warning and skip the Container for input. You should use a custom input callback instead. Fix #4492 (thanks @BigZaphod)
 
 ### Examples, Documentation and TypeScript
 

@@ -23,11 +23,15 @@ var PluginCache = require('../plugins/PluginCache');
 var PluginManager = require('../plugins/PluginManager');
 var ScaleManager = require('../scale/ScaleManager');
 var SceneManager = require('../scene/SceneManager');
-var SoundManagerCreator = require('../sound/SoundManagerCreator');
 var TextureEvents = require('../textures/events');
 var TextureManager = require('../textures/TextureManager');
 var TimeStep = require('./TimeStep');
 var VisibilityHandler = require('./VisibilityHandler');
+
+if (typeof FEATURE_SOUND)
+{
+    var SoundManagerCreator = require('../sound/SoundManagerCreator');
+}
 
 if (typeof PLUGIN_FBINSTANT)
 {
@@ -240,12 +244,19 @@ var Game = new Class({
          * An instance of the base Sound Manager.
          *
          * The Sound Manager is a global system responsible for the playback and updating of all audio in your game.
+         * 
+         * You can disable the inclusion of the Sound Manager in your build by toggling the webpack `FEATURE_SOUND` flag.
          *
          * @name Phaser.Game#sound
          * @type {Phaser.Sound.BaseSoundManager}
          * @since 3.0.0
          */
-        this.sound = SoundManagerCreator.create(this);
+        this.sound = null;
+
+        if (typeof FEATURE_SOUND)
+        {
+            this.sound = SoundManagerCreator.create(this);
+        }
 
         /**
          * An instance of the Time Step.

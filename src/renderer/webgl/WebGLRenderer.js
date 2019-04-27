@@ -16,7 +16,7 @@ var TransformMatrix = require('../../gameobjects/components/TransformMatrix');
 var Utils = require('./Utils');
 var WebGLSnapshot = require('../snapshot/WebGLSnapshot');
 
-// Default Pipelines
+//  Default Pipelines
 var BitmapMaskPipeline = require('./pipelines/BitmapMaskPipeline');
 var ForwardDiffuseLightPipeline = require('./pipelines/ForwardDiffuseLightPipeline');
 var TextureTintPipeline = require('./pipelines/TextureTintPipeline');
@@ -471,19 +471,40 @@ var WebGLRenderer = new Class({
         this._tempMatrix4 = new TransformMatrix();
 
         /**
-         * A reference to the mask the current camera is using, if any.
+         * The total number of masks currently stacked.
+         *
+         * @name Phaser.Renderer.WebGL.WebGLRenderer#maskCount
+         * @type {integer}
+         * @since 3.17.0
+         */
+        this.maskCount = 0;
+
+        /**
+         * The mask stack.
+         *
+         * @name Phaser.Renderer.WebGL.WebGLRenderer#maskStack
+         * @type {Phaser.Display.Masks.GeometryMask[]}
+         * @since 3.17.0
+         */
+        this.maskStack = [];
+
+        /**
+         * Internal property that tracks the currently set mask.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#currentMask
-         * @type {(Phaser.Display.Masks.BitmapMask|Phaser.Display.Masks.GeometryMask)}
+         * @type {Phaser.Display.Masks.GeometryMask}
          * @since 3.17.0
          */
         this.currentMask = null;
 
-        this.maskCount = 0;
-
-        this.maskReverse = true;
-
-        this.maskStack = [];
+        /**
+         * Internal property that tracks the currently set camera mask.
+         *
+         * @name Phaser.Renderer.WebGL.WebGLRenderer#currentCameraMask
+         * @type {Phaser.Display.Masks.GeometryMask}
+         * @since 3.17.0
+         */
+        this.currentCameraMask = null;
 
         this.init(this.config);
     },
@@ -978,6 +999,22 @@ var WebGLRenderer = new Class({
     },
 
     /**
+     * Is there an active stencil mask?
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#hasActiveStencilMask
+     * @since 3.17.0
+     * 
+     * @return {boolean} `true` if there is an active stencil mask, otherwise `false`.
+     */
+    hasActiveStencilMask: function ()
+    {
+        var mask = this.currentMask;
+        var camMask = this.currentCameraMask;
+
+        return ((mask && mask.isStencil) || (camMask && camMask.isStencil));
+    },
+
+    /**
      * Use this to reset the gl context to the state that Phaser requires to continue rendering.
      * Calling this will:
      * 
@@ -1002,9 +1039,17 @@ var WebGLRenderer = new Class({
 
         gl.disable(gl.DEPTH_TEST);
         gl.disable(gl.CULL_FACE);
-        gl.disable(gl.STENCIL_TEST);
-    
-        gl.clear(gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+
+        if (this.hasActiveStencilMask())
+        {
+            gl.clear(gl.DEPTH_BUFFER_BIT);
+        }
+        else
+        {
+            //  If there wasn't a stencil mask set before this call, we can disable it safely
+            gl.disable(gl.STENCIL_TEST);
+            gl.clear(gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+        }
 
         gl.viewport(0, 0, this.width, this.height);
 
@@ -1703,9 +1748,6 @@ var WebGLRenderer = new Class({
 
         var color = camera.backgroundColor;
 
-        //  Clear the current mask, if set
-        this.currentMask = null;
-
         if (camera.renderToTexture)
         {
             this.flush();
@@ -1716,7 +1758,7 @@ var WebGLRenderer = new Class({
 
             if (camera.mask)
             {
-                this.setCameraMask(camera);
+                camera.mask.preRenderWebGL(this, camera, camera._maskCamera);
             }
 
             this.setFramebuffer(camera.framebuffer);
@@ -1746,7 +1788,9 @@ var WebGLRenderer = new Class({
 
             if (camera.mask)
             {
-                this.setCameraMask(camera);
+                this.currentCameraMask = camera.mask;
+
+                camera.mask.preRenderWebGL(this, camera, camera._maskCamera);
             }
 
             if (color.alphaGL > 0)
@@ -1822,7 +1866,9 @@ var WebGLRenderer = new Class({
 
         if (camera.mask)
         {
-            this.clearCameraMask(camera);
+            this.currentCameraMask = null;
+
+            camera.mask.postRenderWebGL(this, camera._maskCamera);
         }
     },
 
@@ -1868,6 +1914,10 @@ var WebGLRenderer = new Class({
         {
             gl.scissor(0, (this.drawingBufferHeight - this.height), this.width, this.height);
         }
+
+        this.currentMask = null;
+        this.currentCameraMask = null;
+        this.maskStack.length = 0;
 
         this.setPipeline(this.pipelines.TextureTintPipeline);
     },
@@ -1920,14 +1970,30 @@ var WebGLRenderer = new Class({
                 this.setBlendMode(child.blendMode);
             }
 
-            if (child.mask)
+            var mask = child.mask;
+
+            if (mask !== this.currentMask)
             {
-                this.setChildMask(this, child, interpolationPercentage, camera);
+                if (this.currentMask)
+                {
+                    //  Render out the previously set mask
+                    this.currentMask.postRenderWebGL(this, camera);
+                }
+    
+                if (mask)
+                {
+                    //  Set-up the new mask
+                    mask.preRenderWebGL(this, child, camera);
+                }
             }
-            else
-            {
-                child.renderWebGL(this, child, interpolationPercentage, camera);
-            }
+
+            child.renderWebGL(this, child, interpolationPercentage, camera);
+        }
+
+        if (this.currentMask)
+        {
+            //  Render out the previously set mask, if it was the last item in the display list
+            this.currentMask.postRenderWebGL(this, camera);
         }
 
         this.setBlendMode(CONST.BlendModes.NORMAL);
@@ -1965,29 +2031,6 @@ var WebGLRenderer = new Class({
         {
             pipelines[key].onPostRender();
         }
-    },
-
-    setCameraMask: function (camera)
-    {
-        var mask = camera.mask;
-
-        mask.preRenderWebGL(this, camera, camera._maskCamera);
-    },
-
-    clearCameraMask: function (camera)
-    {
-        camera.mask.postRenderWebGL(this, camera._maskCamera);
-    },
-
-    setChildMask: function (renderer, child, interpolationPercentage, camera)
-    {
-        var mask = child.mask;
-
-        mask.preRenderWebGL(renderer, child, camera);
-
-        child.renderWebGL(renderer, child, interpolationPercentage, camera);
-
-        mask.postRenderWebGL(renderer, camera);
     },
 
     /**
@@ -2545,6 +2588,8 @@ var WebGLRenderer = new Class({
 
         delete this.gl;
         delete this.game;
+
+        this.maskStack.length = 0;
 
         this.contextLost = true;
         this.extensions = {};
