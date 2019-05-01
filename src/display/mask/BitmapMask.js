@@ -125,7 +125,7 @@ var BitmapMask = new Class({
         this.prevFramebuffer = null;
 
         /**
-         * Whether to invert the mask's alpha.
+         * Whether to invert the masks alpha.
          *
          * If `true`, the alpha of the masking pixel will be inverted before it's multiplied with the masked pixel. Essentially, this means that a masked area will be visible only if the corresponding area in the mask is invisible.
          *
@@ -135,6 +135,14 @@ var BitmapMask = new Class({
          */
         this.invertAlpha = false;
 
+        /**
+         * Is this mask a stencil mask?
+         *
+         * @name Phaser.Display.Masks.BitmapMask#isStencil
+         * @type {boolean}
+         * @readonly
+         * @since 3.17.0
+         */
         this.isStencil = false;
 
         if (renderer && renderer.gl)
@@ -196,21 +204,7 @@ var BitmapMask = new Class({
      */
     preRenderWebGL: function (renderer, maskedObject, camera)
     {
-        // if (renderer.maskStack.length === 0)
-        // {
-        //     renderer.maskCount = 0;
-        // }
-
-        // if (renderer.currentCameraMask !== this)
-        // {
-        //     renderer.currentMask = this;
-        // }
-
-        // renderer.maskStack.push({ mask: this, camera: camera });
-
         renderer.pipelines.BitmapMaskPipeline.beginMask(this, maskedObject, camera);
-
-        // renderer.maskCount++;
     },
 
     /**
@@ -226,34 +220,6 @@ var BitmapMask = new Class({
     postRenderWebGL: function (renderer, camera)
     {
         renderer.pipelines.BitmapMaskPipeline.endMask(this, camera);
-
-        /*
-        renderer.maskStack.pop();
-
-        renderer.maskCount--;
-
-        if (renderer.maskStack.length === 0)
-        {
-            renderer.pipelines.BitmapMaskPipeline.endMask(this);
-
-            renderer.currentMask = null;
-        }
-        else
-        {
-            //  Get the mask previous to this one
-            var prev = renderer.maskStack[renderer.maskStack.length - 1];
-            var bitmapMask = prev.mask;
-
-            // var camera = prev.camera;
-
-            if (renderer.currentCameraMask !== bitmapMask)
-            {
-                renderer.currentMask = bitmapMask;
-            }
-
-            renderer.setFramebuffer(bitmapMask.mainFramebuffer);
-        }
-        */
     },
 
     /**
