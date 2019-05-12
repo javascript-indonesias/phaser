@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 //  Based on the three.js Curve classes created by [zz85](http://www.lab4games.net/zz85/blog)
@@ -25,7 +25,7 @@ var Vector2 = require('../math/Vector2');
  * @constructor
  * @since 3.0.0
  *
- * @param {(number|Phaser.Curves.Types.EllipseCurveConfig)} [x=0] - The x coordinate of the ellipse, or an Ellipse Curve configuration object.
+ * @param {(number|Phaser.Types.Curves.EllipseCurveConfig)} [x=0] - The x coordinate of the ellipse, or an Ellipse Curve configuration object.
  * @param {number} [y=0] - The y coordinate of the ellipse.
  * @param {number} [xRadius=0] - The horizontal radius of ellipse.
  * @param {number} [yRadius=0] - The vertical radius of ellipse.
@@ -581,7 +581,7 @@ var EllipseCurve = new Class({
      * @method Phaser.Curves.Ellipse#toJSON
      * @since 3.0.0
      *
-     * @return {Phaser.Curves.Types.JSONEllipseCurve} The JSON object containing this curve data.
+     * @return {Phaser.Types.Curves.JSONEllipseCurve} The JSON object containing this curve data.
      */
     toJSON: function ()
     {
@@ -606,7 +606,7 @@ var EllipseCurve = new Class({
  * @function Phaser.Curves.Ellipse.fromJSON
  * @since 3.0.0
  *
- * @param {Phaser.Curves.Types.JSONEllipseCurve} data - The JSON object containing this curve data.
+ * @param {Phaser.Types.Curves.JSONEllipseCurve} data - The JSON object containing this curve data.
  *
  * @return {Phaser.Curves.Ellipse} The ellipse curve constructed from the configuration object.
  */

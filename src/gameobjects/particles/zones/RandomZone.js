@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../../utils/Class');
@@ -16,7 +16,7 @@ var Vector2 = require('../../../math/Vector2');
  * @constructor
  * @since 3.0.0
  *
- * @param {Phaser.GameObjects.Particles.Types.RandomZoneSource} source - An object instance with a `getRandomPoint(point)` method.
+ * @param {Phaser.Types.GameObjects.Particles.RandomZoneSource} source - An object instance with a `getRandomPoint(point)` method.
  */
 var RandomZone = new Class({
 
@@ -28,7 +28,7 @@ var RandomZone = new Class({
          * An object instance with a `getRandomPoint(point)` method.
          *
          * @name Phaser.GameObjects.Particles.Zones.RandomZone#source
-         * @type {Phaser.GameObjects.Particles.Types.RandomZoneSource}
+         * @type {Phaser.Types.GameObjects.Particles.RandomZoneSource}
          * @since 3.0.0
          */
         this.source = source;

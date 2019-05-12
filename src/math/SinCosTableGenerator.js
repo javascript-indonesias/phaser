@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
@@ -15,7 +15,7 @@
  * @param {number} [cosAmp=1] - The cosine value amplitude.
  * @param {number} [frequency=1] - The frequency of the values.
  *
- * @return {Phaser.Math.Types.SinCosTable} The generated values.
+ * @return {Phaser.Types.Math.SinCosTable} The generated values.
  */
 var SinCosTableGenerator = function (length, sinAmp, cosAmp, frequency)
 {

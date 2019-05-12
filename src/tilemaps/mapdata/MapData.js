@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
@@ -18,7 +18,7 @@ var GetFastValue = require('../../utils/object/GetFastValue');
  * @constructor
  * @since 3.0.0
  *
- * @param {Phaser.Tilemaps.Types.MapDataConfig} [config] - The Map configuration object.
+ * @param {Phaser.Types.Tilemaps.MapDataConfig} [config] - The Map configuration object.
  */
 var MapData = new Class({
 

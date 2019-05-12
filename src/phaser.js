@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 require('./polyfills');
@@ -17,6 +17,7 @@ var Phaser = {
 
     Actions: require('./actions'),
     Animations: require('./animations'),
+    BlendModes: require('./renderer/BlendModes'),
     Cache: require('./cache'),
     Cameras: require('./cameras'),
     Core: require('./core'),
@@ -37,6 +38,7 @@ var Phaser = {
     Plugins: require('./plugins'),
     Renderer: require('./renderer'),
     Scale: require('./scale'),
+    ScaleModes: require('./renderer/ScaleModes'),
     Scene: require('./scene/Scene'),
     Scenes: require('./scene'),
     Structs: require('./structs'),
@@ -71,6 +73,13 @@ if (typeof PLUGIN_FBINSTANT)
 //   Merge in the consts
 
 Phaser = Extend(false, Phaser, CONST);
+
+/**
+ * The root types namespace.
+ * 
+ * @namespace Phaser.Types
+ * @since 3.17.0
+ */
 
 //  Export it
 

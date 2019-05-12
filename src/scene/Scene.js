@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../utils/Class');
@@ -9,14 +9,14 @@ var Systems = require('./Systems');
 
 /**
  * @classdesc
- * A base Phaser.Scene class which you could extend for your own use.
+ * A base Phaser.Scene class which can be extended for your own use.
  *
  * @class Scene
  * @memberof Phaser
  * @constructor
  * @since 3.0.0
  *
- * @param {(string|Phaser.Scenes.Types.SettingsConfig)} config - Scene specific configuration settings.
+ * @param {(string|Phaser.Types.Scenes.SettingsConfig)} config - Scene specific configuration settings.
  */
 var Scene = new Class({
 
@@ -265,6 +265,18 @@ var Scene = new Class({
          * @since 3.16.2
          */
         this.scale;
+
+        /**
+         * A reference to the Plugin Manager.
+         *
+         * The Plugin Manager is a global system that allows plugins to register themselves with it, and can then install
+         * those plugins into Scenes as required.
+         *
+         * @name Phaser.Scene#plugins
+         * @type {Phaser.Plugins.PluginManager}
+         * @since 3.0.0
+         */
+        this.plugins;
     },
 
     /**

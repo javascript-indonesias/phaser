@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
@@ -656,7 +656,7 @@ var ModelViewProjection = {
     },
 
     /**
-     * Sets up an orthographics projection matrix
+     * Sets up an orthographic projection matrix
      * 
      * @method Phaser.Renderer.WebGL.Pipelines.ModelViewProjection#projOrtho
      * @since 3.0.0

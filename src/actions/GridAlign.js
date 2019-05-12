@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var AlignIn = require('../display/align/in/QuickSet');
@@ -22,7 +22,7 @@ var tempZone = new Zone({ sys: { queueDepthSort: NOOP, events: { once: NOOP } } 
  * @generic {Phaser.GameObjects.GameObject[]} G - [items,$return]
  *
  * @param {(array|Phaser.GameObjects.GameObject[])} items - The array of items to be updated by this action.
- * @param {Phaser.Actions.Types.GridAlignConfig} options - The GridAlign Configuration object.
+ * @param {Phaser.Types.Actions.GridAlignConfig} options - The GridAlign Configuration object.
  *
  * @return {(array|Phaser.GameObjects.GameObject[])} The array of objects that were passed to this Action.
  */

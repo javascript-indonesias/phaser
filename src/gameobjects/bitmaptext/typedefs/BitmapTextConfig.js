@@ -1,6 +1,6 @@
 /**
- * @typedef {object} Phaser.GameObjects.BitmapText.Types.BitmapTextConfig
- * @extends Phaser.GameObjects.Types.GameObjectConfig
+ * @typedef {object} Phaser.Types.GameObjects.BitmapText.BitmapTextConfig
+ * @extends Phaser.Types.GameObjects.GameObjectConfig
  * @since 3.0.0
  *
  * @property {string} [font=''] - The key of the font to use from the BitmapFont cache.

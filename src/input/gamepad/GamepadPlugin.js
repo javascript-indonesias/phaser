@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
@@ -78,7 +78,7 @@ var GamepadPlugin = new Class({
          * A reference to the Scene Systems Settings.
          *
          * @name Phaser.Input.Gamepad.GamepadPlugin#settings
-         * @type {Phaser.Scenes.Types.SettingsObject}
+         * @type {Phaser.Types.Scenes.SettingsObject}
          * @since 3.10.0
          */
         this.settings = this.scene.sys.settings;

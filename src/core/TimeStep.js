@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../utils/Class');
@@ -30,7 +30,7 @@ var RequestAnimationFrame = require('../dom/RequestAnimationFrame');
  * @since 3.0.0
  *
  * @param {Phaser.Game} game - A reference to the Phaser.Game instance that owns this Time Step.
- * @param {Phaser.Core.Types.FPSConfig} config
+ * @param {Phaser.Types.Core.FPSConfig} config
  */
 var TimeStep = new Class({
 
@@ -166,7 +166,7 @@ var TimeStep = new Class({
          * A callback to be invoked each time the Time Step steps.
          *
          * @name Phaser.Core.TimeStep#callback
-         * @type {Phaser.Core.Types.TimeStepCallback}
+         * @type {Phaser.Types.Core.TimeStepCallback}
          * @default NOOP
          * @since 3.0.0
          */
@@ -404,7 +404,7 @@ var TimeStep = new Class({
      * @method Phaser.Core.TimeStep#start
      * @since 3.0.0
      *
-     * @param {Phaser.Core.Types.TimeStepCallback} callback - The callback to be invoked each time the Time Step steps.
+     * @param {Phaser.Types.Core.TimeStepCallback} callback - The callback to be invoked each time the Time Step steps.
      */
     start: function (callback)
     {

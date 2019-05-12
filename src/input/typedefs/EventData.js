@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
@@ -9,7 +9,7 @@
  * 
  * This object is passed to the registered event listeners and allows you to stop any further propagation.
  * 
- * @typedef {object} Phaser.Input.Types.EventData
+ * @typedef {object} Phaser.Types.Input.EventData
  * @since 3.15.1
  * 
  * @property {boolean} [cancelled=false] - The cancelled state of this Event.

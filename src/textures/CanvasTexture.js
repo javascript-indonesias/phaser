@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../utils/Class');
@@ -422,7 +422,7 @@ var CanvasTexture = new Class({
      * @param {integer} width - The width of the region to get. Must be an integer.
      * @param {integer} [height] - The height of the region to get. Must be an integer. If not given will be set to the `width`.
      * 
-     * @return {Phaser.Textures.Types.PixelConfig[]} An array of Pixel objects.
+     * @return {Phaser.Types.Textures.PixelConfig[]} An array of Pixel objects.
      */
     getPixels: function (x, y, width, height)
     {

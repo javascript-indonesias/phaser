@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 /**
@@ -11,7 +11,7 @@
  * @since 3.0.0
  *
  * @param {Phaser.GameObjects.Text} text - The Text object to calculate the size from.
- * @param {Phaser.GameObjects.Text.Types.TextMetrics} size - The Text metrics to use when calculating the size.
+ * @param {Phaser.Types.GameObjects.Text.TextMetrics} size - The Text metrics to use when calculating the size.
  * @param {array} lines - The lines of text to calculate the size from.
  *
  * @return {object} An object containing dimensions of the Text object.

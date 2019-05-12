@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var CONST = require('./const');
@@ -475,7 +475,7 @@ var ScaleManager = new Class({
      * @protected
      * @since 3.16.0
      * 
-     * @param {GameConfig} config - The Game configuration object.
+     * @param {Phaser.Types.Core.GameConfig} config - The Game configuration object.
      */
     parseConfig: function (config)
     {
@@ -586,7 +586,7 @@ var ScaleManager = new Class({
      * @method Phaser.Scale.ScaleManager#getParent
      * @since 3.16.0
      * 
-     * @param {GameConfig} config - The Game configuration object.
+     * @param {Phaser.Types.Core.GameConfig} config - The Game configuration object.
      */
     getParent: function (config)
     {

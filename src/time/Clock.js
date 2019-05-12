@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../utils/Class');
@@ -159,7 +159,7 @@ var Clock = new Class({
      * @method Phaser.Time.Clock#addEvent
      * @since 3.0.0
      *
-     * @param {Phaser.Time.Types.TimerEventConfig} config - The configuration for the Timer Event.
+     * @param {Phaser.Types.Time.TimerEventConfig} config - The configuration for the Timer Event.
      *
      * @return {Phaser.Time.TimerEvent} The Timer Event which was created.
      */

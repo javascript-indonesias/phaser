@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
@@ -10,15 +10,6 @@ var GetFastValue = require('../../utils/object/GetFastValue');
 var IsPlainObject = require('../../utils/object/IsPlainObject');
 var MultiFile = require('../MultiFile.js');
 var ScriptFile = require('./ScriptFile.js');
-
-/**
- * @typedef {object} Phaser.Loader.FileTypes.MultiScriptFileConfig
- *
- * @property {string} key - The key of the file. Must be unique within the Loader.
- * @property {string[]} [url] - An array of absolute or relative URLs to load the script files from. They are processed in the order given in the array.
- * @property {string} [extension='js'] - The default file extension to use if no url is provided.
- * @property {Phaser.Loader.Types.XHRSettingsObject} [xhrSettings] - Extra XHR Settings specifically for these files.
- */
 
 /**
  * @classdesc
@@ -35,9 +26,9 @@ var ScriptFile = require('./ScriptFile.js');
  * @since 3.17.0
  *
  * @param {Phaser.Loader.LoaderPlugin} loader - A reference to the Loader that is responsible for this file.
- * @param {(string|Phaser.Loader.FileTypes.MultiScriptFileConfig)} key - The key to use for this file, or a file configuration object.
+ * @param {(string|Phaser.Types.Loader.FileTypes.MultiScriptFileConfig)} key - The key to use for this file, or a file configuration object.
  * @param {string[]} [url] - An array of absolute or relative URLs to load the script files from. They are processed in the order given in the array.
- * @param {Phaser.Loader.Types.XHRSettingsObject} [xhrSettings] - An XHR Settings configuration object for the script files. Used in replacement of the Loaders default XHR Settings.
+ * @param {Phaser.Types.Loader.XHRSettingsObject} [xhrSettings] - An XHR Settings configuration object for the script files. Used in replacement of the Loaders default XHR Settings.
  */
 var MultiScriptFile = new Class({
 
@@ -167,7 +158,7 @@ var MultiScriptFile = new Class({
  * });
  * ```
  *
- * See the documentation for `Phaser.Loader.FileTypes.MultiScriptFileConfig` for more details.
+ * See the documentation for `Phaser.Types.Loader.FileTypes.MultiScriptFileConfig` for more details.
  *
  * Once all the files have finished loading they will automatically be converted into a script element
  * via `document.createElement('script')`. They will have their language set to JavaScript, `defer` set to
@@ -183,10 +174,10 @@ var MultiScriptFile = new Class({
  * @fires Phaser.Loader.LoaderPlugin#addFileEvent
  * @since 3.17.0
  *
- * @param {(string|Phaser.Loader.FileTypes.MultiScriptFileConfig|Phaser.Loader.FileTypes.MultiScriptFileConfig[])} key - The key to use for this file, or a file configuration object, or array of them.
+ * @param {(string|Phaser.Types.Loader.FileTypes.MultiScriptFileConfig|Phaser.Types.Loader.FileTypes.MultiScriptFileConfig[])} key - The key to use for this file, or a file configuration object, or array of them.
  * @param {string[]} [url] - An array of absolute or relative URLs to load the script files from. They are processed in the order given in the array.
  * @param {string} [extension='js'] - The default file extension to use if no url is provided.
- * @param {Phaser.Loader.Types.XHRSettingsObject} [xhrSettings] - Extra XHR Settings specifically for these files.
+ * @param {Phaser.Types.Loader.XHRSettingsObject} [xhrSettings] - Extra XHR Settings specifically for these files.
  *
  * @return {Phaser.Loader.LoaderPlugin} The Loader instance.
  */

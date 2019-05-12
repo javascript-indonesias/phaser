@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
@@ -11,7 +11,7 @@ var TYPE = require('./TYPE');
 var UpdateMotion = require('./UpdateMotion');
 
 /**
- * @callback Phaser.Physics.Impact.Types.BodyUpdateCallback
+ * @callback Phaser.Types.Physics.Impact.BodyUpdateCallback
  * @since 3.0.0
  *
  * @param {Phaser.Physics.Impact.Body} body - [description]
@@ -103,7 +103,7 @@ var Body = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.Body#size
-         * @type {Phaser.Math.Types.Vector2Like}
+         * @type {Phaser.Types.Math.Vector2Like}
          * @since 3.0.0
          */
         this.size = { x: sx, y: sy };
@@ -112,7 +112,7 @@ var Body = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.Body#offset
-         * @type {Phaser.Math.Types.Vector2Like}
+         * @type {Phaser.Types.Math.Vector2Like}
          * @since 3.0.0
          */
         this.offset = { x: 0, y: 0 };
@@ -121,7 +121,7 @@ var Body = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.Body#pos
-         * @type {Phaser.Math.Types.Vector2Like}
+         * @type {Phaser.Types.Math.Vector2Like}
          * @since 3.0.0
          */
         this.pos = { x: x, y: y };
@@ -130,7 +130,7 @@ var Body = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.Body#last
-         * @type {Phaser.Math.Types.Vector2Like}
+         * @type {Phaser.Types.Math.Vector2Like}
          * @since 3.0.0
          */
         this.last = { x: x, y: y };
@@ -139,7 +139,7 @@ var Body = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.Body#vel
-         * @type {Phaser.Math.Types.Vector2Like}
+         * @type {Phaser.Types.Math.Vector2Like}
          * @since 3.0.0
          */
         this.vel = { x: 0, y: 0 };
@@ -148,7 +148,7 @@ var Body = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.Body#accel
-         * @type {Phaser.Math.Types.Vector2Like}
+         * @type {Phaser.Types.Math.Vector2Like}
          * @since 3.0.0
          */
         this.accel = { x: 0, y: 0 };
@@ -157,7 +157,7 @@ var Body = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.Body#friction
-         * @type {Phaser.Math.Types.Vector2Like}
+         * @type {Phaser.Types.Math.Vector2Like}
          * @since 3.0.0
          */
         this.friction = { x: 0, y: 0 };
@@ -166,7 +166,7 @@ var Body = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.Body#maxVel
-         * @type {Phaser.Math.Types.Vector2Like}
+         * @type {Phaser.Types.Math.Vector2Like}
          * @since 3.0.0
          */
         this.maxVel = { x: world.defaults.maxVelocityX, y: world.defaults.maxVelocityY };
@@ -296,7 +296,7 @@ var Body = new Class({
          * [description]
          *
          * @name Phaser.Physics.Impact.Body#updateCallback
-         * @type {?BodyUpdateCallback}
+         * @type {?Phaser.Types.Physics.Impact.BodyUpdateCallback}
          * @since 3.0.0
          */
         this.updateCallback;
@@ -491,7 +491,7 @@ var Body = new Class({
      * @method Phaser.Physics.Impact.Body#toJSON
      * @since 3.0.0
      *
-     * @return {Phaser.Physics.Impact.Types.JSONImpactBody} JSON representation of this body object.
+     * @return {Phaser.Types.Physics.Impact.JSONImpactBody} JSON representation of this body object.
      */
     toJSON: function ()
     {

@@ -9,10 +9,10 @@
  *
  * `key` is required. {@link Phaser.GameObjects.Group#defaultKey} is not used.
  * 
- * @typedef {object} Phaser.GameObjects.Group.Types.GroupCreateConfig
+ * @typedef {object} Phaser.Types.GameObjects.Group.GroupCreateConfig
  * @since 3.0.0
  *
- * @property {?Phaser.GameObjects.Group.Types.GroupClassTypeConstructor} [classType] - The class of each new Game Object.
+ * @property {?Phaser.Types.GameObjects.Group.GroupClassTypeConstructor} [classType] - The class of each new Game Object.
  * @property {string} [key] - The texture key of each new Game Object.
  * @property {?(string|integer)} [frame=null] - The texture frame of each new Game Object.
  * @property {?boolean} [visible=true] - The visible state of each new Game Object.
@@ -40,8 +40,8 @@
  * @property {?number} [setAlpha.value=0] - The alpha value of each new Game Object.
  * @property {?number} [setAlpha.step=0] - Increment each Game Object's alpha from the previous by this amount, starting from `setAlpha.value`.
  * @property {?*} [hitArea] - A geometric shape that defines the hit area for the Game Object.
- * @property {?Phaser.Input.Types.HitAreaCallback} [hitAreaCallback] - A callback to be invoked when the Game Object is interacted with.
- * @property {?(false|Phaser.Actions.Types.GridAlignConfig)} [gridAlign=false] - Align the new Game Objects in a grid using these settings.
+ * @property {?Phaser.Types.Input.HitAreaCallback} [hitAreaCallback] - A callback to be invoked when the Game Object is interacted with.
+ * @property {?(false|Phaser.Types.Actions.GridAlignConfig)} [gridAlign=false] - Align the new Game Objects in a grid using these settings.
  *
  * @see Phaser.Actions.GridAlign
  * @see Phaser.Actions.SetAlpha

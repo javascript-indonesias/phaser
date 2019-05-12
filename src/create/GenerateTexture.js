@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Arne16 = require('./palettes/Arne16');
@@ -14,7 +14,7 @@ var GetValue = require('../utils/object/GetValue');
  * @function Phaser.Create.GenerateTexture
  * @since 3.0.0
  *
- * @param {Phaser.Create.Types.GenerateTextureConfig} config - [description]
+ * @param {Phaser.Types.Create.GenerateTextureConfig} config - [description]
  *
  * @return {HTMLCanvasElement} [description]
  */

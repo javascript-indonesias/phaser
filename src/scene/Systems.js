@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../utils/Class');
@@ -27,7 +27,7 @@ var Settings = require('./Settings');
  * @since 3.0.0
  *
  * @param {Phaser.Scene} scene - The Scene that owns this Systems instance.
- * @param {(string|Phaser.Scenes.Types.SettingsConfig)} config - Scene specific configuration settings.
+ * @param {(string|Phaser.Types.Scenes.SettingsConfig)} config - Scene specific configuration settings.
  */
 var Systems = new Class({
 
@@ -78,7 +78,7 @@ var Systems = new Class({
          * The Scene Configuration object, as passed in when creating the Scene.
          *
          * @name Phaser.Scenes.Systems#config
-         * @type {(string|Phaser.Scenes.Types.SettingsConfig)}
+         * @type {(string|Phaser.Types.Scenes.SettingsConfig)}
          * @since 3.0.0
          */
         this.config = config;
@@ -87,7 +87,7 @@ var Systems = new Class({
          * The Scene Settings. This is the parsed output based on the Scene configuration.
          *
          * @name Phaser.Scenes.Systems#settings
-         * @type {Phaser.Scenes.Types.SettingsObject}
+         * @type {Phaser.Types.Scenes.SettingsObject}
          * @since 3.0.0
          */
         this.settings = Settings.create(config);

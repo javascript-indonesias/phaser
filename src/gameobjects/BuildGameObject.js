@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var BlendModes = require('../renderer/BlendModes');
@@ -16,7 +16,7 @@ var ScaleModes = require('../renderer/ScaleModes');
  *
  * @param {Phaser.Scene} scene - A reference to the Scene.
  * @param {Phaser.GameObjects.GameObject} gameObject - The initial GameObject.
- * @param {Phaser.GameObjects.Types.GameObjectConfig} config - The config to build the GameObject with.
+ * @param {Phaser.Types.GameObjects.GameObjectConfig} config - The config to build the GameObject with.
  *
  * @return {Phaser.GameObjects.GameObject} The built Game Object.
  */

@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var Class = require('../../utils/Class');
@@ -120,7 +120,7 @@ var Shader = new Class({
          * Empty by default and set during a call to the `setShader` method.
          * 
          * @name Phaser.GameObjects.Shader#shader
-         * @type {Phaser.Display.Shader}
+         * @type {Phaser.Display.BaseShader}
          * @since 3.17.0
          */
         this.shader;
@@ -939,7 +939,7 @@ var Shader = new Class({
     /**
      * Internal destroy handler, called as part of the destroy process.
      *
-     * @method Phaser.GameObjects.RenderTexture#preDestroy
+     * @method Phaser.GameObjects.Shader#preDestroy
      * @protected
      * @since 3.17.0
      */
