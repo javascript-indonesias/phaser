@@ -7,13 +7,14 @@
 * `Zones` will now use the new `customHitArea` property introduced in 3.17 to avoid their hit areas from being resized if you specified your own custom hit area (thanks @rexrainbow)
 * The default `BaseShader` vertex shader has a new uniform `uResolution` which is set during the Shader init and load to be the size of the Game Object to which the shader is bound.
 * The default `BaseShader` vertex shader will now set the `fragCoord` varying to be the Game Object height minus the y inPosition. This will give the correct y axis in the fragment shader, causing 'inverted' shaders to display normally when using the default vertex code.
+* There was some test code left in the `DOMElementCSSRenderer` file that caused `getBoundingClientRect` to be called every render. This has been removed, which increases performance significantly for DOM heavy games.
 
 ### Bug Fixes
 
 * Tweens created in a paused state couldn't be started by a call to `play`. Fix #4525 (thanks @TonioParis)
 * If both Arcade Physics circle body positions and the delta equaled zero, the `separateCircle` function would cause the position to be set `NaN` (thanks @hizzd)
-
-
+* The `CameraManager` would incorrectly destroy the `default` Camera in its shutdown method, meaning that if you used a fixed mask camera and stopped then resumed a Scene, the masks would stop working. The default camera is now destroyed only in the `destroy` method. Fix #4520 (thanks @telinc1)
+* Passing a Frame object to `Bob.setFrame` would fail, as it expected a string or integer. It now checks the type of object, and if a Frame it checks to make sure it's a Frame belonging to the parent Blitter's texture, and if so sets it. Fix #4516 (thanks @NokFrt)
 
 
 
