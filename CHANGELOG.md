@@ -9,7 +9,8 @@ The old 'input queue' legacy system, which was deprecated in 3.16, has been remo
 * Removed the `inputQueue` Game config property.
 * Removed the `useQueue`, `queue` and `_updatedThisFrame` properties from the Input Manager.
 * Removed the `legacyUpdate` and `update` methods from the Input Manager.
-* The Input Manager no longer listens for the `GameEvents.POST_STEP` event. Processing has been moved to a `GameEvents.POST_RENDER` event handler.
+* Removed the `ignoreEvents` property as this should now be handled on a per-event basis.
+* The Input Manager no longer listens for the `GameEvents.POST_STEP` event.
 
 As a result, all of the following Input Manager methods have been renamed:
 
@@ -32,8 +33,30 @@ Also, CSS cursors can now be set directly:
 
 * Cursors are now set and reset immediately on the canvas, leading to the removal of `_setCursor` and `_customCursor` properties.
 
-Pointer.lastAction
-Pointer calls reset itself
+The following changes took place in the Input Plugin class:
+
+* The method `processDragEvents` has been removed as it's now split across smaller, more explicit methods.
+* `processDragDownEvent` is a new method that handles a down event for drag enabled Game Objects.
+* `processDragMoveEvent` is a new method that handles a move event for drag enabled Game Objects.
+* `processDragUpEvent` is a new method that handles an up event for drag enabled Game Objects.
+* `processDragStartList` is a new internal method that builds a drag list for a pointer.
+* `processDragThresholdEvent` is a new internal method that tests when a pointer with drag thresholds can drag.
+
+The following changes took place in the Pointer class:
+
+* `Pointer.dirty` has been removed as it's no longer required.
+* `Pointer.justDown` has been removed as it's not used internally and makes no sense under the DOM event system.
+* `Pointer.justUp` has been removed as it's not used internally and makes no sense under the DOM event system.
+* `Pointer.justMoved` has been removed as it's not used internally and makes no sense under the DOM event system.
+* The `Pointer.reset` method has been removed as it's no longer required internally.
+
+#### Input System Bug Fixes
+
+* Calling `setPollAlways()` would cause the `'pointerdown'` event to fire multiple times. Fix #4541 (thanks @Neyromantik)
+* The pointer events were intermittently not registered, causing `pointerup` to often fail. Fix #4538 (thanks @paulsymphony)
+* Due to a regression in 3.16 the drag events were not performing as fast as before, causing drags to feel lagged. Fix #4500 (thanks @aliblong)
+* Over and Out events should now work for any pointer in multi-touch environments, not just the first touch pointer registered.
+
 
 ### New Features
 
@@ -59,6 +82,14 @@ Pointer calls reset itself
 * Passing a Frame object to `Bob.setFrame` would fail, as it expected a string or integer. It now checks the type of object, and if a Frame it checks to make sure it's a Frame belonging to the parent Blitter's texture, and if so sets it. Fix #4516 (thanks @NokFrt)
 * The ScaleManager full screen call had an arrow function in it. Despite being within a conditional block of code it still broke really old browsers like IE11, so has been removed. Fix #4530 (thanks @jorbascrumps @CNDW)
 * `Game.getTime` would return `NaN` because it incorrectly accessed the time value from the TimeStep.
+
+### Examples, Documentation and TypeScript
+
+My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
+
+@PhaserEditor2D @samme
+
+
 
 
 ## Version 3.17.0 - Motoko - 10th May 2019

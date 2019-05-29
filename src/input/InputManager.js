@@ -217,15 +217,6 @@ var InputManager = new Class({
         this.activePointer = this.pointers[0];
 
         /**
-         * Reset every frame. Set to `true` if any of the Pointers are dirty this frame.
-         *
-         * @name Phaser.Input.InputManager#dirty
-         * @type {boolean}
-         * @since 3.10.0
-         */
-        this.dirty = false;
-
-        /**
          * If the top-most Scene in the Scene List receives an input it will stop input from
          * propagating any lower down the scene list, i.e. if you have a UI Scene at the top
          * and click something on it, that click will not then be passed down to any other
@@ -237,17 +228,6 @@ var InputManager = new Class({
          * @since 3.0.0
          */
         this.globalTopOnly = true;
-
-        /**
-         * An internal flag that controls if the Input Manager will ignore or process native DOM events this frame.
-         * Set via the InputPlugin.stopPropagation method.
-         *
-         * @name Phaser.Input.InputManager#ignoreEvents
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-        this.ignoreEvents = -1;
-         */
 
         /**
          * The time this Input Manager was last updated.
@@ -301,6 +281,26 @@ var InputManager = new Class({
          */
         this._tempMatrix2 = new TransformMatrix();
 
+        /**
+         * An internal private var that records Scenes aborting event processing.
+         *
+         * @name Phaser.Input.InputManager#_tempSkip
+         * @type {boolean}
+         * @private
+         * @since 3.18.0
+         */
+        this._tempSkip = false;
+
+        /**
+         * An internal private array that avoids needing to create a new array on every DOM mouse event.
+         *
+         * @name Phaser.Input.InputManager#mousePointerContainer
+         * @type {Phaser.Input.Pointer[]}
+         * @private
+         * @since 3.18.0
+         */
+        this.mousePointerContainer = [ this.mousePointer ];
+
         game.events.once(GameEvents.BOOT, this.boot, this);
     },
 
@@ -321,9 +321,7 @@ var InputManager = new Class({
 
         this.events.emit(Events.MANAGER_BOOT);
 
-        this.game.events.on(GameEvents.PRE_RENDER, this.preStep, this);
-
-        this.game.events.on(GameEvents.POST_RENDER, this.postRender, this);
+        this.game.events.on(GameEvents.PRE_RENDER, this.preRender, this);
 
         this.game.events.once(GameEvents.DESTROY, this.destroy, this);
     },
@@ -365,42 +363,30 @@ var InputManager = new Class({
     /**
      * Internal update, called automatically by the Game Step right at the start.
      *
-     * @method Phaser.Input.InputManager#preStep
+     * @method Phaser.Input.InputManager#preRender
      * @private
-     * @since 3.16.2
+     * @since 3.18.0
      *
      * @param {number} time - The time stamp value of this game step.
      */
-    preStep: function (time)
+    preRender: function (time)
     {
         this.time = time;
 
         this.events.emit(Events.MANAGER_UPDATE);
 
-        // this.ignoreEvents = false;
-    },
+        var scenes = this.game.scene.getScenes(true, true);
+        var delta = this.game.loop.delta;
 
-    /**
-     * Internal update, called automatically by the Game Step right after everything has finished rendering.
-     * 
-     * We do this because, in the life of a frame, rAF comes _after_ the input events. So, we need to clear down
-     * the input settings, ready incase the new input events potentially change them prior to the next game step.
-     * 
-     * https://medium.com/@paul_irish/requestanimationframe-scheduling-for-nerds-9c57f7438ef4
-     *
-     * @method Phaser.Input.InputManager#postRender
-     * @private
-     * @since 3.18.0
-     */
-    postRender: function ()
-    {
-        // this.ignoreEvents = false;
-
-        var pointers = this.pointers;
-    
-        for (var i = 0; i < this.pointersTotal; i++)
+        for (var i = 0; i < scenes.length; i++)
         {
-            pointers[i].reset(this.game.getTime());
+            var scene = scenes[i];
+
+            if (scene.sys.input && scene.sys.input.updatePoll(time, delta) && this.globalTopOnly)
+            {
+                //  If the Scene returns true, it means it captured some input that no other Scene should get, so we bail out
+                return;
+            }
         }
     },
 
@@ -702,21 +688,28 @@ var InputManager = new Class({
      * @method Phaser.Input.InputManager#updateInputPlugins
      * @since 3.16.0
      *
-     * @param {number} time - The time value from the most recent Game step. Typically a high-resolution timer value, or Date.now().
-     * @param {number} delta - The delta value since the last frame. This is smoothed to avoid delta spikes by the TimeStep class.
+     * @param {integer} type - The type of event to process.
+     * @param {Phaser.Input.Pointer[]} pointers - An array of Pointers on which the event occurred.
      */
-    updateInputPlugins: function (time, delta)
+    updateInputPlugins: function (type, pointers)
     {
         var scenes = this.game.scene.getScenes(true, true);
+
+        this._tempSkip = false;
 
         for (var i = 0; i < scenes.length; i++)
         {
             var scene = scenes[i];
 
-            if (scene.sys.input && scene.sys.input.update(time, delta) && this.globalTopOnly)
+            if (scene.sys.input)
             {
-                //  If the Scene returns true, it means it captured some input that no other Scene should get, so we bail out
-                return;
+                var capture = scene.sys.input.update(type, pointers);
+
+                if ((capture && this.globalTopOnly) || this._tempSkip)
+                {
+                    //  If the Scene returns true, or called stopPropagation, it means it captured some input that no other Scene should get, so we bail out
+                    return;
+                }
             }
         }
     },
@@ -739,7 +732,7 @@ var InputManager = new Class({
             pointer.updateMotion();
         });
 
-        this.updateInputPlugins(event.timeStamp, this.game.loop.delta);
+        this.updateInputPlugins(CONST.TOUCH_START, changed);
     },
 
     /**
@@ -760,7 +753,7 @@ var InputManager = new Class({
             pointer.updateMotion();
         });
 
-        this.updateInputPlugins(event.timeStamp, this.game.loop.delta);
+        this.updateInputPlugins(CONST.TOUCH_MOVE, changed);
     },
 
     /**
@@ -781,7 +774,7 @@ var InputManager = new Class({
             pointer.updateMotion();
         });
 
-        this.updateInputPlugins(event.timeStamp, this.game.loop.delta);
+        this.updateInputPlugins(CONST.TOUCH_END, changed);
     },
 
     /**
@@ -802,7 +795,7 @@ var InputManager = new Class({
             pointer.updateMotion();
         });
 
-        this.updateInputPlugins(event.timeStamp, this.game.loop.delta);
+        this.updateInputPlugins(CONST.TOUCH_CANCEL, changed);
     },
 
     /**
@@ -816,13 +809,11 @@ var InputManager = new Class({
      */
     onMouseDown: function (event)
     {
-        console.log(this.game.getFrame(), 'md', event.pageX, event.pageY);
-
         this.mousePointer.down(event);
 
         this.mousePointer.updateMotion();
 
-        this.updateInputPlugins(event.timeStamp, this.game.loop.delta);
+        this.updateInputPlugins(CONST.MOUSE_DOWN, this.mousePointerContainer);
     },
 
     /**
@@ -840,7 +831,7 @@ var InputManager = new Class({
 
         this.mousePointer.updateMotion();
 
-        this.updateInputPlugins(event.timeStamp, this.game.loop.delta);
+        this.updateInputPlugins(CONST.MOUSE_MOVE, this.mousePointerContainer);
     },
 
     /**
@@ -858,7 +849,7 @@ var InputManager = new Class({
 
         this.mousePointer.updateMotion();
 
-        this.updateInputPlugins(event.timeStamp, this.game.loop.delta);
+        this.updateInputPlugins(CONST.MOUSE_UP, this.mousePointerContainer);
     },
 
     /**
@@ -1112,6 +1103,8 @@ var InputManager = new Class({
     destroy: function ()
     {
         this.events.removeAllListeners();
+
+        this.game.events.off(GameEvents.PRE_RENDER);
 
         if (this.keyboard)
         {
