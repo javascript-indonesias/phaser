@@ -4,6 +4,30 @@
 
 ### Input System Changes
 
+#### Mouse Wheel Support
+
+3.18 now includes native support for reading mouse wheel events.
+
+* `POINTER_WHEEL` is a new event dispatched by the Input Plugin allowing you to listen for global wheel events.
+* `GAMEOBJECT_WHEEL` is a new event dispatched by the Input Plugin allowing you to listen for global wheel events over all interactive Game Objects in a Scene.
+* `GAMEOBJECT_POINTER_WHEEL` is a new event dispatched by a Game Object allowing you to listen for wheel events specifically on that Game Object.
+* `Pointer.deltaX` is a new property that holds the horizontal scroll amount that occurred due to the user moving a mouse wheel or similar input device.
+* `Pointer.deltaY` is a new property that holds the vertical scroll amount that occurred due to the user moving a mouse wheel or similar input device.
+* `Pointer.deltaZ` is a new property that holds the z-axis scroll amount that occurred due to the user moving a mouse wheel or similar input device.
+* `Pointer.wheel` is a new internal method that handles the wheel event.
+* `InputManager.onMouseWheel` is a new internal method that handles processing the wheel event.
+* `InputManager.processWheelEvent` is a new internal method that handles processing the wheel event sent by the Input Manager.
+
+#### Input System Bug Fixes
+
+* Calling `setPollAlways()` would cause the `'pointerdown'` event to fire multiple times. Fix #4541 (thanks @Neyromantik)
+* The pointer events were intermittently not registered, causing `pointerup` to often fail. Fix #4538 (thanks @paulsymphony)
+* Due to a regression in 3.16 the drag events were not performing as fast as before, causing drags to feel lagged. Fix #4500 (thanks @aliblong)
+* The Touch Manager will now listen for Touch Cancel events on the Window object (if `inputWindowEvents` is enabled in the game config, which it is by default). This allows it to prevent touch cancel actions, like opening the dock on iOS, from causing genuinely active pointers to enter an active locked state.
+* Over and Out events now work for any number of pointers in multi-touch environments, not just the first touch pointer registered. They also now fire correctly on touch start and touch end / cancel events.
+
+#### Input System API Changes
+
 The old 'input queue' legacy system, which was deprecated in 3.16, has been removed entirely in order to tidy-up the API and keep input events consistent. This means the following changes:
 
 * Removed the `inputQueue` Game config property.
@@ -11,6 +35,7 @@ The old 'input queue' legacy system, which was deprecated in 3.16, has been remo
 * Removed the `legacyUpdate` and `update` methods from the Input Manager.
 * Removed the `ignoreEvents` property as this should now be handled on a per-event basis.
 * The Input Manager no longer listens for the `GameEvents.POST_STEP` event.
+* The following Input Manager methods are no longer required so have been removed: `startPointer`, `updatePointer`, `stopPointer` and `cancelPointer`.
 
 As a result, all of the following Input Manager methods have been renamed:
 
@@ -22,7 +47,7 @@ As a result, all of the following Input Manager methods have been renamed:
 * `queueMouseMove` is now called `onMouseMove` and invoked by the Mouse Manager.
 * `queueMouseUp` is now called `onMouseUp` and invoked by the Mouse Manager.
 
-Each of these handlers used to check the `enabled` state of the Input Manager, but this now handled directly in the Touch and Mouse Managers instead, leading to less branching and cleaner tests.
+Each of these handlers used to check the `enabled` state of the Input Manager, but this now handled directly in the Touch and Mouse Managers instead, leading to less branching and cleaner tests. They also all used to run an IIFE that updated motion on the changed pointers array, but this is now handled directly in the event handler, allowing it to be removed from here.
 
 Because the legacy queue mode is gone, there is no longer any need for the DOM Callbacks:
 
@@ -41,6 +66,8 @@ The following changes took place in the Input Plugin class:
 * `processDragUpEvent` is a new method that handles an up event for drag enabled Game Objects.
 * `processDragStartList` is a new internal method that builds a drag list for a pointer.
 * `processDragThresholdEvent` is a new internal method that tests when a pointer with drag thresholds can drag.
+* `processOverEvents` is a new internal method that handles when a touch pointer starts and checks for over events.
+* `processOutEvents` is a new internal method that handles when a touch pointer stops and checks for out events.
 
 The following changes took place in the Pointer class:
 
@@ -49,14 +76,10 @@ The following changes took place in the Pointer class:
 * `Pointer.justUp` has been removed as it's not used internally and makes no sense under the DOM event system.
 * `Pointer.justMoved` has been removed as it's not used internally and makes no sense under the DOM event system.
 * The `Pointer.reset` method has been removed as it's no longer required internally.
-
-#### Input System Bug Fixes
-
-* Calling `setPollAlways()` would cause the `'pointerdown'` event to fire multiple times. Fix #4541 (thanks @Neyromantik)
-* The pointer events were intermittently not registered, causing `pointerup` to often fail. Fix #4538 (thanks @paulsymphony)
-* Due to a regression in 3.16 the drag events were not performing as fast as before, causing drags to feel lagged. Fix #4500 (thanks @aliblong)
-* Over and Out events should now work for any pointer in multi-touch environments, not just the first touch pointer registered.
-
+* `Pointer.touchstart` now has two arguments, the Touch List entry and the Touch Event. The full Touch Event is now stored in `Pointer.event` (instead of the Touch List entry).
+* `Pointer.touchmove` now has two arguments, the Touch List entry and the Touch Event. The full Touch Event is now stored in `Pointer.event` (instead of the Touch List entry).
+* `Pointer.touchend` now has two arguments, the Touch List entry and the Touch Event. The full Touch Event is now stored in `Pointer.event` (instead of the Touch List entry).
+* `Pointer.touchcancel` now has two arguments, the Touch List entry and the Touch Event. The full Touch Event is now stored in `Pointer.event` (instead of the Touch List entry).
 
 ### New Features
 
@@ -67,6 +90,9 @@ The following changes took place in the Pointer class:
 * `GetBounds.getBottomCenter` is a new method that will return the bottom-center point from the bounds of a Game Object.
 * `GetBounds.getLeftCenter` is a new method that will return the left-center point from the bounds of a Game Object.
 * `GetBounds.getRightCenter` is a new method that will return the right-center point from the bounds of a Game Object.
+* You can now create a desynchronized 2D or WebGL canvas by setting the Game Config property `desynchronized` to `true` (the default is `false`). For more details about what this means see https://developers.google.com/web/updates/2019/05/desynchronized.
+* The CanvasRenderer can now use the `transparent` Game Config property in order to tell the browser an opaque background is in use, leading to faster rendering in a 2D context.
+* `GameObject.scale` is a new property, that exists as part of the Transform component, that allows you to set the horizontal and vertical scale of a Game Object via a setter, rather than using the `setScale` method. This is handy for uniformly scaling objects via tweens, for example.
 
 ### Updates
 
@@ -97,7 +123,7 @@ The following changes took place in the Pointer class:
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@PhaserEditor2D @samme @Nallebeorn
+@PhaserEditor2D @samme @Nallebeorn @Punkiebe
 
 
 

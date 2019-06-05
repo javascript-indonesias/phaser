@@ -428,6 +428,37 @@ var Pointer = new Class({
          * @since 3.16.0
          */
         this.time = 0;
+
+        /**
+         * The horizontal scroll amount that occurred due to the user moving a mouse wheel or similar input device.
+         *
+         * @name Phaser.Input.Pointer#deltaX
+         * @type {number}
+         * @default 0
+         * @since 3.18.0
+         */
+        this.deltaX = 0;
+
+        /**
+         * The vertical scroll amount that occurred due to the user moving a mouse wheel or similar input device.
+         * This value will typically be less than 0 if the user scrolls up and greater than zero if scrolling down.
+         *
+         * @name Phaser.Input.Pointer#deltaY
+         * @type {number}
+         * @default 0
+         * @since 3.18.0
+         */
+        this.deltaY = 0;
+
+        /**
+         * The z-axis scroll amount that occurred due to the user moving a mouse wheel or similar input device.
+         *
+         * @name Phaser.Input.Pointer#deltaX
+         * @type {number}
+         * @default 0
+         * @since 3.18.0
+         */
+        this.deltaZ = 0;
     },
 
     /**
@@ -603,43 +634,74 @@ var Pointer = new Class({
     },
 
     /**
+     * Internal method to handle a Mouse Wheel Event.
+     *
+     * @method Phaser.Input.Pointer#wheel
+     * @private
+     * @since 3.18.0
+     *
+     * @param {WheelEvent} event - The Wheel Event to process.
+     */
+    wheel: function (event)
+    {
+        if ('buttons' in event)
+        {
+            this.buttons = event.buttons;
+        }
+
+        this.event = event;
+
+        //  Sets the local x/y properties
+        this.manager.transformPointer(this, event.pageX, event.pageY, false);
+
+        this.deltaX = event.deltaX;
+        this.deltaY = event.deltaY;
+        this.deltaZ = event.deltaZ;
+
+        this.wasTouch = false;
+    },
+
+    /**
      * Internal method to handle a Touch Start Event.
      *
      * @method Phaser.Input.Pointer#touchstart
      * @private
      * @since 3.0.0
      *
-     * @param {TouchEvent} event - The Touch Event to process.
+     * @param {Touch} touch - The Changed Touch from the Touch Event.
+     * @param {TouchEvent} event - The full Touch Event.
      */
-    touchstart: function (event)
+    touchstart: function (touch, event)
     {
-        if (event['pointerId'])
+        if (touch['pointerId'])
         {
-            this.pointerId = event.pointerId;
+            this.pointerId = touch.pointerId;
         }
 
-        this.identifier = event.identifier;
-        this.target = event.target;
+        this.identifier = touch.identifier;
+        this.target = touch.target;
         this.active = true;
 
         this.buttons = 1;
 
         this.event = event;
 
-        this.downElement = event.target;
+        this.downElement = touch.target;
 
         //  Sets the local x/y properties
-        this.manager.transformPointer(this, event.pageX, event.pageY, false);
+        this.manager.transformPointer(this, touch.pageX, touch.pageY, false);
 
         this.primaryDown = true;
         this.downX = this.x;
         this.downY = this.y;
-        this.downTime = event.timeStamp;
+        this.downTime = touch.timeStamp;
 
         this.isDown = true;
 
         this.wasTouch = true;
         this.wasCanceled = false;
+
+        this.updateMotion();
     },
 
     /**
@@ -649,18 +711,21 @@ var Pointer = new Class({
      * @private
      * @since 3.0.0
      *
-     * @param {TouchEvent} event - The Touch Event to process.
+     * @param {Touch} touch - The Changed Touch from the Touch Event.
+     * @param {TouchEvent} event - The full Touch Event.
      */
-    touchmove: function (event)
+    touchmove: function (touch, event)
     {
         this.event = event;
 
         //  Sets the local x/y properties
-        this.manager.transformPointer(this, event.pageX, event.pageY, true);
+        this.manager.transformPointer(this, touch.pageX, touch.pageY, true);
 
-        this.moveTime = event.timeStamp;
+        this.moveTime = touch.timeStamp;
 
         this.wasTouch = true;
+
+        this.updateMotion();
     },
 
     /**
@@ -670,23 +735,24 @@ var Pointer = new Class({
      * @private
      * @since 3.0.0
      *
-     * @param {TouchEvent} event - The Touch Event to process.
+     * @param {Touch} touch - The Changed Touch from the Touch Event.
+     * @param {TouchEvent} event - The full Touch Event.
      */
-    touchend: function (event)
+    touchend: function (touch, event)
     {
         this.buttons = 0;
 
         this.event = event;
 
-        this.upElement = event.target;
+        this.upElement = touch.target;
 
         //  Sets the local x/y properties
-        this.manager.transformPointer(this, event.pageX, event.pageY, false);
+        this.manager.transformPointer(this, touch.pageX, touch.pageY, false);
 
         this.primaryDown = false;
         this.upX = this.x;
         this.upY = this.y;
-        this.upTime = event.timeStamp;
+        this.upTime = touch.timeStamp;
 
         this.isDown = false;
 
@@ -694,6 +760,8 @@ var Pointer = new Class({
         this.wasCanceled = false;
         
         this.active = false;
+
+        this.updateMotion();
     },
 
     /**
@@ -703,15 +771,24 @@ var Pointer = new Class({
      * @private
      * @since 3.15.0
      *
-     * @param {TouchEvent} event - The Touch Event to process.
+     * @param {Touch} touch - The Changed Touch from the Touch Event.
+     * @param {TouchEvent} event - The full Touch Event.
      */
-    touchcancel: function (event)
+    touchcancel: function (touch, event)
     {
         this.buttons = 0;
 
         this.event = event;
 
+        this.upElement = touch.target;
+
+        //  Sets the local x/y properties
+        this.manager.transformPointer(this, touch.pageX, touch.pageY, false);
+
         this.primaryDown = false;
+        this.upX = this.x;
+        this.upY = this.y;
+        this.upTime = touch.timeStamp;
 
         this.isDown = false;
 
