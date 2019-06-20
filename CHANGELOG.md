@@ -1,6 +1,13 @@
 # Change Log
 
-## Version 3.18.0 - Raphtalia - in dev
+## Version 3.19.0 - Naofumi - in development
+
+
+
+
+
+
+## Version 3.18.0 - Raphtalia - 19th June 2019
 
 ### Input System Changes
 
@@ -34,6 +41,7 @@
 * Due to a regression in 3.16 the drag events were not performing as fast as before, causing drags to feel lagged. Fix #4500 (thanks @aliblong)
 * The Touch Manager will now listen for Touch Cancel events on the Window object (if `inputWindowEvents` is enabled in the game config, which it is by default). This allows it to prevent touch cancel actions, like opening the dock on iOS, from causing genuinely active pointers to enter an active locked state.
 * Over and Out events now work for any number of pointers in multi-touch environments, not just the first touch pointer registered. They also now fire correctly on touch start and touch end / cancel events.
+* If you enable a Game Object for drag and place it inside a rotated Container (of any depth), the `dragX` and `dragY` values sent to the `drag` callback didn't factor the rotation in, so you had to do it manually. This is now done automatically, so the values account for parent rotation before being sent to the event handler. Fix #4437 (thanks @aliblong)
 
 #### Input System API Changes
 
@@ -108,6 +116,8 @@ The following changes took place in the Pointer class:
 * `Phaser.Sound.Events#DECODED` is a new event emitted by the Web Audio Sound Manager when it has finished decoding audio data.
 * `Phaser.Sound.Events#DECODED_ALL` is a new event emitted by the Web Audio Sound Manager when it has finished decoding all of the audio data files passed to the `decodeAudio` method.
 * `Phaser.Utils.Objects.Pick` is a new function that will take an object and an array of keys and return a new object containing just the keys provided in the array.
+* `Text.align` and `Text.setAlign` can now accept `justify` as a type. It will apply basic justification to multi-line text, adding in extra spaces in order to justify the content. Fix #4291 (thanks @andrewbaranov @Donerkebap13 @dude78GH)
+* `Arcade.Events.WORLD_STEP` is a new event you can listen to. It is emitted by the Arcade Physics World every time the world steps once. It is emitted _after_ the bodies and colliders have been updated. Fix #4289 (thanks @fant0m)
 
 ### Updates
 
@@ -154,6 +164,15 @@ The following changes took place in the Pointer class:
 * `Phaser.Tilemaps.Parsers.Impact.ParseWeltmeister` is now a public static function, available to be called directly.
 * `Phaser.Tilemaps.Parsers.Tiled.Pick` has been removed. It is now available under `Phaser.Utils.Objects.Pick`, which is a more logical place for it.
 * You can now call `this.scene.remove` at the end of a Scene's `create` method without it throwing an error. Why you'd ever want to do this is beyond me, but you now can (thanks @samme)
+* The `Arcade.StaticBody.setSize` arguments have changed from `(width, height, offsetX, offsetY)` to `(width, height, center)`. They now match Dynamic Body setSize and the Size Component method (thanks @samme)
+* When enabling Arcade Physics Body debug it will now draw only the faces marked for collision, allowing you to easily see if a face is disabled or not (thanks @BdR76)
+* `Transform.getParentRotation` is a new method available to all GameObjects that will return the sum total rotation of all of the Game Objects parent Containers, if it has any.
+* `Tween.restart` now sets the Tween properties `elapsed`, `progress`, `totalElapsed` and `totalProgress` to zero when called, rather than adding to existing values should the tween already be running.
+* `ArcadePhysics.Body.resetFlags` is a new method that prepares the Body for a physics step by resetting the `wasTouching`, `touching` and `blocked` states.
+* `ArcadePhysics.Body.preUpdate` has two new arguments `willStep` and `delta`. If `willStep` is true then the body will call resetFlags, sync with the parent Game Object and then run one iteration of `Body.update`, using the provided delta. If false, only the Game Object sync takes place.
+* `ArcadePhysics.World.update` will now determine if a physics step is going to happen this frame or not. If not, it no longer calls `World.step` (fix #4529, thanks @ampled). If a step _is_ going to happen, then it now handles this with one iteration of the bodies array, instead of two. It has also inlined a single world step, avoiding branching out. If extra world steps are required this frame (such as in high Hz environments) then `World.step` is called accordingly.
+* `ArcadePhysics.World.postUpdate` will no longer call `Body.postUpdate` on all of the bodies if no World step has taken place this frame.
+* `ArcadePhysics.World.step` will now increment the `stepsLastFrame` counter, allowing `postUpdate` to determine if bodies should be processed should World.step have been invoked manually.
 
 ### Bug Fixes
 
@@ -173,15 +192,18 @@ The following changes took place in the Pointer class:
 * If you had a `Graphics` object in the display list immediately after an object with a Bitmap Mask it would throw an error `Uncaught TypeError: Cannot set property 'TL' of undefined`. Fix #4581 (thanks @Petah @Loonride)
 * Calling Arcade Physics `Body.reset` on a Game Object that doesn't have any bounds, like a Container, would throw an error about being unable to access `getTopLeft`. If this is the case, it will now set the position to the given x/y values (thanks Jazz)
 * All of the `Tilemaps.Parsers.Tiled` static functions are now available to be called directly. Fix #4318 (thanks @jestarray)
+* `Arcade.StaticBody.setSize` now centers the body correctly, as with the other similar methods. Fix #4213 (thanks @samme)
+* Setting `random: false` in a Particle Emitter config option no longer causes it to think random is true (thanks @samme)
+* `Zone.setSize` didn't update the displayOrigin, causing touch events to be inaccurate as the origin was out. Fix #4131 (thanks @rexrainbow)
+* `Tween.restart` wouldn't restart the tween properly. Fix #4594 (thanks @NokFrt)
+* Looped Tween Timelines would mess-up the tween values on every loop repeat, causing the loop to fail. They now loop correctly due to a fix in the Tween.play method. Fix #4558 (thanks @peteroravec)
+* `Timeline.setTimeScale` would only impact the Timeline loop and completion delays, not the actively running Tweens. It now scales the time for all child tweens as well. Fix #4164 (thanks @garethwhittaker)
 
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
 @PhaserEditor2D @samme @Nallebeorn @Punkiebe @rootasjey @Sun0fABeach
-
-
-
 
 ## Version 3.17.0 - Motoko - 10th May 2019
 
