@@ -3,9 +3,30 @@
 ## Version 3.19.0 - Naofumi - in development
 
 
+### New Features
+
+* `Shader.setRenderToTexture` is a new method that will redirect the Shader to render to its own framebuffer / WebGLTexture instead of to the display list. This allows you to use the output of the shader as an input for another shader, by mapping a sampler2D uniform to it. It also allows you to save the Shader to the Texture Manager, allowing you to use it as a texture for any other texture based Game Object such as a Sprite.
+* `Shader.renderToTexture` is a new property flag that is set if you set the Shader to render to a texture.
+* `Shader.framebuffer` is a new property that contains a WebGLFramebuffer reference which is set if you set the Shader to render to a texture.
+* `Shader.glTexture` is a new property that contains a WebGLTexture reference which is set if you set the Shader to render to a texture.
+* `Shader.texture` is a new property that contains a Phaser Texture reference which is set if you set the Shader to save to the Texture Manager.
+* `TextureManager.addGLTexture` is a new method that allows you to add a WebGLTexture directly into the Texture Manager, saved under the given key.
+* `TextureSource.isGLTexture` is a new boolean property that reflects if the data backing the underlying Texture Source is a WebGLTexture or not.
+
+### Bug Fixes
+
+* The Scale Manager would throw the error 'TypeError: this.removeFullscreenTarget is not a function' when entering full-screen mode. It would still enter fullscreen, but the error would appear in the console. Fix #4605 (thanks @darklightcode)
 
 
 
+
+
+## Version 3.18.1 - Raphtalia - 20th June 2019
+
+### Bug Fixes
+
+* `InputManager.preRender` didn't get the `time` property correctly, causing input plugin methods that relied on it to fail.
+* `KeyboardPlugin.time` wasn't being set to the correct value, causing `checkDown` to fail constantly.
 
 ## Version 3.18.0 - Raphtalia - 19th June 2019
 
