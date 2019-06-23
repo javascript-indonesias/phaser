@@ -13,11 +13,21 @@
 * `TextureManager.addGLTexture` is a new method that allows you to add a WebGLTexture directly into the Texture Manager, saved under the given key.
 * `TextureSource.isGLTexture` is a new boolean property that reflects if the data backing the underlying Texture Source is a WebGLTexture or not.
 
+### Updates
+
+* When calling `setHitArea` and not providing a shape (i.e. a texture based hit area), it will now set `customHitArea` to `false` by default (thanks @rexrainbow)
+
 ### Bug Fixes
 
 * The Scale Manager would throw the error 'TypeError: this.removeFullscreenTarget is not a function' when entering full-screen mode. It would still enter fullscreen, but the error would appear in the console. Fix #4605 (thanks @darklightcode)
+* `Tilemap.renderDebug` was calling out-dated Graphics API methods, which would cause the debug to fail (thanks @Fabadiculous)
+* The `Matter.Factory.constraint`, `joint` and `worldConstraint` methods wouldn't allow a zero length constraint to be created due to a falsey check of the length argument. You can now set length to be any value, including zero, or leave it undefined to have it automatically calculated (thanks @olilanz)
 
+### Examples, Documentation and TypeScript
 
+My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
+
+@vacarsu 
 
 
 
