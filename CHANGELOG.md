@@ -5,6 +5,7 @@
 ### Tween Updates
 
 * All Tween classes and functions have 100% complete JSDocs :)
+* `StaggerBuilder` is a new function that allows you to define a staggered tween property. For example, as part of a tween config: `delay: this.tweens.stagger(500)` would stagger the delay by 500ms for every target of the tween. You can also provide a range: `delay: this.tweens.stagger([ 500, 1000 ])` which is spread across all targets. Finally, you can provide a Stagger Config object as the second argument. This allows you to define a stagger grid, direction, starting value and more. Please see the API Docs and new Examples for further details.
 * `Tween` now extends the Event Emitter class, allowing it to emit its own events and be listened to.
 * `Tween.ACTIVE_EVENT` is a new event that is dispatched when a tween becomes active. Listen to it with `tween.on('active')`.
 * `Tween.COMPLETE_EVENT` is a new event that is dispatched when a tween completes or is stopped. Listen to it with `tween.on('complete')`.
@@ -40,7 +41,8 @@
 * `TweenData.getActiveValue` is a new property that, if not null, returns a value to immediately sets the property value to on activation.
 * `GetEaseFunction`, and by extension anything that uses it, such as setting the ease for a Tween, will now accept a variety of input strings as valid. You can now use lower-case, such as `back`, and omit the 'ease' part of the direction, such as `back.in` or `back.inout`.
 * The signature of `getStart` and `getEnd` custom property functions has changed to `(target, key, value, targetIndex, totalTargets, tween)`, previously it was just `(target, key, value)`. Custom functions don't need to change as the new arguments are in addition to those sent previously.
-* The signature of the LoadValue generator functions (such as `delay` and `repeat`) has changed to `(target, key, value, targetIndex, totalTargets, tween)` to match those of the custom property functions. If you used a custom generator function for your Tween configs you'll need to modify the signature to the new one. As a result the `
+* The signature of the LoadValue generator functions (such as `delay` and `repeat`) has changed to `(target, key, value, targetIndex, totalTargets, tween)` to match those of the custom property functions. If you used a custom generator function for your Tween configs you'll need to modify the signature to the new one.
+* Tweens created via `TweenManager.create` wouldn't start when `Tween.play` was called without first making them active manually. They now start automatically. Fix #4632 (thanks @mikewesthad)
 
 ### New Features
 
@@ -72,12 +74,14 @@
 * `WebGLRenderer.setScissor` will default the `drawingBufferHeight` if no argument is provided, stopping NaN scissor heights.
 * If you called `Scene.destroy` within a Game Object `pointerdown` or `pointerup` handler, it would cause the error "Cannot read property 'game' of null" if the event wasn't cancelled in your handler. It now checks if the manager is still there before accessing its property. Fix #4436 (thanks @jcyuan)
 * The `Arc / Circle` Game Object wasn't rendering centered correctly in WebGL due to an issue in a previous size related commit, it would be half a radius off. Fix #4620 (thanks @CipSoft-Components @rexrainbow)
+* Destroying a Scene in HEADLESS mode would throw an error as it tried to access the gl renderer in the Camera class. Fix #4467 (thanks @AndreaBoeAbrahamsen @samme)
+* `Tilemap.createFromObjects` would ignore the `scene` argument passed in to the method. It's now used (thanks @samme)
 
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@vacarsu @KennethGomez
+@vacarsu @KennethGomez @samme @ldd @Jazcash
 
 
 
