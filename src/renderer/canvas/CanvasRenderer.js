@@ -657,14 +657,16 @@ var CanvasRenderer = new Class({
         var frameY = cd.y;
         var frameWidth = frame.cutWidth;
         var frameHeight = frame.cutHeight;
+        var customPivot = frame.customPivot;
+
         var res = frame.source.resolution;
 
-        var x = -sprite.displayOriginX + frame.x;
-        var y = -sprite.displayOriginY + frame.y;
+        var displayOriginX = sprite.displayOriginX;
+        var displayOriginY = sprite.displayOriginY;
 
-        var fx = (sprite.flipX) ? -1 : 1;
-        var fy = (sprite.flipY) ? -1 : 1;
-    
+        var x = -displayOriginX + frame.x;
+        var y = -displayOriginY + frame.y;
+
         if (sprite.isCropped)
         {
             var crop = sprite._crop;
@@ -680,10 +682,10 @@ var CanvasRenderer = new Class({
             frameX = crop.cx;
             frameY = crop.cy;
 
-            x = -sprite.displayOriginX + crop.x;
-            y = -sprite.displayOriginY + crop.y;
+            x = -displayOriginX + crop.x;
+            y = -displayOriginY + crop.y;
 
-            if (fx === -1)
+            if (sprite.flipX)
             {
                 if (x >= 0)
                 {
@@ -695,7 +697,7 @@ var CanvasRenderer = new Class({
                 }
             }
         
-            if (fy === -1)
+            if (sprite.flipY)
             {
                 if (y >= 0)
                 {
@@ -708,7 +710,31 @@ var CanvasRenderer = new Class({
             }
         }
 
-        spriteMatrix.applyITRS(sprite.x, sprite.y, sprite.rotation, sprite.scaleX, sprite.scaleY);
+        var flipX = 1;
+        var flipY = 1;
+
+        if (sprite.flipX)
+        {
+            if (!customPivot)
+            {
+                x += (-frame.realWidth + (displayOriginX * 2));
+            }
+
+            flipX = -1;
+        }
+
+        //  Auto-invert the flipY if this is coming from a GLTexture
+        if (sprite.flipY)
+        {
+            if (!customPivot)
+            {
+                y += (-frame.realHeight + (displayOriginY * 2));
+            }
+
+            flipY = -1;
+        }
+
+        spriteMatrix.applyITRS(sprite.x, sprite.y, sprite.rotation, sprite.scaleX * flipX, sprite.scaleY * flipY);
 
         camMatrix.copyFrom(camera.matrix);
 
@@ -736,8 +762,6 @@ var CanvasRenderer = new Class({
         ctx.save();
        
         calcMatrix.setToContext(ctx);
-
-        ctx.scale(fx, fy);
 
         ctx.globalCompositeOperation = this.blendModes[sprite.blendMode];
 

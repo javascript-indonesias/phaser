@@ -63,6 +63,8 @@
 
 * When calling `setHitArea` and not providing a shape (i.e. a texture based hit area), it will now set `customHitArea` to `false` by default (thanks @rexrainbow)
 * The Shader will no longer set uniforms if the values are `null`, saving on GL ops.
+* The Animation Manager will now emit a console warning if you try and play an animation on a Sprite that doesn't exist.
+* The Animation component will no longer start an animation on a Sprite if the animation doesn't exist. Previously it would throw an error saying "Unable to read the property getFirstTick of null".
 
 ### Bug Fixes
 
@@ -76,6 +78,13 @@
 * The `Arc / Circle` Game Object wasn't rendering centered correctly in WebGL due to an issue in a previous size related commit, it would be half a radius off. Fix #4620 (thanks @CipSoft-Components @rexrainbow)
 * Destroying a Scene in HEADLESS mode would throw an error as it tried to access the gl renderer in the Camera class. Fix #4467 (thanks @AndreaBoeAbrahamsen @samme)
 * `Tilemap.createFromObjects` would ignore the `scene` argument passed in to the method. It's now used (thanks @samme)
+* Fixed a bug in the WebGL and Canvas Renderers where a Sprite with a `flipX` or `flipY` value set would render the offset frames slightly out of place, causing the animation to appear jittery. Also, the sprite would be out of place by its origin. Fix #4636 #3813  (thanks @jronn @B3L7)
+* Animations with custom pivots, like those created in Texture Packer with the pivot option enabled, would be mis-aligned if flipped. They now render in the correct position, regardless of scale or flip on either axis. Fix #4155 (thanks @Zax37)
+* Removing a frame from a 2 frame animation would cause an error when a Sprite using that animation next tried to render. Fix #4621 (thanks @orlicgms)
+* Calling `Animation.setRepeat()` wouldn't reset the `repeatCounter` properly, causing Sprite bound animation instances to fail to change their repeat rate. Fix #4553 (thanks @SavedByZero)
+* The `UpdateList.remove` method wouldn't flag the Game Object for removal properly if it was active. It now checks that the Game Object is in the current update list and hasn't already been inserted into the 'pending removal' list before flagging it. Fix #4544 (thanks @jcyuan)
+* `DynamicTilemapLayer.destroy` will now no longer run its destroy sequence again if it has already been run once. Fix #4634 (thanks @CipSoft-Components)
+* `StaticTilemapLayer.destroy` will now no longer run its destroy sequence again if it has already been run once.
 
 ### Examples, Documentation and TypeScript
 
