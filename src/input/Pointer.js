@@ -439,6 +439,22 @@ var Pointer = new Class({
         this.active = (id === 0) ? true : false;
 
         /**
+         * Is this pointer Pointer Locked?
+         * 
+         * Only a mouse pointer can be locked and it only becomes locked when requested via
+         * the browsers Pointer Lock API.
+         * 
+         * You can request this by calling the `this.input.mouse.requestPointerLock()` method from
+         * a `pointerdown` or `pointerup` event handler.
+         *
+         * @name Phaser.Input.Pointer#locked
+         * @readonly
+         * @type {boolean}
+         * @since 3.19.0
+         */
+        this.locked = false;
+
+        /**
          * The horizontal scroll amount that occurred due to the user moving a mouse wheel or similar input device.
          *
          * @name Phaser.Input.Pointer#deltaX
@@ -634,11 +650,11 @@ var Pointer = new Class({
         //  Sets the local x/y properties
         this.manager.transformPointer(this, event.pageX, event.pageY, true);
 
-        if (this.manager.mouse.locked)
+        if (this.locked)
         {
             //  Multiple DOM events may occur within one frame, but only one Phaser event will fire
-            this.movementX += event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-            this.movementY += event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+            this.movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+            this.movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
         }
 
         this.moveTime = event.timeStamp;
