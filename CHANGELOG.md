@@ -59,6 +59,11 @@
 * `RenderTexture.glTexture` is a new property that holds a reference to the WebGL Texture being used by the Render Texture. Useful for passing to a shader as a sampler2D.
 * `GroupCreateConfig.quantity` - when creating a Group using a config object you can now use the optional property `quantity` to set the number of objects to be created. Use this for quickly creating groups of single frame objects that don't need the advanced capabilities of `frameQuantity` and `repeat`.
 * `Pointer.locked` is a new read-only property that indicates if the pointer has been Pointer Locked, or not, via the Pointer Lock API.
+* `WebGLRenderer.snapshotFramebuffer`, and the corresponding utility function `WebGLSnapshot`, allows you to take a snapshot of a given WebGL framebuffer, such as the one used by a Render Texture or Shader, and either get a single pixel from it as a Color value, or get an area of it as an Image object, which can then optionally be saved to the Texture Manager for use by Game Object textures.
+* `RenderTexture.snapshot` is a new method that will take a snapshot of the whole current state of the Render Texture and return it as an Image object, which could then be saved to the Texture Manager if needed.
+* `RenderTexture.snapshotArea` is a new method that will take a snapshot of an area of a Render Texture and return it as an Image object, which could then be saved to the Texture Manager if needed.
+* `RenderTexture.snapshotPixel` is a new method that will take extract a single pixel color value from a Render Texture and return it as a Color object.
+* The `SnapshotState` object has three new properties: `isFramebuffer` boolean and `bufferWidth` and `bufferHeight` integers.
 
 ### Updates
 
@@ -67,6 +72,7 @@
 * The Animation Manager will now emit a console warning if you try and play an animation on a Sprite that doesn't exist.
 * The Animation component will no longer start an animation on a Sprite if the animation doesn't exist. Previously it would throw an error saying "Unable to read the property getFirstTick of null".
 * `InputManager.onPointerLockChange` is a new method that handles pointer lock change events and dispatches the lock event.
+* `CanvasTexture` has been added to the `Textures` namespace so it can be created without needing to import it. The correct way to create a `CanvasTexture` is via the Texture Manager, but you can now do it directly if required. Fix #4651 (thanks @Jugacu)
 
 ### Bug Fixes
 
