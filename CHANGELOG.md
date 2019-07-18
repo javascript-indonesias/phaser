@@ -44,6 +44,12 @@
 * The signature of the LoadValue generator functions (such as `delay` and `repeat`) has changed to `(target, key, value, targetIndex, totalTargets, tween)` to match those of the custom property functions. If you used a custom generator function for your Tween configs you'll need to modify the signature to the new one.
 * Tweens created via `TweenManager.create` wouldn't start when `Tween.play` was called without first making them active manually. They now start automatically. Fix #4632 (thanks @mikewesthad)
 
+### Spine Updates
+
+* Adding Spine to physics causes position to become NaN. Fix #4501 (thanks @hizzd)
+* Destroying a Phaser Game instance and then re-creating it would cause an error trying to re-create Spine Game Objects ("Cannot read property get of null"). Fix #4532 (thanks @Alex-Badea)
+* Rendering a Spine object when a Camer has `renderToTexture` enabled on it would cause the object to be vertically flipped. It now renders correctly in both cases. Fix #4647 (thanks @probt)
+
 ### New Features
 
 * `Shader.setRenderToTexture` is a new method that will redirect the Shader to render to its own framebuffer / WebGLTexture instead of to the display list. This allows you to use the output of the shader as an input for another shader, by mapping a sampler2D uniform to it. It also allows you to save the Shader to the Texture Manager, allowing you to use it as a texture for any other texture based Game Object such as a Sprite.
@@ -60,10 +66,17 @@
 * `GroupCreateConfig.quantity` - when creating a Group using a config object you can now use the optional property `quantity` to set the number of objects to be created. Use this for quickly creating groups of single frame objects that don't need the advanced capabilities of `frameQuantity` and `repeat`.
 * `Pointer.locked` is a new read-only property that indicates if the pointer has been Pointer Locked, or not, via the Pointer Lock API.
 * `WebGLRenderer.snapshotFramebuffer`, and the corresponding utility function `WebGLSnapshot`, allows you to take a snapshot of a given WebGL framebuffer, such as the one used by a Render Texture or Shader, and either get a single pixel from it as a Color value, or get an area of it as an Image object, which can then optionally be saved to the Texture Manager for use by Game Object textures.
+* `CanvasRenderer.snapshotCanvas` allows you to take a snapshot of a given Canvas object, such as the one used by a Render Texture, and either get a single pixel from it as a Color value, or get an area of it as an Image object, which can then optionally be saved to the Texture Manager for use by Game Object textures.
 * `RenderTexture.snapshot` is a new method that will take a snapshot of the whole current state of the Render Texture and return it as an Image object, which could then be saved to the Texture Manager if needed.
 * `RenderTexture.snapshotArea` is a new method that will take a snapshot of an area of a Render Texture and return it as an Image object, which could then be saved to the Texture Manager if needed.
 * `RenderTexture.snapshotPixel` is a new method that will take extract a single pixel color value from a Render Texture and return it as a Color object.
 * The `SnapshotState` object has three new properties: `isFramebuffer` boolean and `bufferWidth` and `bufferHeight` integers.
+* `Game.CONTEXT_LOST_EVENT` is a new event that is dispatched by the Game instance when the WebGL Renderer webgl context is lost. Use this instead of the old 'lostContextCallbacks' for cleaner context handling.
+* `Game.CONTEXT_RESTORED_EVENT` is a new event that is dispatched by the Game instance when the WebGL Renderer webgl context is restored. Use this instead of the old 'restoredContextCallbacks' for cleaner context handling.
+* `WebGLRenderer.currentType` contains the type of the Game Object currently being rendered.
+* `WebGLRenderer.newType` is a boolean that indicates if the current Game Object has a new type, i.e. different to the previous one in the display list.
+* `WebGLRenderer.nextTypeMatch` is a boolean that indicates if the _next_ Game Object in the display list has the same type as the one being currently rendered. This allows you to build batching into separated Game Objects.
+* `PluginManager.removeGameObject` is a new method that allows you to de-register custom Game Object types from the global Game Object Factory and/or Creator. Useful for when custom plugins are destroyed and need to clean-up after themselves.
 
 ### Updates
 
@@ -73,6 +86,13 @@
 * The Animation component will no longer start an animation on a Sprite if the animation doesn't exist. Previously it would throw an error saying "Unable to read the property getFirstTick of null".
 * `InputManager.onPointerLockChange` is a new method that handles pointer lock change events and dispatches the lock event.
 * `CanvasTexture` has been added to the `Textures` namespace so it can be created without needing to import it. The correct way to create a `CanvasTexture` is via the Texture Manager, but you can now do it directly if required. Fix #4651 (thanks @Jugacu)
+* The `SmoothedKeyControl` minimum zoom a Camera can go to is now 0.001. Previously it was 0.1. This is to make it match the minimum zoom a Base Camera can go to. Fix #4649 (thanks @giviz)
+* `WebGLRenderer.lostContextCallbacks` and the `onContextLost` method have been removed. Please use the new `CONTEXT_LOST` event instead.
+* `WebGLRenderer.restoredContextCallbacks` and the `onContextRestored` method have been removed. Please use the new `CONTEXT_RESTORED` event instead.
+* `TextureManager.getBase64` will now emit a console warning if you try to get a base64 from a non-image based texture, such as a WebGL Texture.
+* The `WebAudioSoundManager` will now remove the document touch handlers even if the Promise fails, preventing it from throwing a rejection handler error.
+* `GameObjectFactory.remove` is a new static function that will remove a custom Game Object factory type.
+* `GameObjectCreator.remove` is a new static function that will remove a custom Game Object creator type.
 
 ### Bug Fixes
 
@@ -99,6 +119,8 @@
 * The `Pointer.movementX` and `Pointer.movementY` properties are now taken directly from the DOM pointer event values, if the pointer is locked, and no longer incremental. Fix #4611 (thanks @davidmball)
 * The `Pointer.velocity` and `Pointer.midPoint` values are now updated every frame. Based on the `motionFactor` setting they are smoothed towards zero, for velocity, and the pointer position for the mid point. This now happens regardless if the Pointer moves or not, which is how it was originally intended to behave.
 * The `DESTROY` event hook wasn't removed from Group children when destroying the Group and `destroyChildren` was set to false. Now, the hook is removed regardless (thanks @rexrainbow)
+* The WebGL Lost and Restored Context callbacks were never removed, which could cause them to hold onto stale references. Fix #3610 (thanks @Twilrom)
+* `Origin.updateDisplayOrigin` no longer applies a Math.floor to the display origins, allowing you to have a 0.x origin for a Game Object that only has a width or height of 1. This fixes issues with things like 1x1 rectangles displaying incorrectly during rendering. Fix #4126 (thanks @rexrainbow)
 
 ### Examples, Documentation and TypeScript
 

@@ -278,30 +278,6 @@ var CanvasRenderer = new Class({
     },
 
     /**
-     * A NOOP method for handling lost context. Intentionally empty.
-     *
-     * @method Phaser.Renderer.Canvas.CanvasRenderer#onContextLost
-     * @since 3.0.0
-     *
-     * @param {function} callback - Ignored parameter.
-     */
-    onContextLost: function ()
-    {
-    },
-
-    /**
-     * A NOOP method for handling restored context. Intentionally empty.
-     *
-     * @method Phaser.Renderer.Canvas.CanvasRenderer#onContextRestored
-     * @since 3.0.0
-     *
-     * @param {function} callback - Ignored parameter.
-     */
-    onContextRestored: function ()
-    {
-    },
-
-    /**
      * Resets the transformation matrix of the current context to the identity matrix, thus resetting any transformation.
      *
      * @method Phaser.Renderer.Canvas.CanvasRenderer#resetTransform
@@ -527,6 +503,46 @@ var CanvasRenderer = new Class({
 
             state.callback = null;
         }
+    },
+
+    /**
+     * Takes a snapshot of the given area of the given canvas.
+     * 
+     * Unlike the other snapshot methods, this one is processed immediately and doesn't wait for the next render.
+     * 
+     * Snapshots work by creating an Image object from the canvas data, this is a blocking process, which gets
+     * more expensive the larger the canvas size gets, so please be careful how you employ this in your game.
+     *
+     * @method Phaser.Renderer.Canvas.CanvasRenderer#snapshotCanvas
+     * @since 3.19.0
+     *
+     * @param {HTMLCanvasElement} canvas - The canvas to grab from.
+     * @param {Phaser.Types.Renderer.Snapshot.SnapshotCallback} callback - The Function to invoke after the snapshot image is created.
+     * @param {boolean} [getPixel=false] - Grab a single pixel as a Color object, or an area as an Image object?
+     * @param {integer} [x=0] - The x coordinate to grab from.
+     * @param {integer} [y=0] - The y coordinate to grab from.
+     * @param {integer} [width=canvas.width] - The width of the area to grab.
+     * @param {integer} [height=canvas.height] - The height of the area to grab.
+     * @param {string} [type='image/png'] - The format of the image to create, usually `image/png` or `image/jpeg`.
+     * @param {number} [encoderOptions=0.92] - The image quality, between 0 and 1. Used for image formats with lossy compression, such as `image/jpeg`.
+     *
+     * @return {this} This Canvas Renderer.
+     */
+    snapshotCanvas: function (canvas, callback, getPixel, x, y, width, height, type, encoderOptions)
+    {
+        if (getPixel === undefined) { getPixel = false; }
+
+        this.snapshotArea(x, y, width, height, callback, type, encoderOptions);
+
+        var state = this.snapshotState;
+
+        state.getPixel = getPixel;
+
+        CanvasSnapshot(this.canvas, state);
+
+        state.callback = null;
+
+        return this;
     },
 
     /**

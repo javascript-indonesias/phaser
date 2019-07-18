@@ -7,6 +7,7 @@
 var Class = require('../../../../src/utils/Class');
 var ComponentsAlpha = require('../../../../src/gameobjects/components/Alpha');
 var ComponentsBlendMode = require('../../../../src/gameobjects/components/BlendMode');
+var ComponentsComputedSize = require('../../../../src/gameobjects/components/ComputedSize');
 var ComponentsDepth = require('../../../../src/gameobjects/components/Depth');
 var ComponentsFlip = require('../../../../src/gameobjects/components/Flip');
 var ComponentsScrollFactor = require('../../../../src/gameobjects/components/ScrollFactor');
@@ -33,6 +34,7 @@ var SpineGameObject = new Class({
     Mixins: [
         ComponentsAlpha,
         ComponentsBlendMode,
+        ComponentsComputedSize,
         ComponentsDepth,
         ComponentsFlip,
         ComponentsScrollFactor,
@@ -49,8 +51,7 @@ var SpineGameObject = new Class({
 
         this.plugin = plugin;
 
-        this.runtime = plugin.getRuntime();
-
+        this.root = null;
         this.skeleton = null;
         this.skeletonData = null;
 
@@ -60,6 +61,9 @@ var SpineGameObject = new Class({
         this.drawDebug = false;
 
         this.timeScale = 1;
+
+        this.displayOriginX = 0;
+        this.displayOriginY = 0;
 
         this.setPosition(x, y);
 
@@ -81,8 +85,6 @@ var SpineGameObject = new Class({
         this.skeletonData = data.skeletonData;
 
         var skeleton = data.skeleton;
-
-        skeleton.flipY = (this.scene.sys.game.config.renderType === 1);
 
         skeleton.setToSetupPose();
 
@@ -134,6 +136,22 @@ var SpineGameObject = new Class({
         {
             this.setAnimation(0, animationName, loop);
         }
+
+        this.root = this.getRootBone();
+
+        this.skeleton.scaleX = this.scaleX;
+        this.skeleton.scaleY = this.scaleY;
+
+        this.skeleton.updateWorldTransform();
+
+        var w = this.skeletonData.width;
+        var h = this.skeletonData.height;
+
+        this.width = w;
+        this.height = h;
+
+        this.displayOriginX = w / 2;
+        this.displayOriginY = h / 2;
 
         return this;
     },
@@ -227,6 +245,11 @@ var SpineGameObject = new Class({
         return this;
     },
 
+    getRootBone: function ()
+    {
+        return this.skeleton.getRootBone();
+    },
+
     findBone: function (boneName)
     {
         return this.skeleton.findBone(boneName);
@@ -256,9 +279,6 @@ var SpineGameObject = new Class({
     {
         var skeleton = this.skeleton;
 
-        skeleton.flipX = this.flipX;
-        skeleton.flipY = this.flipY;
-
         this.state.update((delta / 1000) * this.timeScale);
 
         this.state.apply(skeleton);
@@ -284,7 +304,6 @@ var SpineGameObject = new Class({
         }
 
         this.plugin = null;
-        this.runtime = null;
 
         this.skeleton = null;
         this.skeletonData = null;
