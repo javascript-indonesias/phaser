@@ -77,6 +77,16 @@
 * `WebGLRenderer.newType` is a boolean that indicates if the current Game Object has a new type, i.e. different to the previous one in the display list.
 * `WebGLRenderer.nextTypeMatch` is a boolean that indicates if the _next_ Game Object in the display list has the same type as the one being currently rendered. This allows you to build batching into separated Game Objects.
 * `PluginManager.removeGameObject` is a new method that allows you to de-register custom Game Object types from the global Game Object Factory and/or Creator. Useful for when custom plugins are destroyed and need to clean-up after themselves.
+* `GEOM_CONST` is a new constants object that contains the different types of Geometry Objects, such as `RECTANGLE` and `CIRCLE`.
+* `Circle.type` is a new property containing the shapes geometry type, which can be used for quick type comparisons.
+* `Ellipse.type` is a new property containing the shapes geometry type, which can be used for quick type comparisons.
+* `Line.type` is a new property containing the shapes geometry type, which can be used for quick type comparisons.
+* `Point.type` is a new property containing the shapes geometry type, which can be used for quick type comparisons.
+* `Polygon.type` is a new property containing the shapes geometry type, which can be used for quick type comparisons.
+* `Rectangle.type` is a new property containing the shapes geometry type, which can be used for quick type comparisons.
+* `Triangle.type` is a new property containing the shapes geometry type, which can be used for quick type comparisons.
+* `InputPlugin.enableDebug` is a new method that will create a debug shape for the given Game Objects hit area. This allows you to quickly check the size and placement of an input hit area. You can customzie the shape outline color. The debug shape will automatically track the Game Object to which it is bound.
+* `InputPlugion.removeDebug` will remove a Debug Input Shape from the given Game Object and destroy it.
 
 ### Updates
 
@@ -121,6 +131,7 @@
 * The `DESTROY` event hook wasn't removed from Group children when destroying the Group and `destroyChildren` was set to false. Now, the hook is removed regardless (thanks @rexrainbow)
 * The WebGL Lost and Restored Context callbacks were never removed, which could cause them to hold onto stale references. Fix #3610 (thanks @Twilrom)
 * `Origin.updateDisplayOrigin` no longer applies a Math.floor to the display origins, allowing you to have a 0.x origin for a Game Object that only has a width or height of 1. This fixes issues with things like 1x1 rectangles displaying incorrectly during rendering. Fix #4126 (thanks @rexrainbow)
+* `InputManager.resetCursor` will now check if the canvas element still exists before resetting the cursor on it. Fix #4662 (thanks @fromnowhereuser)
 
 ### Examples, Documentation and TypeScript
 
