@@ -103,14 +103,14 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
         shader.setUniformi(runtime.Shader.SAMPLER, 0);
         shader.setUniform4x4f(runtime.Shader.MVP_MATRIX, mvp.val);
 
-        batcher.begin(shader);
-
         skeletonRenderer.premultipliedAlpha = true;
+
+        batcher.begin(shader);
     }
 
     if (renderer.nextTypeMatch)
     {
-        batcher.isDrawing = false;
+        // batcher.isDrawing = false;
     }
 
     //  Draw the current skeleton

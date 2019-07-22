@@ -13,7 +13,9 @@ var ComponentsFlip = require('../../../../src/gameobjects/components/Flip');
 var ComponentsScrollFactor = require('../../../../src/gameobjects/components/ScrollFactor');
 var ComponentsTransform = require('../../../../src/gameobjects/components/Transform');
 var ComponentsVisible = require('../../../../src/gameobjects/components/Visible');
+var CounterClockwise = require('../../../../src/math/angle/CounterClockwise');
 var GameObject = require('../../../../src/gameobjects/GameObject');
+var RadToDeg = require('../../../../src/math/RadToDeg');
 var SpineGameObjectRender = require('./SpineGameObjectRender');
 
 /**
@@ -86,13 +88,8 @@ var SpineGameObject = new Class({
 
         var skeleton = data.skeleton;
 
-        skeleton.setToSetupPose();
-
-        skeleton.updateWorldTransform();
-
         skeleton.setSkinByName('default');
-
-        this.skeleton = skeleton;
+        skeleton.setToSetupPose();
 
         //  AnimationState
         data = this.plugin.createAnimationState(skeleton);
@@ -137,21 +134,42 @@ var SpineGameObject = new Class({
             this.setAnimation(0, animationName, loop);
         }
 
+        var renderer = this.scene.sys.renderer;
+        
+        var height = renderer.height;
+
+        var oldScaleX = this.scaleX;
+        var oldScaleY = this.scaleY;
+
+        skeleton.x = this.x;
+        skeleton.y = height - this.y;
+        skeleton.scaleX = 1;
+        skeleton.scaleY = 1;
+
+        this.skeleton = skeleton;
+
         this.root = this.getRootBone();
+    
+        if (this.root)
+        {
+            //  - 90 degrees to account for the difference in Spine vs. Phaser rotation
+            this.root.rotation = RadToDeg(CounterClockwise(this.rotation - 1.5707963267948966));
+        }
 
-        this.skeleton.scaleX = this.scaleX;
-        this.skeleton.scaleY = this.scaleY;
+        skeleton.updateWorldTransform();
 
-        this.skeleton.updateWorldTransform();
+        var b = this.getBounds();
 
-        var w = this.skeletonData.width;
-        var h = this.skeletonData.height;
+        this.width = b.size.x;
+        this.height = b.size.y;
 
-        this.width = w;
-        this.height = h;
+        this.displayOriginX = this.x - b.offset.x;
+        this.displayOriginY = this.y - (height - (this.height + b.offset.y));
 
-        this.displayOriginX = w / 2;
-        this.displayOriginY = h / 2;
+        skeleton.scaleX = oldScaleX;
+        skeleton.scaleY = oldScaleY;
+
+        skeleton.updateWorldTransform();
 
         return this;
     },
@@ -269,6 +287,11 @@ var SpineGameObject = new Class({
     {
         return this.skeleton.findSlotIndex(slotName);
     },
+
+    // getBounds (	2-tuple offset, 2-tuple size, float[] temp): void
+    // Returns the axis aligned bounding box (AABB) of the region and mesh attachments for the current pose.
+    // offset An output value, the distance from the skeleton origin to the bottom left corner of the AABB.
+    // size An output value, the width and height of the AABB.
 
     getBounds: function ()
     {

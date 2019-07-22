@@ -9878,96 +9878,6 @@ module.exports = {
 
 /***/ }),
 
-/***/ "../../../src/renderer/canvas/utils/SetTransform.js":
-/*!********************************************************************!*\
-  !*** D:/wamp/www/phaser/src/renderer/canvas/utils/SetTransform.js ***!
-  \********************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-/**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
- * @license      {@link https://opensource.org/licenses/MIT|MIT License}
- */
-
-/**
- * Takes a reference to the Canvas Renderer, a Canvas Rendering Context, a Game Object, a Camera and a parent matrix
- * and then performs the following steps:
- * 
- * 1. Checks the alpha of the source combined with the Camera alpha. If 0 or less it aborts.
- * 2. Takes the Camera and Game Object matrix and multiplies them, combined with the parent matrix if given.
- * 3. Sets the blend mode of the context to be that used by the Game Object.
- * 4. Sets the alpha value of the context to be that used by the Game Object combined with the Camera.
- * 5. Saves the context state.
- * 6. Sets the final matrix values into the context via setTransform.
- * 
- * This function is only meant to be used internally. Most of the Canvas Renderer classes use it.
- *
- * @function Phaser.Renderer.Canvas.SetTransform
- * @since 3.12.0
- *
- * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - A reference to the current active Canvas renderer.
- * @param {CanvasRenderingContext2D} ctx - The canvas context to set the transform on.
- * @param {Phaser.GameObjects.GameObject} src - The Game Object being rendered. Can be any type that extends the base class.
- * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
- * @param {Phaser.GameObjects.Components.TransformMatrix} [parentMatrix] - A parent transform matrix to apply to the Game Object before rendering.
- * 
- * @return {boolean} `true` if the Game Object context was set, otherwise `false`.
- */
-var SetTransform = function (renderer, ctx, src, camera, parentMatrix)
-{
-    var alpha = camera.alpha * src.alpha;
-
-    if (alpha <= 0)
-    {
-        //  Nothing to see, so don't waste time calculating stuff
-        return false;
-    }
-
-    var camMatrix = renderer._tempMatrix1.copyFromArray(camera.matrix.matrix);
-    var gameObjectMatrix = renderer._tempMatrix2.applyITRS(src.x, src.y, src.rotation, src.scaleX, src.scaleY);
-    var calcMatrix = renderer._tempMatrix3;
-
-    if (parentMatrix)
-    {
-        //  Multiply the camera by the parent matrix
-        camMatrix.multiplyWithOffset(parentMatrix, -camera.scrollX * src.scrollFactorX, -camera.scrollY * src.scrollFactorY);
-
-        //  Undo the camera scroll
-        gameObjectMatrix.e = src.x;
-        gameObjectMatrix.f = src.y;
-
-        //  Multiply by the Sprite matrix, store result in calcMatrix
-        camMatrix.multiply(gameObjectMatrix, calcMatrix);
-    }
-    else
-    {
-        gameObjectMatrix.e -= camera.scrollX * src.scrollFactorX;
-        gameObjectMatrix.f -= camera.scrollY * src.scrollFactorY;
-
-        //  Multiply by the Sprite matrix, store result in calcMatrix
-        camMatrix.multiply(gameObjectMatrix, calcMatrix);
-    }
-
-    //  Blend Mode
-    ctx.globalCompositeOperation = renderer.blendModes[src.blendMode];
-
-    //  Alpha
-    ctx.globalAlpha = alpha;
-
-    ctx.save();
-
-    calcMatrix.setToContext(ctx);
-
-    return true;
-};
-
-module.exports = SetTransform;
-
-
-/***/ }),
-
 /***/ "../../../src/scene/events/BOOT_EVENT.js":
 /*!*********************************************************!*\
   !*** D:/wamp/www/phaser/src/scene/events/BOOT_EVENT.js ***!
@@ -11350,8 +11260,13 @@ var SpineFile = new Class({
 
     function SpineFile (loader, key, jsonURL, atlasURL, jsonXhrSettings, atlasXhrSettings)
     {
+        var i;
         var json;
         var atlas;
+        var files = [];
+        var cache = loader.cacheManager.custom.spine;
+
+        //  atlas can be an array of atlas files, not just a single one
 
         if (IsPlainObject(key))
         {
@@ -11366,22 +11281,60 @@ var SpineFile = new Class({
                 xhrSettings: GetFastValue(config, 'jsonXhrSettings')
             });
 
-            atlas = new TextFile(loader, {
-                key: key,
-                url: GetFastValue(config, 'atlasURL'),
-                extension: GetFastValue(config, 'atlasExtension', 'atlas'),
-                xhrSettings: GetFastValue(config, 'atlasXhrSettings')
-            });
+            atlasURL = GetFastValue(config, 'atlasURL');
+
+            if (Array.isArray(atlasURL))
+            {
+                for (i = 0; i < atlasURL.length; i++)
+                {
+                    atlas = new TextFile(loader, {
+                        key: key,
+                        url: atlasURL[i],
+                        extension: GetFastValue(config, 'atlasExtension', 'atlas'),
+                        xhrSettings: GetFastValue(config, 'atlasXhrSettings')
+                    });
+
+                    files.push(atlas);
+                }
+            }
+            else
+            {
+                atlas = new TextFile(loader, {
+                    key: key,
+                    url: atlasURL,
+                    extension: GetFastValue(config, 'atlasExtension', 'atlas'),
+                    xhrSettings: GetFastValue(config, 'atlasXhrSettings')
+                });
+
+                files.push(atlas);
+            }
         }
         else
         {
             json = new JSONFile(loader, key, jsonURL, jsonXhrSettings);
-            atlas = new TextFile(loader, key, atlasURL, atlasXhrSettings);
-        }
-        
-        atlas.cache = loader.cacheManager.custom.spine;
 
-        MultiFile.call(this, loader, 'spine', key, [ json, atlas ]);
+            if (Array.isArray(atlasURL))
+            {
+                for (i = 0; i < atlasURL.length; i++)
+                {
+                    atlas = new TextFile(loader, key + '_' + i, atlasURL[i], atlasXhrSettings);
+                    atlas.cache = cache;
+
+                    files.push(atlas);
+                }
+            }
+            else
+            {
+                atlas = new TextFile(loader, key + '_0', atlasURL, atlasXhrSettings);
+                atlas.cache = cache;
+
+                files.push(atlas);
+            }
+        }
+
+        files.unshift(json);
+
+        MultiFile.call(this, loader, 'spine', key, files);
     },
 
     /**
@@ -11471,153 +11424,39 @@ var SpineFile = new Class({
 
             fileJSON.addToCache();
 
-            var fileText = this.files[1];
+            var atlasCache;
+            var atlasKey = '';
+            var combinedAtlastData = '';
 
-            fileText.addToCache();
-
-            for (var i = 2; i < this.files.length; i++)
+            for (var i = 1; i < this.files.length; i++)
             {
                 var file = this.files[i];
 
-                var key = file.key.substr(4).trim();
+                if (file.type === 'text')
+                {
+                    atlasKey = file.key.substr(0, file.key.length - 2);
 
-                this.loader.textureManager.addImage(key, file.data);
+                    atlasCache = file.cache;
+
+                    combinedAtlastData = combinedAtlastData.concat(file.data);
+                }
+                else
+                {
+                    var key = file.key.substr(4).trim();
+   
+                    this.loader.textureManager.addImage(key, file.data);
+                }
 
                 file.pendingDestroy();
             }
+
+            atlasCache.add(atlasKey, combinedAtlastData);
 
             this.complete = true;
         }
     }
 
 });
-
-/**
- * Adds a Unity YAML based Texture Atlas, or array of atlases, to the current load queue.
- *
- * You can call this method from within your Scene's `preload`, along with any other files you wish to load:
- * 
- * ```javascript
- * function preload ()
- * {
- *     this.load.unityAtlas('mainmenu', 'images/MainMenu.png', 'images/MainMenu.txt');
- * }
- * ```
- *
- * The file is **not** loaded right away. It is added to a queue ready to be loaded either when the loader starts,
- * or if it's already running, when the next free load slot becomes available. This happens automatically if you
- * are calling this from within the Scene's `preload` method, or a related callback. Because the file is queued
- * it means you cannot use the file immediately after calling this method, but must wait for the file to complete.
- * The typical flow for a Phaser Scene is that you load assets in the Scene's `preload` method and then when the
- * Scene's `create` method is called you are guaranteed that all of those assets are ready for use and have been
- * loaded.
- * 
- * If you call this from outside of `preload` then you are responsible for starting the Loader afterwards and monitoring
- * its events to know when it's safe to use the asset. Please see the Phaser.Loader.LoaderPlugin class for more details.
- *
- * Phaser expects the atlas data to be provided in a YAML formatted text file as exported from Unity.
- * 
- * Phaser can load all common image types: png, jpg, gif and any other format the browser can natively handle.
- *
- * The key must be a unique String. It is used to add the file to the global Texture Manager upon a successful load.
- * The key should be unique both in terms of files being loaded and files already present in the Texture Manager.
- * Loading a file using a key that is already taken will result in a warning. If you wish to replace an existing file
- * then remove it from the Texture Manager first, before loading a new one.
- *
- * Instead of passing arguments you can pass a configuration object, such as:
- * 
- * ```javascript
- * this.load.unityAtlas({
- *     key: 'mainmenu',
- *     textureURL: 'images/MainMenu.png',
- *     atlasURL: 'images/MainMenu.txt'
- * });
- * ```
- *
- * See the documentation for `Phaser.Loader.FileTypes.SpineFileConfig` for more details.
- *
- * Once the atlas has finished loading you can use frames from it as textures for a Game Object by referencing its key:
- * 
- * ```javascript
- * this.load.unityAtlas('mainmenu', 'images/MainMenu.png', 'images/MainMenu.json');
- * // and later in your game ...
- * this.add.image(x, y, 'mainmenu', 'background');
- * ```
- *
- * To get a list of all available frames within an atlas please consult your Texture Atlas software.
- *
- * If you have specified a prefix in the loader, via `Loader.setPrefix` then this value will be prepended to this files
- * key. For example, if the prefix was `MENU.` and the key was `Background` the final key will be `MENU.Background` and
- * this is what you would use to retrieve the image from the Texture Manager.
- *
- * The URL can be relative or absolute. If the URL is relative the `Loader.baseURL` and `Loader.path` values will be prepended to it.
- *
- * If the URL isn't specified the Loader will take the key and create a filename from that. For example if the key is "alien"
- * and no URL is given then the Loader will set the URL to be "alien.png". It will always add `.png` as the extension, although
- * this can be overridden if using an object instead of method arguments. If you do not desire this action then provide a URL.
- *
- * Phaser also supports the automatic loading of associated normal maps. If you have a normal map to go with this image,
- * then you can specify it by providing an array as the `url` where the second element is the normal map:
- * 
- * ```javascript
- * this.load.unityAtlas('mainmenu', [ 'images/MainMenu.png', 'images/MainMenu-n.png' ], 'images/MainMenu.txt');
- * ```
- *
- * Or, if you are using a config object use the `normalMap` property:
- * 
- * ```javascript
- * this.load.unityAtlas({
- *     key: 'mainmenu',
- *     textureURL: 'images/MainMenu.png',
- *     normalMap: 'images/MainMenu-n.png',
- *     atlasURL: 'images/MainMenu.txt'
- * });
- * ```
- *
- * The normal map file is subject to the same conditions as the image file with regard to the path, baseURL, CORs and XHR Settings.
- * Normal maps are a WebGL only feature.
- *
- * Note: The ability to load this type of file will only be available if the Unity Atlas File type has been built into Phaser.
- * It is available in the default build but can be excluded from custom builds.
- *
- * @method Phaser.Loader.LoaderPlugin#spine
- * @fires Phaser.Loader.LoaderPlugin#addFileEvent
- * @since 3.16.0
- *
- * @param {(string|Phaser.Loader.FileTypes.SpineFileConfig|Phaser.Loader.FileTypes.SpineFileConfig[])} key - The key to use for this file, or a file configuration object, or array of them.
- * @param {string|string[]} [textureURL] - The absolute or relative URL to load the texture image file from. If undefined or `null` it will be set to `<key>.png`, i.e. if `key` was "alien" then the URL will be "alien.png".
- * @param {string} [atlasURL] - The absolute or relative URL to load the texture atlas data file from. If undefined or `null` it will be set to `<key>.txt`, i.e. if `key` was "alien" then the URL will be "alien.txt".
- * @param {XHRSettingsObject} [textureXhrSettings] - An XHR Settings configuration object for the atlas image file. Used in replacement of the Loaders default XHR Settings.
- * @param {XHRSettingsObject} [atlasXhrSettings] - An XHR Settings configuration object for the atlas data file. Used in replacement of the Loaders default XHR Settings.
- *
- * @return {Phaser.Loader.LoaderPlugin} The Loader instance.
-FileTypesManager.register('spine', function (key, jsonURL, atlasURL, jsonXhrSettings, atlasXhrSettings)
-{
-    var multifile;
-
-    //  Supports an Object file definition in the key argument
-    //  Or an array of objects in the key argument
-    //  Or a single entry where all arguments have been defined
-
-    if (Array.isArray(key))
-    {
-        for (var i = 0; i < key.length; i++)
-        {
-            multifile = new SpineFile(this, key[i]);
-
-            this.addFile(multifile.files);
-        }
-    }
-    else
-    {
-        multifile = new SpineFile(this, key, jsonURL, atlasURL, jsonXhrSettings, atlasXhrSettings);
-
-        this.addFile(multifile.files);
-    }
-
-    return this;
-});
- */
 
 module.exports = SpineFile;
 
@@ -11641,7 +11480,7 @@ var Class = __webpack_require__(/*! ../../../src/utils/Class */ "../../../src/ut
 var GetValue = __webpack_require__(/*! ../../../src/utils/object/GetValue */ "../../../src/utils/object/GetValue.js");
 var ScenePlugin = __webpack_require__(/*! ../../../src/plugins/ScenePlugin */ "../../../src/plugins/ScenePlugin.js");
 var SpineFile = __webpack_require__(/*! ./SpineFile */ "./SpineFile.js");
-var Spine = __webpack_require__(/*! Spine */ "./runtimes/spine-both.js");
+var Spine = __webpack_require__(/*! Spine */ "./runtimes/spine-webgl.js");
 var SpineGameObject = __webpack_require__(/*! ./gameobject/SpineGameObject */ "./gameobject/SpineGameObject.js");
 var Matrix4 = __webpack_require__(/*! ../../../src/math/Matrix4 */ "../../../src/math/Matrix4.js");
 
@@ -11782,16 +11621,18 @@ var SpinePlugin = new Class({
         this.mvp = new Matrix4();
 
         //  Create a simple shader, mesh, model-view-projection matrix and SkeletonRenderer.
+
         this.shader = runtime.Shader.newTwoColoredTextured(gl);
-        this.batcher = new runtime.PolygonBatcher(gl);
 
-        this.skeletonRenderer = new runtime.SkeletonRenderer(gl);
+        this.batcher = new runtime.PolygonBatcher(gl, true);
 
-        this.shapes = new runtime.ShapeRenderer(gl);
+        this.skeletonRenderer = new runtime.SkeletonRenderer(gl, true);
 
-        this.debugRenderer = new runtime.SkeletonDebugRenderer(gl);
+        this.skeletonRenderer.premultipliedAlpha = true;
 
-        this.debugShader = runtime.Shader.newColored(gl);
+        // this.shapes = new runtime.ShapeRenderer(gl);
+        // this.debugRenderer = new runtime.SkeletonDebugRenderer(gl);
+        // this.debugShader = runtime.Shader.newColored(gl);
     },
 
     getAtlasWebGL: function (key)
@@ -11822,7 +11663,7 @@ var SpinePlugin = new Class({
 
             atlas = new Spine.TextureAtlas(atlasData, function (path)
             {
-                var glTexture = new Spine.webgl.GLTexture(gl, textures.get(path).getSourceImage());
+                var glTexture = new Spine.webgl.GLTexture(gl, textures.get(path).getSourceImage(), false);
 
                 spineTextures.add(key, glTexture);
 
@@ -11893,8 +11734,9 @@ var SpinePlugin = new Class({
     {
         var atlasKey = key;
         var jsonKey = key;
+        var split = (key.indexOf('.') !== -1);
 
-        if (key.indexOf('.'))
+        if (split)
         {
             var parts = key.split('.');
 
@@ -11918,14 +11760,21 @@ var SpinePlugin = new Class({
         {
             var json = this.json.get(atlasKey);
 
-            data = GetValue(json, jsonKey);
+            data = (split) ? GetValue(json, jsonKey) : json;
         }
 
-        var skeletonData = skeletonJson.readSkeletonData(data);
+        if (data)
+        {
+            var skeletonData = skeletonJson.readSkeletonData(data);
 
-        var skeleton = new Spine.Skeleton(skeletonData);
-    
-        return { skeletonData: skeletonData, skeleton: skeleton };
+            var skeleton = new Spine.Skeleton(skeletonData);
+        
+            return { skeletonData: skeletonData, skeleton: skeleton };
+        }
+        else
+        {
+            return null;
+        }
     },
 
     getBounds: function (skeleton)
@@ -12024,7 +11873,9 @@ var ComponentsFlip = __webpack_require__(/*! ../../../../src/gameobjects/compone
 var ComponentsScrollFactor = __webpack_require__(/*! ../../../../src/gameobjects/components/ScrollFactor */ "../../../src/gameobjects/components/ScrollFactor.js");
 var ComponentsTransform = __webpack_require__(/*! ../../../../src/gameobjects/components/Transform */ "../../../src/gameobjects/components/Transform.js");
 var ComponentsVisible = __webpack_require__(/*! ../../../../src/gameobjects/components/Visible */ "../../../src/gameobjects/components/Visible.js");
+var CounterClockwise = __webpack_require__(/*! ../../../../src/math/angle/CounterClockwise */ "../../../src/math/angle/CounterClockwise.js");
 var GameObject = __webpack_require__(/*! ../../../../src/gameobjects/GameObject */ "../../../src/gameobjects/GameObject.js");
+var RadToDeg = __webpack_require__(/*! ../../../../src/math/RadToDeg */ "../../../src/math/RadToDeg.js");
 var SpineGameObjectRender = __webpack_require__(/*! ./SpineGameObjectRender */ "./gameobject/SpineGameObjectRender.js");
 
 /**
@@ -12097,13 +11948,8 @@ var SpineGameObject = new Class({
 
         var skeleton = data.skeleton;
 
-        skeleton.setToSetupPose();
-
-        skeleton.updateWorldTransform();
-
         skeleton.setSkinByName('default');
-
-        this.skeleton = skeleton;
+        skeleton.setToSetupPose();
 
         //  AnimationState
         data = this.plugin.createAnimationState(skeleton);
@@ -12148,21 +11994,42 @@ var SpineGameObject = new Class({
             this.setAnimation(0, animationName, loop);
         }
 
+        var renderer = this.scene.sys.renderer;
+        
+        var height = renderer.height;
+
+        var oldScaleX = this.scaleX;
+        var oldScaleY = this.scaleY;
+
+        skeleton.x = this.x;
+        skeleton.y = height - this.y;
+        skeleton.scaleX = 1;
+        skeleton.scaleY = 1;
+
+        this.skeleton = skeleton;
+
         this.root = this.getRootBone();
+    
+        if (this.root)
+        {
+            //  - 90 degrees to account for the difference in Spine vs. Phaser rotation
+            this.root.rotation = RadToDeg(CounterClockwise(this.rotation - 1.5707963267948966));
+        }
 
-        this.skeleton.scaleX = this.scaleX;
-        this.skeleton.scaleY = this.scaleY;
+        skeleton.updateWorldTransform();
 
-        this.skeleton.updateWorldTransform();
+        var b = this.getBounds();
 
-        var w = this.skeletonData.width;
-        var h = this.skeletonData.height;
+        this.width = b.size.x;
+        this.height = b.size.y;
 
-        this.width = w;
-        this.height = h;
+        this.displayOriginX = this.x - b.offset.x;
+        this.displayOriginY = this.y - (height - (this.height + b.offset.y));
 
-        this.displayOriginX = w / 2;
-        this.displayOriginY = h / 2;
+        skeleton.scaleX = oldScaleX;
+        skeleton.scaleY = oldScaleY;
+
+        skeleton.updateWorldTransform();
 
         return this;
     },
@@ -12281,6 +12148,11 @@ var SpineGameObject = new Class({
         return this.skeleton.findSlotIndex(slotName);
     },
 
+    // getBounds (	2-tuple offset, 2-tuple size, float[] temp): void
+    // Returns the axis aligned bounding box (AABB) of the region and mesh attachments for the current pose.
+    // offset An output value, the distance from the skeleton origin to the bottom left corner of the AABB.
+    // size An output value, the width and height of the AABB.
+
     getBounds: function ()
     {
         return this.plugin.getBounds(this.skeleton);
@@ -12330,74 +12202,6 @@ module.exports = SpineGameObject;
 
 /***/ }),
 
-/***/ "./gameobject/SpineGameObjectCanvasRenderer.js":
-/*!*****************************************************!*\
-  !*** ./gameobject/SpineGameObjectCanvasRenderer.js ***!
-  \*****************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-/**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2018 Photon Storm Ltd.
- * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
- */
-
-var SetTransform = __webpack_require__(/*! ../../../../src/renderer/canvas/utils/SetTransform */ "../../../src/renderer/canvas/utils/SetTransform.js");
-
-/**
- * Renders this Game Object with the Canvas Renderer to the given Camera.
- * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
- * This method should not be called directly. It is a utility function of the Render module.
- *
- * @method Phaser.GameObjects.SpineGameObject#renderCanvas
- * @since 3.16.0
- * @private
- *
- * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - A reference to the current active Canvas renderer.
- * @param {Phaser.GameObjects.SpineGameObject} src - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
- * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
- * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
- */
-var SpineGameObjectCanvasRenderer = function (renderer, src, interpolationPercentage, camera, parentMatrix)
-{
-    var context = renderer.currentContext;
-
-    var plugin = src.plugin;
-    var skeleton = src.skeleton;
-    var skeletonRenderer = plugin.skeletonRenderer;
-
-    if (!skeleton || !SetTransform(renderer, context, src, camera, parentMatrix))
-    {
-        return;
-    }
-
-    skeletonRenderer.ctx = context;
-
-    context.save();
-
-    skeletonRenderer.draw(skeleton);
-
-    if (plugin.drawDebug || src.drawDebug)
-    {
-        context.strokeStyle = '#00ff00';
-        context.beginPath();
-        context.moveTo(-1000, 0);
-        context.lineTo(1000, 0);
-        context.moveTo(0, -1000);
-        context.lineTo(0, 1000);
-        context.stroke();
-    }
-
-    context.restore();
-};
-
-module.exports = SpineGameObjectCanvasRenderer;
-
-
-/***/ }),
-
 /***/ "./gameobject/SpineGameObjectRender.js":
 /*!*********************************************!*\
   !*** ./gameobject/SpineGameObjectRender.js ***!
@@ -12419,10 +12223,8 @@ if (true)
     renderWebGL = __webpack_require__(/*! ./SpineGameObjectWebGLRenderer */ "./gameobject/SpineGameObjectWebGLRenderer.js");
 }
 
-if (true)
-{
-    renderCanvas = __webpack_require__(/*! ./SpineGameObjectCanvasRenderer */ "./gameobject/SpineGameObjectCanvasRenderer.js");
-}
+if (false)
+{}
 
 module.exports = {
 
@@ -12546,14 +12348,14 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
         shader.setUniformi(runtime.Shader.SAMPLER, 0);
         shader.setUniform4x4f(runtime.Shader.MVP_MATRIX, mvp.val);
 
-        batcher.begin(shader);
-
         skeletonRenderer.premultipliedAlpha = true;
+
+        batcher.begin(shader);
     }
 
     if (renderer.nextTypeMatch)
     {
-        batcher.isDrawing = false;
+        // batcher.isDrawing = false;
     }
 
     //  Draw the current skeleton
@@ -12599,10 +12401,10 @@ module.exports = SpineGameObjectWebGLRenderer;
 
 /***/ }),
 
-/***/ "./runtimes/spine-both.js":
-/*!********************************!*\
-  !*** ./runtimes/spine-both.js ***!
-  \********************************/
+/***/ "./runtimes/spine-webgl.js":
+/*!*********************************!*\
+  !*** ./runtimes/spine-webgl.js ***!
+  \*********************************/
 /*! no static exports found */
 /***/ (function(module, exports) {
 
@@ -19461,272 +19263,6 @@ var spine;
 })(spine || (spine = {}));
 var spine;
 (function (spine) {
-	var canvas;
-	(function (canvas) {
-		var AssetManager = (function (_super) {
-			__extends(AssetManager, _super);
-			function AssetManager(pathPrefix) {
-				if (pathPrefix === void 0) { pathPrefix = ""; }
-				return _super.call(this, function (image) { return new spine.canvas.CanvasTexture(image); }, pathPrefix) || this;
-			}
-			return AssetManager;
-		}(spine.AssetManager));
-		canvas.AssetManager = AssetManager;
-	})(canvas = spine.canvas || (spine.canvas = {}));
-})(spine || (spine = {}));
-var spine;
-(function (spine) {
-	var canvas;
-	(function (canvas) {
-		var CanvasTexture = (function (_super) {
-			__extends(CanvasTexture, _super);
-			function CanvasTexture(image) {
-				return _super.call(this, image) || this;
-			}
-			CanvasTexture.prototype.setFilters = function (minFilter, magFilter) { };
-			CanvasTexture.prototype.setWraps = function (uWrap, vWrap) { };
-			CanvasTexture.prototype.dispose = function () { };
-			return CanvasTexture;
-		}(spine.Texture));
-		canvas.CanvasTexture = CanvasTexture;
-	})(canvas = spine.canvas || (spine.canvas = {}));
-})(spine || (spine = {}));
-var spine;
-(function (spine) {
-	var canvas;
-	(function (canvas) {
-		var SkeletonRenderer = (function () {
-			function SkeletonRenderer(context) {
-				this.triangleRendering = false;
-				this.debugRendering = false;
-				this.vertices = spine.Utils.newFloatArray(8 * 1024);
-				this.tempColor = new spine.Color();
-				this.ctx = context;
-			}
-			SkeletonRenderer.prototype.draw = function (skeleton) {
-				if (this.triangleRendering)
-					this.drawTriangles(skeleton);
-				else
-					this.drawImages(skeleton);
-			};
-			SkeletonRenderer.prototype.drawImages = function (skeleton) {
-				var ctx = this.ctx;
-				var drawOrder = skeleton.drawOrder;
-				if (this.debugRendering)
-					ctx.strokeStyle = "green";
-				ctx.save();
-				for (var i = 0, n = drawOrder.length; i < n; i++) {
-					var slot = drawOrder[i];
-					var attachment = slot.getAttachment();
-					var regionAttachment = null;
-					var region = null;
-					var image = null;
-					if (attachment instanceof spine.RegionAttachment) {
-						regionAttachment = attachment;
-						region = regionAttachment.region;
-						image = region.texture.getImage();
-					}
-					else
-						continue;
-					var skeleton_1 = slot.bone.skeleton;
-					var skeletonColor = skeleton_1.color;
-					var slotColor = slot.color;
-					var regionColor = regionAttachment.color;
-					var alpha = skeletonColor.a * slotColor.a * regionColor.a;
-					var color = this.tempColor;
-					color.set(skeletonColor.r * slotColor.r * regionColor.r, skeletonColor.g * slotColor.g * regionColor.g, skeletonColor.b * slotColor.b * regionColor.b, alpha);
-					var att = attachment;
-					var bone = slot.bone;
-					var w = region.width;
-					var h = region.height;
-					ctx.save();
-					ctx.transform(bone.a, bone.c, bone.b, bone.d, bone.worldX, bone.worldY);
-					ctx.translate(attachment.offset[0], attachment.offset[1]);
-					ctx.rotate(attachment.rotation * Math.PI / 180);
-					var atlasScale = att.width / w;
-					ctx.scale(atlasScale * attachment.scaleX, atlasScale * attachment.scaleY);
-					ctx.translate(w / 2, h / 2);
-					if (attachment.region.rotate) {
-						var t = w;
-						w = h;
-						h = t;
-						ctx.rotate(-Math.PI / 2);
-					}
-					ctx.scale(1, -1);
-					ctx.translate(-w / 2, -h / 2);
-					if (color.r != 1 || color.g != 1 || color.b != 1 || color.a != 1) {
-						ctx.globalAlpha = color.a;
-					}
-					ctx.drawImage(image, region.x, region.y, w, h, 0, 0, w, h);
-					if (this.debugRendering)
-						ctx.strokeRect(0, 0, w, h);
-					ctx.restore();
-				}
-				ctx.restore();
-			};
-			SkeletonRenderer.prototype.drawTriangles = function (skeleton) {
-				var blendMode = null;
-				var vertices = this.vertices;
-				var triangles = null;
-				var drawOrder = skeleton.drawOrder;
-				for (var i = 0, n = drawOrder.length; i < n; i++) {
-					var slot = drawOrder[i];
-					var attachment = slot.getAttachment();
-					var texture = null;
-					var region = null;
-					if (attachment instanceof spine.RegionAttachment) {
-						var regionAttachment = attachment;
-						vertices = this.computeRegionVertices(slot, regionAttachment, false);
-						triangles = SkeletonRenderer.QUAD_TRIANGLES;
-						region = regionAttachment.region;
-						texture = region.texture.getImage();
-					}
-					else if (attachment instanceof spine.MeshAttachment) {
-						var mesh = attachment;
-						vertices = this.computeMeshVertices(slot, mesh, false);
-						triangles = mesh.triangles;
-						texture = mesh.region.renderObject.texture.getImage();
-					}
-					else
-						continue;
-					if (texture != null) {
-						var slotBlendMode = slot.data.blendMode;
-						if (slotBlendMode != blendMode) {
-							blendMode = slotBlendMode;
-						}
-						var skeleton_2 = slot.bone.skeleton;
-						var skeletonColor = skeleton_2.color;
-						var slotColor = slot.color;
-						var attachmentColor = attachment.color;
-						var alpha = skeletonColor.a * slotColor.a * attachmentColor.a;
-						var color = this.tempColor;
-						color.set(skeletonColor.r * slotColor.r * attachmentColor.r, skeletonColor.g * slotColor.g * attachmentColor.g, skeletonColor.b * slotColor.b * attachmentColor.b, alpha);
-						var ctx = this.ctx;
-						if (color.r != 1 || color.g != 1 || color.b != 1 || color.a != 1) {
-							ctx.globalAlpha = color.a;
-						}
-						for (var j = 0; j < triangles.length; j += 3) {
-							var t1 = triangles[j] * 8, t2 = triangles[j + 1] * 8, t3 = triangles[j + 2] * 8;
-							var x0 = vertices[t1], y0 = vertices[t1 + 1], u0 = vertices[t1 + 6], v0 = vertices[t1 + 7];
-							var x1 = vertices[t2], y1 = vertices[t2 + 1], u1 = vertices[t2 + 6], v1 = vertices[t2 + 7];
-							var x2 = vertices[t3], y2 = vertices[t3 + 1], u2 = vertices[t3 + 6], v2 = vertices[t3 + 7];
-							this.drawTriangle(texture, x0, y0, u0, v0, x1, y1, u1, v1, x2, y2, u2, v2);
-							if (this.debugRendering) {
-								ctx.strokeStyle = "green";
-								ctx.beginPath();
-								ctx.moveTo(x0, y0);
-								ctx.lineTo(x1, y1);
-								ctx.lineTo(x2, y2);
-								ctx.lineTo(x0, y0);
-								ctx.stroke();
-							}
-						}
-					}
-				}
-				this.ctx.globalAlpha = 1;
-			};
-			SkeletonRenderer.prototype.drawTriangle = function (img, x0, y0, u0, v0, x1, y1, u1, v1, x2, y2, u2, v2) {
-				var ctx = this.ctx;
-				u0 *= img.width;
-				v0 *= img.height;
-				u1 *= img.width;
-				v1 *= img.height;
-				u2 *= img.width;
-				v2 *= img.height;
-				ctx.beginPath();
-				ctx.moveTo(x0, y0);
-				ctx.lineTo(x1, y1);
-				ctx.lineTo(x2, y2);
-				ctx.closePath();
-				x1 -= x0;
-				y1 -= y0;
-				x2 -= x0;
-				y2 -= y0;
-				u1 -= u0;
-				v1 -= v0;
-				u2 -= u0;
-				v2 -= v0;
-				var det = 1 / (u1 * v2 - u2 * v1), a = (v2 * x1 - v1 * x2) * det, b = (v2 * y1 - v1 * y2) * det, c = (u1 * x2 - u2 * x1) * det, d = (u1 * y2 - u2 * y1) * det, e = x0 - a * u0 - c * v0, f = y0 - b * u0 - d * v0;
-				ctx.save();
-				ctx.transform(a, b, c, d, e, f);
-				ctx.clip();
-				ctx.drawImage(img, 0, 0);
-				ctx.restore();
-			};
-			SkeletonRenderer.prototype.computeRegionVertices = function (slot, region, pma) {
-				var skeleton = slot.bone.skeleton;
-				var skeletonColor = skeleton.color;
-				var slotColor = slot.color;
-				var regionColor = region.color;
-				var alpha = skeletonColor.a * slotColor.a * regionColor.a;
-				var multiplier = pma ? alpha : 1;
-				var color = this.tempColor;
-				color.set(skeletonColor.r * slotColor.r * regionColor.r * multiplier, skeletonColor.g * slotColor.g * regionColor.g * multiplier, skeletonColor.b * slotColor.b * regionColor.b * multiplier, alpha);
-				region.computeWorldVertices(slot.bone, this.vertices, 0, SkeletonRenderer.VERTEX_SIZE);
-				var vertices = this.vertices;
-				var uvs = region.uvs;
-				vertices[spine.RegionAttachment.C1R] = color.r;
-				vertices[spine.RegionAttachment.C1G] = color.g;
-				vertices[spine.RegionAttachment.C1B] = color.b;
-				vertices[spine.RegionAttachment.C1A] = color.a;
-				vertices[spine.RegionAttachment.U1] = uvs[0];
-				vertices[spine.RegionAttachment.V1] = uvs[1];
-				vertices[spine.RegionAttachment.C2R] = color.r;
-				vertices[spine.RegionAttachment.C2G] = color.g;
-				vertices[spine.RegionAttachment.C2B] = color.b;
-				vertices[spine.RegionAttachment.C2A] = color.a;
-				vertices[spine.RegionAttachment.U2] = uvs[2];
-				vertices[spine.RegionAttachment.V2] = uvs[3];
-				vertices[spine.RegionAttachment.C3R] = color.r;
-				vertices[spine.RegionAttachment.C3G] = color.g;
-				vertices[spine.RegionAttachment.C3B] = color.b;
-				vertices[spine.RegionAttachment.C3A] = color.a;
-				vertices[spine.RegionAttachment.U3] = uvs[4];
-				vertices[spine.RegionAttachment.V3] = uvs[5];
-				vertices[spine.RegionAttachment.C4R] = color.r;
-				vertices[spine.RegionAttachment.C4G] = color.g;
-				vertices[spine.RegionAttachment.C4B] = color.b;
-				vertices[spine.RegionAttachment.C4A] = color.a;
-				vertices[spine.RegionAttachment.U4] = uvs[6];
-				vertices[spine.RegionAttachment.V4] = uvs[7];
-				return vertices;
-			};
-			SkeletonRenderer.prototype.computeMeshVertices = function (slot, mesh, pma) {
-				var skeleton = slot.bone.skeleton;
-				var skeletonColor = skeleton.color;
-				var slotColor = slot.color;
-				var regionColor = mesh.color;
-				var alpha = skeletonColor.a * slotColor.a * regionColor.a;
-				var multiplier = pma ? alpha : 1;
-				var color = this.tempColor;
-				color.set(skeletonColor.r * slotColor.r * regionColor.r * multiplier, skeletonColor.g * slotColor.g * regionColor.g * multiplier, skeletonColor.b * slotColor.b * regionColor.b * multiplier, alpha);
-				var numVertices = mesh.worldVerticesLength / 2;
-				if (this.vertices.length < mesh.worldVerticesLength) {
-					this.vertices = spine.Utils.newFloatArray(mesh.worldVerticesLength);
-				}
-				var vertices = this.vertices;
-				mesh.computeWorldVertices(slot, 0, mesh.worldVerticesLength, vertices, 0, SkeletonRenderer.VERTEX_SIZE);
-				var uvs = mesh.uvs;
-				for (var i = 0, n = numVertices, u = 0, v = 2; i < n; i++) {
-					vertices[v++] = color.r;
-					vertices[v++] = color.g;
-					vertices[v++] = color.b;
-					vertices[v++] = color.a;
-					vertices[v++] = uvs[u++];
-					vertices[v++] = uvs[u++];
-					v += 2;
-				}
-				return vertices;
-			};
-			SkeletonRenderer.QUAD_TRIANGLES = [0, 1, 2, 2, 3, 0];
-			SkeletonRenderer.VERTEX_SIZE = 2 + 2 + 4;
-			return SkeletonRenderer;
-		}());
-		canvas.SkeletonRenderer = SkeletonRenderer;
-	})(canvas = spine.canvas || (spine.canvas = {}));
-})(spine || (spine = {}));
-var spine;
-(function (spine) {
 	var webgl;
 	(function (webgl) {
 		var AssetManager = (function (_super) {
@@ -22258,16 +21794,16 @@ var spine;
 				var _this = this;
 				this.restorables = new Array();
 				if (canvasOrContext instanceof HTMLCanvasElement) {
-					var canvas_1 = canvasOrContext;
-					this.gl = (canvas_1.getContext("webgl", contextConfig) || canvas_1.getContext("experimental-webgl", contextConfig));
-					this.canvas = canvas_1;
-					canvas_1.addEventListener("webglcontextlost", function (e) {
+					var canvas = canvasOrContext;
+					this.gl = (canvas.getContext("webgl", contextConfig) || canvas.getContext("experimental-webgl", contextConfig));
+					this.canvas = canvas;
+					canvas.addEventListener("webglcontextlost", function (e) {
 						var event = e;
 						if (e) {
 							e.preventDefault();
 						}
 					});
-					canvas_1.addEventListener("webglcontextrestored", function (e) {
+					canvas.addEventListener("webglcontextrestored", function (e) {
 						for (var i = 0, n = _this.restorables.length; i < n; i++) {
 							_this.restorables[i].restore();
 						}
@@ -22325,7 +21861,7 @@ var spine;
 		webgl.WebGLBlendModeConverter = WebGLBlendModeConverter;
 	})(webgl = spine.webgl || (spine.webgl = {}));
 })(spine || (spine = {}));
-
+//# sourceMappingURL=spine-webgl.js.map
 
 /*** EXPORTS FROM exports-loader ***/
 module.exports = spine;
