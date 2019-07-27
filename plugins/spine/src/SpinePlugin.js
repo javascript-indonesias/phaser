@@ -10,7 +10,6 @@ var ScenePlugin = require('../../../src/plugins/ScenePlugin');
 var SpineFile = require('./SpineFile');
 var Spine = require('Spine');
 var SpineGameObject = require('./gameobject/SpineGameObject');
-var Matrix4 = require('../../../src/math/Matrix4');
 
 /**
  * @classdesc
@@ -47,23 +46,18 @@ var SpinePlugin = new Class({
 
         this.textures = game.textures;
 
-        this.skeletonRenderer;
-
         this.drawDebug = false;
 
         this.gl;
-        this.mvp;
-        this.shader;
-        this.batcher;
-        this.debugRenderer;
-        this.debugShader;
-
-        console.log('SpinePlugin created', '- WebGL:', this.isWebGL);
+        this.renderer;
+        this.sceneRenderer;
+        this.skeletonDebugRenderer;
 
         if (this.isWebGL)
         {
             this.runtime = Spine.webgl;
 
+            this.renderer = game.renderer;
             this.gl = game.renderer.gl;
 
             this.getAtlas = this.getAtlasWebGL;
@@ -71,6 +65,8 @@ var SpinePlugin = new Class({
         else
         {
             this.runtime = Spine.canvas;
+
+            this.renderer = game.renderer;
 
             this.getAtlas = this.getAtlasCanvas;
         }
@@ -143,31 +139,38 @@ var SpinePlugin = new Class({
 
     bootWebGL: function ()
     {
-        var gl = this.gl;
-        var runtime = this.runtime;
+        this.sceneRenderer = new Spine.webgl.SceneRenderer(this.renderer.canvas, this.gl, true);
 
-        this.mvp = new Matrix4();
+        //  Monkeypatch the Spine setBlendMode functions, or batching is destroyed
 
-        //  Create a simple shader, mesh, model-view-projection matrix and SkeletonRenderer.
+        var setBlendMode = function (srcBlend, dstBlend)
+        {
+            if (srcBlend !== this.srcBlend || dstBlend !== this.dstBlend)
+            {
+                var gl = this.context.gl;
 
-        this.shader = runtime.Shader.newTwoColoredTextured(gl);
+                this.srcBlend = srcBlend;
+                this.dstBlend = dstBlend;
 
-        this.batcher = new runtime.PolygonBatcher(gl, true);
+                if (this.isDrawing)
+                {
+                    this.flush();
+                    gl.blendFunc(this.srcBlend, this.dstBlend);
+                }
+            }
+        };
 
-        this.skeletonRenderer = new runtime.SkeletonRenderer(gl, true);
+        this.sceneRenderer.batcher.setBlendMode = setBlendMode;
+        this.sceneRenderer.shapes.setBlendMode = setBlendMode;
 
-        this.skeletonRenderer.premultipliedAlpha = true;
-
-        // this.shapes = new runtime.ShapeRenderer(gl);
-        // this.debugRenderer = new runtime.SkeletonDebugRenderer(gl);
-        // this.debugShader = runtime.Shader.newColored(gl);
+        this.skeletonDebugRenderer = this.sceneRenderer.skeletonDebugRenderer;
     },
 
     getAtlasWebGL: function (key)
     {
-        var atlasData = this.cache.get(key);
+        var atlasEntry = this.cache.get(key);
 
-        if (!atlasData)
+        if (!atlasEntry)
         {
             console.warn('No atlas data for: ' + key);
             return;
@@ -178,7 +181,7 @@ var SpinePlugin = new Class({
 
         if (spineTextures.has(key))
         {
-            atlas = new Spine.TextureAtlas(atlasData, function ()
+            atlas = new Spine.TextureAtlas(atlasEntry.data, function ()
             {
                 return spineTextures.get(key);
             });
@@ -187,9 +190,11 @@ var SpinePlugin = new Class({
         {
             var textures = this.textures;
 
-            var gl = this.gl;
+            var gl = this.sceneRenderer.context.gl;
 
-            atlas = new Spine.TextureAtlas(atlasData, function (path)
+            gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+
+            atlas = new Spine.TextureAtlas(atlasEntry.data, function (path)
             {
                 var glTexture = new Spine.webgl.GLTexture(gl, textures.get(path).getSourceImage(), false);
 
@@ -202,7 +207,79 @@ var SpinePlugin = new Class({
         return atlas;
     },
 
-    spineFileCallback: function (key, jsonURL, atlasURL, jsonXhrSettings, atlasXhrSettings)
+    setDebugBones: function (value)
+    {
+        if (value === undefined) { value = true; }
+
+        this.skeletonDebugRenderer.drawBones = value;
+
+        return this;
+    },
+
+    setDebugRegionAttachments: function (value)
+    {
+        if (value === undefined) { value = true; }
+
+        this.skeletonDebugRenderer.drawRegionAttachments = value;
+
+        return this;
+    },
+
+    setDebugBoundingBoxes: function (value)
+    {
+        if (value === undefined) { value = true; }
+
+        this.skeletonDebugRenderer.drawBoundingBoxes = value;
+
+        return this;
+    },
+
+    setDebugMeshHull: function (value)
+    {
+        if (value === undefined) { value = true; }
+
+        this.skeletonDebugRenderer.drawMeshHull = value;
+
+        return this;
+    },
+
+    setDebugMeshTriangles: function (value)
+    {
+        if (value === undefined) { value = true; }
+
+        this.skeletonDebugRenderer.drawMeshTriangles = value;
+
+        return this;
+    },
+
+    setDebugPaths: function (value)
+    {
+        if (value === undefined) { value = true; }
+
+        this.skeletonDebugRenderer.drawPaths = value;
+
+        return this;
+    },
+
+    setDebugSkeletonXY: function (value)
+    {
+        if (value === undefined) { value = true; }
+
+        this.skeletonDebugRenderer.drawSkeletonXY = value;
+
+        return this;
+    },
+
+    setDebugClipping: function (value)
+    {
+        if (value === undefined) { value = true; }
+
+        this.skeletonDebugRenderer.drawClipping = value;
+
+        return this;
+    },
+
+    spineFileCallback: function (key, jsonURL, atlasURL, preMultipliedAlpha, jsonXhrSettings, atlasXhrSettings)
     {
         var multifile;
    
@@ -217,7 +294,7 @@ var SpinePlugin = new Class({
         }
         else
         {
-            multifile = new SpineFile(this, key, jsonURL, atlasURL, jsonXhrSettings, atlasXhrSettings);
+            multifile = new SpineFile(this, key, jsonURL, atlasURL, preMultipliedAlpha, jsonXhrSettings, atlasXhrSettings);
 
             this.addFile(multifile.files);
         }
@@ -272,7 +349,15 @@ var SpinePlugin = new Class({
             jsonKey = parts.join('.');
         }
 
+        var atlasData = this.cache.get(atlasKey);
         var atlas = this.getAtlas(atlasKey);
+
+        if (!atlas)
+        {
+            return null;
+        }
+
+        var preMultipliedAlpha = atlasData.preMultipliedAlpha;
 
         var atlasLoader = new Spine.AtlasAttachmentLoader(atlas);
         
@@ -297,7 +382,7 @@ var SpinePlugin = new Class({
 
             var skeleton = new Spine.Skeleton(skeletonData);
         
-            return { skeletonData: skeletonData, skeleton: skeleton };
+            return { skeletonData: skeletonData, skeleton: skeleton, preMultipliedAlpha: preMultipliedAlpha };
         }
         else
         {
@@ -337,6 +422,8 @@ var SpinePlugin = new Class({
         var eventEmitter = this.systems.events;
 
         eventEmitter.off('shutdown', this.shutdown, this);
+
+        this.sceneRenderer.dispose();
     },
 
     /**
@@ -358,18 +445,12 @@ var SpinePlugin = new Class({
         this.scene = null;
         this.systems = null;
 
-        //  Create a custom cache to store the spine data (.atlas files)
         this.cache = null;
         this.spineTextures = null;
         this.json = null;
         this.textures = null;
-        this.skeletonRenderer = null;
+        this.sceneRenderer = null;
         this.gl = null;
-        this.mvp = null;
-        this.shader = null;
-        this.batcher = null;
-        this.debugRenderer = null;
-        this.debugShader = null;
     }
 
 });

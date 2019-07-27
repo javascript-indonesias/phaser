@@ -25,13 +25,8 @@ var RadToDeg = require('../../../../src/math/RadToDeg');
 var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercentage, camera, parentMatrix)
 {
     var plugin = src.plugin;
-    var mvp = plugin.mvp;
-
-    var shader = plugin.shader;
-    var batcher = plugin.batcher;
-    var runtime = plugin.runtime;
     var skeleton = src.skeleton;
-    var skeletonRenderer = plugin.skeletonRenderer;
+    var sceneRenderer = plugin.sceneRenderer;
 
     if (!skeleton)
     {
@@ -47,8 +42,7 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
     var spriteMatrix = renderer._tempMatrix2;
     var calcMatrix = renderer._tempMatrix3;
 
-    //  - 90 degrees to account for the difference in Spine vs. Phaser rotation
-    spriteMatrix.applyITRS(src.x, src.y, src.rotation - 1.5707963267948966, src.scaleX, src.scaleY);
+    spriteMatrix.applyITRS(src.x, src.y, src.rotation, src.scaleX, src.scaleY);
 
     camMatrix.copyFrom(camera.matrix);
 
@@ -73,8 +67,8 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
         camMatrix.multiply(spriteMatrix, calcMatrix);
     }
 
-    var width = renderer.width;
-    var height = renderer.height;
+    var viewportWidth = renderer.width;
+    var viewportHeight = renderer.height;
 
     skeleton.x = calcMatrix.tx;
     skeleton.scaleX = calcMatrix.scaleX;
@@ -86,69 +80,52 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
     }
     else
     {
-        skeleton.y = height - calcMatrix.ty;
+        skeleton.y = viewportHeight - calcMatrix.ty;
         skeleton.scaleY = calcMatrix.scaleY;
     }
 
-    src.root.rotation = RadToDeg(CounterClockwise(calcMatrix.rotation));
+    //  +90 degrees to account for the difference in Spine vs. Phaser rotation
+    src.root.rotation = RadToDeg(CounterClockwise(calcMatrix.rotation)) + 90;
+
+    sceneRenderer.camera.position.x = viewportWidth / 2;
+    sceneRenderer.camera.position.y = viewportHeight / 2;
+
+    sceneRenderer.camera.viewportWidth = viewportWidth;
+    sceneRenderer.camera.viewportHeight = viewportHeight;
 
     //  Add autoUpdate option
     skeleton.updateWorldTransform();
 
     if (renderer.newType)
     {
-        mvp.ortho(0, width, 0, height, 0, 1);
-
-        shader.bind();
-        shader.setUniformi(runtime.Shader.SAMPLER, 0);
-        shader.setUniform4x4f(runtime.Shader.MVP_MATRIX, mvp.val);
-
-        skeletonRenderer.premultipliedAlpha = true;
-
-        batcher.begin(shader);
-    }
-
-    if (renderer.nextTypeMatch)
-    {
-        // batcher.isDrawing = false;
+        sceneRenderer.begin();
     }
 
     //  Draw the current skeleton
-    skeletonRenderer.draw(batcher, skeleton);
+    sceneRenderer.drawSkeleton(skeleton, src.preMultipliedAlpha);
+
+    if (plugin.drawDebug || src.drawDebug)
+    {
+        //  Because if we don't, the bones render positions are completely wrong (*sigh*)
+        var oldX = skeleton.x;
+        var oldY = skeleton.y;
+
+        skeleton.x = 0;
+        skeleton.y = 0;
+
+        sceneRenderer.drawSkeletonDebug(skeleton, src.preMultipliedAlpha);
+
+        skeleton.x = oldX;
+        skeleton.y = oldY;
+    }
 
     if (!renderer.nextTypeMatch)
     {
         //  The next object in the display list is not a Spine object, so we end the batch
-        batcher.isDrawing = true;
-
-        batcher.end();
-
-        shader.unbind();
+        sceneRenderer.end();
 
         renderer.rebindPipeline(renderer.pipelines.TextureTintPipeline);
     }
-
-    /*
-    var drawDebug = (plugin.drawDebug || src.drawDebug);
-
-    if (drawDebug)
-    {
-        var debugShader = plugin.debugShader;
-        var debugRenderer = plugin.debugRenderer;
-        var shapes = plugin.shapes;
-
-        debugShader.bind();
-        debugShader.setUniform4x4f(runtime.Shader.MVP_MATRIX, mvp.val);
-
-        shapes.begin(debugShader);
-
-        debugRenderer.draw(shapes, skeleton);
-
-        shapes.end();
-
-        debugShader.unbind();
-    }
-    */
 };
 
 module.exports = SpineGameObjectWebGLRenderer;
