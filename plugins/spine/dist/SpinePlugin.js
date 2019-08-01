@@ -1,14 +1,5 @@
-(function webpackUniversalModuleDefinition(root, factory) {
-	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory();
-	else if(typeof define === 'function' && define.amd)
-		define("SpinePlugin", [], factory);
-	else if(typeof exports === 'object')
-		exports["SpinePlugin"] = factory();
-	else
-		root["SpinePlugin"] = factory();
-})(window, function() {
-return /******/ (function(modules) { // webpackBootstrap
+window["SpinePlugin"] =
+/******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
 /******/
@@ -10234,6 +10225,9 @@ var SpinePlugin = new Class({
             this.getAtlas = this.getAtlasCanvas;
         }
 
+        this.temp1;
+        this.temp2;
+
         //  Register our file type
         pluginManager.registerFileType('spine', this.spineFileCallback, scene);
 
@@ -10331,6 +10325,38 @@ var SpinePlugin = new Class({
         this.sceneRenderer.shapes.setBlendMode = setBlendMode;
 
         this.skeletonDebugRenderer = this.sceneRenderer.skeletonDebugRenderer;
+
+        this.temp1 = new Spine.webgl.Vector3(0, 0, 0);
+        this.temp2 = new Spine.webgl.Vector3(0, 0, 0);
+    },
+
+    worldToLocal: function (x, y, skeleton, bone)
+    {
+        var temp1 = this.temp1;
+        var temp2 = this.temp2;
+        var camera = this.sceneRenderer.camera;
+
+        temp1.set(x + skeleton.x, y - skeleton.y, 0);
+
+        var width = camera.viewportWidth;
+        var height = camera.viewportHeight;
+
+        camera.screenToWorld(temp1, width, height);
+
+        if (bone && bone.parent !== null)
+        {
+            bone.parent.worldToLocal(temp2.set(temp1.x - skeleton.x, temp1.y - skeleton.y, 0));
+
+            return new Spine.Vector2(temp2.x, temp2.y);
+        }
+        else if (bone)
+        {
+            return new Spine.Vector2(temp1.x - skeleton.x, temp1.y - skeleton.y);
+        }
+        else
+        {
+            return new Spine.Vector2(temp1.x, temp1.y);
+        }
     },
 
     getAtlasWebGL: function (key)
@@ -10676,6 +10702,8 @@ var ComponentsTransform = __webpack_require__(/*! ../../../../src/gameobjects/co
 var ComponentsVisible = __webpack_require__(/*! ../../../../src/gameobjects/components/Visible */ "../../../src/gameobjects/components/Visible.js");
 var GameObject = __webpack_require__(/*! ../../../../src/gameobjects/GameObject */ "../../../src/gameobjects/GameObject.js");
 var SpineGameObjectRender = __webpack_require__(/*! ./SpineGameObjectRender */ "./gameobject/SpineGameObjectRender.js");
+var CounterClockwise = __webpack_require__(/*! ../../../../src/math/angle/CounterClockwise */ "../../../src/math/angle/CounterClockwise.js");
+var RadToDeg = __webpack_require__(/*! ../../../../src/math/RadToDeg */ "../../../src/math/RadToDeg.js");
 
 /**
  * @classdesc
@@ -10784,7 +10812,32 @@ var SpineGameObject = new Class({
 
         this.root = this.getRootBone();
 
+        if (this.root)
+        {
+            //  +90 degrees to account for the difference in Spine vs. Phaser rotation
+            this.root.rotation = RadToDeg(CounterClockwise(this.rotation)) + 90;
+        }
+
+        this.state.apply(skeleton);
+
+        skeleton.updateCache();
+
         return this.updateSize();
+    },
+
+    refresh: function ()
+    {
+        if (this.root)
+        {
+            //  +90 degrees to account for the difference in Spine vs. Phaser rotation
+            this.root.rotation = RadToDeg(CounterClockwise(this.rotation)) + 90;
+        }
+
+        this.updateSize();
+
+        this.skeleton.updateCache();
+
+        return this;
     },
 
     setSize: function (width, height, offsetX, offsetY)
@@ -10868,6 +10921,37 @@ var SpineGameObject = new Class({
         return output;
     },
 
+    getSkinList: function ()
+    {
+        var output = [];
+
+        var skeletonData = this.skeletonData;
+
+        if (skeletonData)
+        {
+            for (var i = 0; i < skeletonData.skins.length; i++)
+            {
+                output.push(skeletonData.skins[i].name);
+            }
+        }
+
+        return output;
+    },
+
+    getSlotList: function ()
+    {
+        var output = [];
+
+        var skeleton = this.skeleton;
+
+        for (var i = 0; i < skeleton.slots.length; i++)
+        {
+            output.push(skeleton.slots[i].data.name);
+        }
+
+        return output;
+    },
+
     getAnimationList: function ()
     {
         var output = [];
@@ -10933,7 +11017,13 @@ var SpineGameObject = new Class({
 
     setSkinByName: function (skinName)
     {
-        this.skeleton.setSkinByName(skinName);
+        var skeleton = this.skeleton;
+
+        skeleton.setSkinByName(skinName);
+
+        skeleton.setSlotsToSetupPose();
+
+        this.state.apply(skeleton);
 
         return this;
     },
@@ -10954,6 +11044,42 @@ var SpineGameObject = new Class({
     setMix: function (fromName, toName, duration)
     {
         this.stateData.setMix(fromName, toName, duration);
+
+        return this;
+    },
+
+    getAttachment: function (slotIndex, attachmentName)
+    {
+        return this.skeleton.getAttachment(slotIndex, attachmentName);
+    },
+
+    getAttachmentByName: function (slotName, attachmentName)
+    {
+        return this.skeleton.getAttachmentByName(slotName, attachmentName);
+    },
+
+    setAttachment: function (slotName, attachmentName)
+    {
+        return this.skeleton.setAttachment(slotName, attachmentName);
+    },
+
+    setToSetupPose: function ()
+    {
+        this.skeleton.setToSetupPose();
+
+        return this;
+    },
+
+    setSlotsToSetupPose: function ()
+    {
+        this.skeleton.setSlotsToSetupPose();
+
+        return this;
+    },
+
+    setBonesToSetupPose: function ()
+    {
+        this.skeleton.setBonesToSetupPose();
 
         return this;
     },
@@ -18580,195 +18706,6 @@ var spine;
 (function (spine) {
 	var webgl;
 	(function (webgl) {
-		var Input = (function () {
-			function Input(element) {
-				this.lastX = 0;
-				this.lastY = 0;
-				this.buttonDown = false;
-				this.currTouch = null;
-				this.touchesPool = new spine.Pool(function () {
-					return new spine.webgl.Touch(0, 0, 0);
-				});
-				this.listeners = new Array();
-				this.element = element;
-				this.setupCallbacks(element);
-			}
-			Input.prototype.setupCallbacks = function (element) {
-				var _this = this;
-				var mouseDown = function (ev) {
-					if (ev instanceof MouseEvent) {
-						var rect = element.getBoundingClientRect();
-						var x = ev.clientX - rect.left;
-						var y = ev.clientY - rect.top;
-						var listeners = _this.listeners;
-						for (var i = 0; i < listeners.length; i++) {
-							listeners[i].down(x, y);
-						}
-						_this.lastX = x;
-						_this.lastY = y;
-						_this.buttonDown = true;
-						document.addEventListener("mousemove", mouseMove);
-						document.addEventListener("mouseup", mouseUp);
-					}
-				};
-				var mouseMove = function (ev) {
-					if (ev instanceof MouseEvent) {
-						var rect = element.getBoundingClientRect();
-						var x = ev.clientX - rect.left;
-						var y = ev.clientY - rect.top;
-						var listeners = _this.listeners;
-						for (var i = 0; i < listeners.length; i++) {
-							if (_this.buttonDown) {
-								listeners[i].dragged(x, y);
-							}
-							else {
-								listeners[i].moved(x, y);
-							}
-						}
-						_this.lastX = x;
-						_this.lastY = y;
-					}
-				};
-				var mouseUp = function (ev) {
-					if (ev instanceof MouseEvent) {
-						var rect = element.getBoundingClientRect();
-						var x = ev.clientX - rect.left;
-						var y = ev.clientY - rect.top;
-						var listeners = _this.listeners;
-						for (var i = 0; i < listeners.length; i++) {
-							listeners[i].up(x, y);
-						}
-						_this.lastX = x;
-						_this.lastY = y;
-						_this.buttonDown = false;
-						document.removeEventListener("mousemove", mouseMove);
-						document.removeEventListener("mouseup", mouseUp);
-					}
-				};
-				element.addEventListener("mousedown", mouseDown, true);
-				element.addEventListener("mousemove", mouseMove, true);
-				element.addEventListener("mouseup", mouseUp, true);
-				element.addEventListener("touchstart", function (ev) {
-					if (_this.currTouch != null)
-						return;
-					var touches = ev.changedTouches;
-					for (var i = 0; i < touches.length; i++) {
-						var touch = touches[i];
-						var rect = element.getBoundingClientRect();
-						var x = touch.clientX - rect.left;
-						var y = touch.clientY - rect.top;
-						_this.currTouch = _this.touchesPool.obtain();
-						_this.currTouch.identifier = touch.identifier;
-						_this.currTouch.x = x;
-						_this.currTouch.y = y;
-						break;
-					}
-					var listeners = _this.listeners;
-					for (var i_16 = 0; i_16 < listeners.length; i_16++) {
-						listeners[i_16].down(_this.currTouch.x, _this.currTouch.y);
-					}
-					console.log("Start " + _this.currTouch.x + ", " + _this.currTouch.y);
-					_this.lastX = _this.currTouch.x;
-					_this.lastY = _this.currTouch.y;
-					_this.buttonDown = true;
-					ev.preventDefault();
-				}, false);
-				element.addEventListener("touchend", function (ev) {
-					var touches = ev.changedTouches;
-					for (var i = 0; i < touches.length; i++) {
-						var touch = touches[i];
-						if (_this.currTouch.identifier === touch.identifier) {
-							var rect = element.getBoundingClientRect();
-							var x = _this.currTouch.x = touch.clientX - rect.left;
-							var y = _this.currTouch.y = touch.clientY - rect.top;
-							_this.touchesPool.free(_this.currTouch);
-							var listeners = _this.listeners;
-							for (var i_17 = 0; i_17 < listeners.length; i_17++) {
-								listeners[i_17].up(x, y);
-							}
-							console.log("End " + x + ", " + y);
-							_this.lastX = x;
-							_this.lastY = y;
-							_this.buttonDown = false;
-							_this.currTouch = null;
-							break;
-						}
-					}
-					ev.preventDefault();
-				}, false);
-				element.addEventListener("touchcancel", function (ev) {
-					var touches = ev.changedTouches;
-					for (var i = 0; i < touches.length; i++) {
-						var touch = touches[i];
-						if (_this.currTouch.identifier === touch.identifier) {
-							var rect = element.getBoundingClientRect();
-							var x = _this.currTouch.x = touch.clientX - rect.left;
-							var y = _this.currTouch.y = touch.clientY - rect.top;
-							_this.touchesPool.free(_this.currTouch);
-							var listeners = _this.listeners;
-							for (var i_18 = 0; i_18 < listeners.length; i_18++) {
-								listeners[i_18].up(x, y);
-							}
-							console.log("End " + x + ", " + y);
-							_this.lastX = x;
-							_this.lastY = y;
-							_this.buttonDown = false;
-							_this.currTouch = null;
-							break;
-						}
-					}
-					ev.preventDefault();
-				}, false);
-				element.addEventListener("touchmove", function (ev) {
-					if (_this.currTouch == null)
-						return;
-					var touches = ev.changedTouches;
-					for (var i = 0; i < touches.length; i++) {
-						var touch = touches[i];
-						if (_this.currTouch.identifier === touch.identifier) {
-							var rect = element.getBoundingClientRect();
-							var x = touch.clientX - rect.left;
-							var y = touch.clientY - rect.top;
-							var listeners = _this.listeners;
-							for (var i_19 = 0; i_19 < listeners.length; i_19++) {
-								listeners[i_19].dragged(x, y);
-							}
-							console.log("Drag " + x + ", " + y);
-							_this.lastX = _this.currTouch.x = x;
-							_this.lastY = _this.currTouch.y = y;
-							break;
-						}
-					}
-					ev.preventDefault();
-				}, false);
-			};
-			Input.prototype.addListener = function (listener) {
-				this.listeners.push(listener);
-			};
-			Input.prototype.removeListener = function (listener) {
-				var idx = this.listeners.indexOf(listener);
-				if (idx > -1) {
-					this.listeners.splice(idx, 1);
-				}
-			};
-			return Input;
-		}());
-		webgl.Input = Input;
-		var Touch = (function () {
-			function Touch(identifier, x, y) {
-				this.identifier = identifier;
-				this.x = x;
-				this.y = y;
-			}
-			return Touch;
-		}());
-		webgl.Touch = Touch;
-	})(webgl = spine.webgl || (spine.webgl = {}));
-})(spine || (spine = {}));
-var spine;
-(function (spine) {
-	var webgl;
-	(function (webgl) {
 		webgl.M00 = 0;
 		webgl.M01 = 4;
 		webgl.M02 = 8;
@@ -20948,5 +20885,4 @@ module.exports = spine;
 /***/ })
 
 /******/ });
-});
 //# sourceMappingURL=SpinePlugin.js.map
