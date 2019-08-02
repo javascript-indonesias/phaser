@@ -6,6 +6,7 @@
 
 var CounterClockwise = require('../../../../src/math/angle/CounterClockwise');
 var RadToDeg = require('../../../../src/math/RadToDeg');
+var Wrap = require('../../../../src/math/Wrap');
 
 /**
  * Renders this Game Object with the WebGL Renderer to the given Camera.
@@ -28,8 +29,24 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
     var skeleton = src.skeleton;
     var sceneRenderer = plugin.sceneRenderer;
 
-    if (!skeleton)
+    var GameObjectRenderMask = 15;
+
+    var willRender = !(GameObjectRenderMask !== src.renderFlags || (src.cameraFilter !== 0 && (src.cameraFilter & camera.id)));
+
+    if (!skeleton || !willRender)
     {
+        //  Reset the current type
+        renderer.currentType = '';
+
+        //  If there is already a batch running, we need to close it
+        if (!renderer.nextTypeMatch)
+        {
+            //  The next object in the display list is not a Spine object, so we end the batch
+            sceneRenderer.end();
+    
+            renderer.rebindPipeline(renderer.pipelines.TextureTintPipeline);
+        }
+    
         return;
     }
 
@@ -70,21 +87,30 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
     var viewportHeight = renderer.height;
 
     skeleton.x = calcMatrix.tx;
+    skeleton.y = viewportHeight - calcMatrix.ty;
+
     skeleton.scaleX = calcMatrix.scaleX;
+    skeleton.scaleY = calcMatrix.scaleY;
+
+    //  +90 degrees to account for the difference in Spine vs. Phaser rotation
+    src.root.rotation = Wrap(RadToDeg(CounterClockwise(calcMatrix.rotationNormalized)) + 90, 0, 360);
+
+    if (src.scaleX < 0)
+    {
+        skeleton.scaleX *= -1;
+        // src.root.rotation = 360 - Wrap(src.root.rotation - (360 - RadToDeg(calcMatrix.rotationNormalized), 0, 360));
+    }
+
+    if (src.scaleY < 0)
+    {
+        skeleton.scaleY *= -1;
+    }
 
     if (camera.renderToTexture)
     {
         skeleton.y = calcMatrix.ty;
-        skeleton.scaleY = calcMatrix.scaleY * -1;
+        skeleton.scaleY *= -1;
     }
-    else
-    {
-        skeleton.y = viewportHeight - calcMatrix.ty;
-        skeleton.scaleY = calcMatrix.scaleY;
-    }
-
-    //  +90 degrees to account for the difference in Spine vs. Phaser rotation
-    src.root.rotation = RadToDeg(CounterClockwise(calcMatrix.rotation)) + 90;
 
     //  Add autoUpdate option
     skeleton.updateWorldTransform();
