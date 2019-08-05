@@ -12,6 +12,7 @@ var ComponentsFlip = require('../../../../src/gameobjects/components/Flip');
 var ComponentsScrollFactor = require('../../../../src/gameobjects/components/ScrollFactor');
 var ComponentsTransform = require('../../../../src/gameobjects/components/Transform');
 var ComponentsVisible = require('../../../../src/gameobjects/components/Visible');
+var SpineEvents = require('../events/');
 var GameObject = require('../../../../src/gameobjects/GameObject');
 var SpineGameObjectRender = require('./SpineGameObjectRender');
 var AngleBetween = require('../../../../src/math/angle/Between');
@@ -330,8 +331,16 @@ var SpineGameObject = new Class({
         }
 
         this.state = data.state;
-
         this.stateData = data.stateData;
+
+        this.state.addListener({
+            event: this.onEvent.bind(this),
+            complete: this.onComplete.bind(this),
+            start: this.onStart.bind(this),
+            end: this.onEnd.bind(this),
+            dispose: this.onDispose.bind(this),
+            interrupted: this.onInterrupted.bind(this)
+        });
 
         if (animationName)
         {
@@ -351,6 +360,36 @@ var SpineGameObject = new Class({
         skeleton.updateCache();
 
         return this.updateSize();
+    },
+
+    onComplete: function (entry)
+    {
+        this.emit(SpineEvents.COMPLETE, entry);
+    },
+
+    onDispose: function (entry)
+    {
+        this.emit(SpineEvents.DISPOSE, entry);
+    },
+
+    onEnd: function (entry)
+    {
+        this.emit(SpineEvents.END, entry);
+    },
+
+    onEvent: function (entry, event)
+    {
+        this.emit(SpineEvents.EVENT, entry, event);
+    },
+
+    onInterrupted: function (entry)
+    {
+        this.emit(SpineEvents.INTERRUPTED, entry);
+    },
+
+    onStart: function (entry)
+    {
+        this.emit(SpineEvents.START, entry);
     },
 
     refresh: function ()
@@ -432,6 +471,55 @@ var SpineGameObject = new Class({
         return this;
     },
 
+    /**
+     * The horizontal scale of this Game Object.
+     * Override Transform component.
+     *
+     * @name Phaser.GameObjects.Components.Transform#scaleX
+     * @type {number}
+     * @default 1
+     * @since 3.0.0
+     */
+    scaleX: {
+
+        get: function ()
+        {
+            return this._scaleX;
+        },
+
+        set: function (value)
+        {
+            this._scaleX = value;
+
+            this.refresh();
+        }
+
+    },
+
+    /**
+     * The vertical scale of this Game Object.
+     *
+     * @name Phaser.GameObjects.Components.Transform#scaleY
+     * @type {number}
+     * @default 1
+     * @since 3.0.0
+     */
+    scaleY: {
+
+        get: function ()
+        {
+            return this._scaleY;
+        },
+
+        set: function (value)
+        {
+            this._scaleY = value;
+
+            this.refresh();
+        }
+
+    },
+
     getBoneList: function ()
     {
         var output = [];
@@ -509,15 +597,41 @@ var SpineGameObject = new Class({
         }
     },
 
-    play: function (animationName, loop)
+    /**
+     * Plays an Animation on a Game Object that has the Animation component, such as a Sprite.
+     * 
+     * Animations are stored in the global Animation Manager and are referenced by a unique string-based key.
+     *
+     * @method Phaser.GameObjects.Components.Animation#play
+     * @fires Phaser.GameObjects.Components.Animation#onStartEvent
+     * @since 3.0.0
+     *
+     * @param {(string|Phaser.Animations.Animation)} key - The string-based key of the animation to play, as defined previously in the Animation Manager. Or an Animation instance.
+     * @param {boolean} [ignoreIfPlaying=false] - If this animation is already playing then ignore this call.
+     * @param {integer} [startFrame=0] - Optionally start the animation playing from this frame index.
+     *
+     * @return {Phaser.GameObjects.GameObject} The Game Object that owns this Animation Component.
+     */
+    play: function (animationName, loop, ignoreIfPlaying)
     {
-        if (loop === undefined) { loop = false; }
-
-        return this.setAnimation(0, animationName, loop);
+        return this.setAnimation(0, animationName, loop, ignoreIfPlaying);
     },
 
-    setAnimation: function (trackIndex, animationName, loop)
+    setAnimation: function (trackIndex, animationName, loop, ignoreIfPlaying)
     {
+        if (loop === undefined) { loop = false; }
+        if (ignoreIfPlaying === undefined) { ignoreIfPlaying = false; }
+
+        if (ignoreIfPlaying && this.state)
+        {
+            var currentTrack = this.state.getCurrent(0);
+ 
+            if (currentTrack && currentTrack.animation.name === animationName && !currentTrack.isComplete())
+            {
+                return this;
+            }
+        }
+
         if (this.findAnimation(animationName))
         {
             this.state.setAnimation(trackIndex, animationName, loop);
