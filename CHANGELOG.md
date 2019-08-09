@@ -1,6 +1,6 @@
 # Change Log
 
-## Version 3.19.0 - Naofumi - in development
+## Version 3.19.0 - Naofumi - 8th August 2019
 
 ### Tween Updates
 
@@ -46,9 +46,11 @@
 
 ### Spine Updates
 
+The Spine Plugin is now 100% complete. It has been updated to use the Spine 3.7 Runtimes. Improvements have been made across the entire plugin, including proper batched rendering support in WebGL, cleaner skin and slot functions and lots and lots of updates. It's fully documented and there are lots of examples to be found. The following legacy bugs have also been fixed:
+
 * Adding Spine to physics causes position to become NaN. Fix #4501 (thanks @hizzd)
 * Destroying a Phaser Game instance and then re-creating it would cause an error trying to re-create Spine Game Objects ("Cannot read property get of null"). Fix #4532 (thanks @Alex-Badea)
-* Rendering a Spine object when a Camer has `renderToTexture` enabled on it would cause the object to be vertically flipped. It now renders correctly in both cases. Fix #4647 (thanks @probt)
+* Rendering a Spine object when a Camera has `renderToTexture` enabled on it would cause the object to be vertically flipped. It now renders correctly in both cases. Fix #4647 (thanks @probt)
 
 ### New Features
 
@@ -87,6 +89,9 @@
 * `Triangle.type` is a new property containing the shapes geometry type, which can be used for quick type comparisons.
 * `InputPlugin.enableDebug` is a new method that will create a debug shape for the given Game Objects hit area. This allows you to quickly check the size and placement of an input hit area. You can customzie the shape outline color. The debug shape will automatically track the Game Object to which it is bound.
 * `InputPlugion.removeDebug` will remove a Debug Input Shape from the given Game Object and destroy it.
+* `Pointer.updateWorldPoint` is a new method that takes a Camera and then updates the Pointers `worldX` and `worldY` values based on the cameras transform (thanks @Nick-lab)
+* `ScaleManager._resetZoom` is a new internal flag that is set when the game zoom factor changes.
+* `Texture.remove` is a new method that allows you to remove a Frame from a Texture based on its name. Fix #4460 (thanks @BigZaphod)
 
 ### Updates
 
@@ -108,6 +113,8 @@
 * `TransformMatrix.rotation` now returns the properly normalized rotation value.
 * `PhysicsEditorParser` has now been exposed under the `Phaser.Physics.Matter` namespace, so you can call methods on it directly.
 * Calling `CanvasTexture.update` will now automatically call `refresh` if running under WebGL. This happens for both `draw` and `drawFrame`, meaning you no longer need to remember to call `refresh` after drawing to a Canvas Texture in WebGL, keeping it consistent with the Canvas renderer.
+* `Frame.destroy` will now null the Frames reference to its parent texture, glTexture and clear the data and customData objects.
+* The Container renderer functions will now read the childs `alpha` property, instead of `_alpha`, allowing it to work with more variety of custom children.
 
 ### Bug Fixes
 
@@ -137,14 +144,13 @@
 * The WebGL Lost and Restored Context callbacks were never removed, which could cause them to hold onto stale references. Fix #3610 (thanks @Twilrom)
 * `Origin.updateDisplayOrigin` no longer applies a Math.floor to the display origins, allowing you to have a 0.x origin for a Game Object that only has a width or height of 1. This fixes issues with things like 1x1 rectangles displaying incorrectly during rendering. Fix #4126 (thanks @rexrainbow)
 * `InputManager.resetCursor` will now check if the canvas element still exists before resetting the cursor on it. Fix #4662 (thanks @fromnowhereuser)
+* It was not possible to set the zoom value of the Scale Manager back to 1 again, having changed it to a different value. Fix #4633 (thanks @lgibson02 @BinaryMoon)
 
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@vacarsu @KennethGomez @samme @ldd @Jazcash @jcyuan
-
-
+@vacarsu @KennethGomez @samme @ldd @Jazcash @jcyuan @LearningCode2023 @PhaserEditor2D
 
 ## Version 3.18.1 - Raphtalia - 20th June 2019
 
