@@ -6,6 +6,11 @@
 
 * `GameConfig.antialiasGL` is a new boolean that allows you to set the `antialias` property of the WebGL context during creation, without impacting any subsequent textures or the canvas CSS.
 
+### Updates
+
+* When calling `Shader.setRenderToTexture()` it will now draw the shader just once, immediately to the texture, to avoid the texture being blank for a single frame (thanks Kyle)
+* The private `Shader._savedKey` property has been removed as it wasn't used anywhere internally.
+
 ### Bug Fixes
 
 * `SpineCanvasPlugin.shutdown` would try to dispose of the `sceneRenderer`, but the property isn't set for Canvas.
