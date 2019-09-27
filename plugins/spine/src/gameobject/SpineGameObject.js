@@ -514,7 +514,7 @@ var SpineGameObject = new Class({
 
         var skeleton = data.skeleton;
 
-        skeleton.setSkinByName('default');
+        skeleton.setSkin();
         skeleton.setToSetupPose();
 
         this.skeleton = skeleton;
@@ -1555,8 +1555,6 @@ var SpineGameObject = new Class({
         this.state.update((delta / 1000) * this.timeScale);
 
         this.state.apply(skeleton);
-
-        // this.emit('spine.update', skeleton);
     },
 
     /**

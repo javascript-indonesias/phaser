@@ -2,6 +2,24 @@
 
 ## Version 3.20.0 - Fitoria - in dev
 
+### Spine Plugin
+
+* The Spine runtimes have been updated to 3.8. Please note that Spine runtimes are _not_ backwards compatible. Animations exported with Spine 3.7 (or earlier) will need re-exporting with 3.8 in order to work with the new runtimes.
+* Fixed a bug with the binding of the Spine Plugin causing the GameObjectFactory to remain bound to the first instance of the plugin, causing Scene changes to result in blank Spine Game Objects. Fix #4716 (thanks @olilanz)
+* Fixed a bug with the caching of the Spine Texture Atlases, causing shader errors when returning from one Scene to another with a cached Texture Atlas.
+* The WebGL Scene Renderer is now only disposed if the Scene is destroyed, not just shut-down.
+* The Spine Game Object will no longer set the default skin name to be 'default', it will leave the name empty. Fix #4764 (thanks @Jonchun @badlogic)
+* Thanks to a fix inside the Container WebGLRenderer, a bug was crushed which involved multiple Containers in a Scene, with Spine objects, from causing run-time errors. Fix #4710 (thanks @nalgorry)
+* Using `Loader.setPath` to define the Spine assets locations could error if trying to load multiple files from different folders. It will now retain the path state at the time of invocation, rather than during the load.
+
+### Facebook Instant Games Plugin
+
+* Calling `showAd` or `showVideoAd` will now check to see if the ad has already been displayed, and skip it when iterating the ads array, allowing you to display an ad with the same Placement ID without preloading it again. Fix #4728 (thanks @NokFrt)
+* Calling `gameStarted` in a game that doesn't load any assets would cause the error `{code: "INVALID_OPERATION", message: "Can not perform this operation before game start."}`. The plugin will now has a new internal method `gameStartedHandler` and will redirect the flow accordingly based on asset loading. Fix #4550 (thanks @bchee)
+* The documentation for the `chooseContext` method has been fixed. Fix #4425 (thanks @krzysztof-grzybek)
+* `Leaderboard.getConnectedScores` incorrectly specified two parameters, neither of which were used. Fix #4702 (thanks @NokFrt)
+* `Leaderboard` extends Event Emitter, which was missing in the TypeScript defs. Fix #4703 (thanks @NokFrt)
+
 ### New Features
 
 * `GameConfig.antialiasGL` is a new boolean that allows you to set the `antialias` property of the WebGL context during creation, without impacting any subsequent textures or the canvas CSS.
@@ -11,6 +29,10 @@
 
 * When calling `Shader.setRenderToTexture()` it will now draw the shader just once, immediately to the texture, to avoid the texture being blank for a single frame (thanks Kyle)
 * The private `Shader._savedKey` property has been removed as it wasn't used anywhere internally.
+* A `hasOwnProperty` check has been applied to the `SceneManager.createSceneFromObject` method when parsing additional properties in the `extend` object (thanks @halilcakar)
+* The `Blitter.dirty` flag is no longer set if the render state of a Bob is changed to make it invisible (thanks @rexrainbow)
+* `WebGLPipeline.addAttribute` will now automatically update the vertextComponentCount for you, without you having to do it manually any more (thanks @yhwh)
+* `MultiFile` has three new internal properties: `baseURL`, `path` and `prefix` which allow them to retain the state of the loader at the time of creation, to be passed on to all child-files. Fix #4679.
 
 ### Bug Fixes
 
@@ -18,6 +40,26 @@
 * `ArcadePhysics.Body.checkWorldBounds` would incorrectly report as being on the World bounds if the `blocked.none` flag had been toggled elsewhere in the Body. It now only sets if it toggles a new internal flag (thanks Pablo)
 * `RenderTexture.resize` wouldn't update the CanvasTexture width and height, causing the cal to draw or drawFrame to potentially distort the texture (thanks @yhwh)
 * `InputPlugin.processDragMove` has been updated so that the resulting `dragX` and `dragY` values, sent to the event handler, now compensate for the scale of the Game Objects parent container, if inside of one. This means dragging a child of a scale Container will now still drag at 'full' speed.
+* The RenderTextures `displayOrigin` values are now automatically updated if you call `setSize` on the Render Texture. Fix #4757 (thanks @rexrainbow)
+* `onTouchStart`, `onTouchEnd` and `onTouchMove` will now check for `event.cancelable` before calling preventDefault on the touch event, fixing issues with "Ignored attempt to cancel a touchstart event with cancelable=false, for example because scrolling is in progress and cannot be interrupted." errors in some situations. Fix #4706 (thanks @MatthewAlner)
+* `MatterPhysics.shutdown` could try to access properties that may have been previously removed during the Game.destroy process, causing a console error. It now checks properties before removing events from them (thanks @nagyv)
+* `ArcadePhysics.Body.hitTest` would use CircleContains to do a hit test, which assumex x/y was the Circle center, but for a Body it's the top-left, causing the hit test to be off. Fix #4748 (thanks @funnisimo)
+* `ArcadePhysics.World.separateCircle` has had the velocity scaling moved to after the angle is calculated, fixing a weird collision issue when `Body.bounce=0`. Also, if both bodies are movable, they now only offset by half the offset and use the center of the body for angle calculation, allowing for any offsets to be included. Fix #4751 (thanks @funnisimo)
+* `Tween.updateTo` would break out of the TweenData iteration as soon as it adjusted the first matching key, causing tweens acting on multiple targets to only update the first target. It now updates them all. Fix #4763 (thanks @RBrNx)
+* The Container WebGLRenderer will now handle child mask batching properly, based on the renderers current mask.
+* The Container WebGLRenderer will now handle child new type switching, allowing you to carry on with a batch of same-type Game Objects even if they're nested within Containers. Fix #4710 (thanks @nalgorry)
+* `MultiAtlasFiles` that loaded their own external images would obtain incorrect path and URL values if the path had been changed by another file in the queue. They now retain the loader state and apply it to all child files during load.
+
+### Examples, Documentation and TypeScript
+
+My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
+
+@krzysztof-grzybek @NokFrt
+
+
+
+
+
 
 ## Version 3.19.0 - Naofumi - 8th August 2019
 
