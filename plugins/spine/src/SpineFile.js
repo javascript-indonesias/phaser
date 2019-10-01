@@ -178,7 +178,7 @@ var SpineFile = new Class({
                 {
                     var textureURL = textures[i];
 
-                    var key = '_SP_' + textureURL;
+                    var key = 'SP' + this.multiKeyIndex + '_' + textureURL;
 
                     var image = new ImageFile(loader, key, textureURL, textureXhrSettings);
 
@@ -211,7 +211,7 @@ var SpineFile = new Class({
 
             var atlasCache;
             var atlasKey = '';
-            var combinedAtlastData = '';
+            var combinedAtlasData = '';
             var preMultipliedAlpha = (this.config.preMultipliedAlpha) ? true : false;
 
             for (var i = 1; i < this.files.length; i++)
@@ -224,19 +224,21 @@ var SpineFile = new Class({
 
                     atlasCache = file.cache;
 
-                    combinedAtlastData = combinedAtlastData.concat(file.data);
+                    combinedAtlasData = combinedAtlasData.concat(file.data);
                 }
                 else
                 {
-                    var key = file.key.substr(4).trim();
-   
+                    var src = file.key.trim();
+                    var pos = src.indexOf('_');
+                    var key = src.substr(pos + 1);
+       
                     this.loader.textureManager.addImage(key, file.data);
                 }
 
                 file.pendingDestroy();
             }
 
-            atlasCache.add(atlasKey, { preMultipliedAlpha: preMultipliedAlpha, data: combinedAtlastData });
+            atlasCache.add(atlasKey, { preMultipliedAlpha: preMultipliedAlpha, data: combinedAtlasData });
 
             this.complete = true;
         }
