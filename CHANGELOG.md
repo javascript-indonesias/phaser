@@ -21,10 +21,33 @@
 * `Leaderboard.getConnectedScores` incorrectly specified two parameters, neither of which were used. Fix #4702 (thanks @NokFrt)
 * `Leaderboard` extends Event Emitter, which was missing in the TypeScript defs. Fix #4703 (thanks @NokFrt)
 
+### Arcade Physics Updates
+
+@BenjaminDRichards and the GameFroot team contributed the following updates to Arcade Physics, which fixes 3 issues encountered when the framerate drops below 60 (technically, any time when multiple physics steps run per frame, so if physics FPS is above 60 this will also occur.)
+
+Issue 1: Friction starts to flip out. Objects on moving platforms get pushed ahead of the platform and "catch" on the leading edge.
+Issue 2: Physics objects start to dip into the floor. In the "Before" demo, the camera is locked to the player, so this appears as the entire world starting to shake up and down.
+Issue 3: When objects dip into the floor, their "rest velocity" is non-zero. This can affect debug and other logic.
+
+* `Body.prevFrame` is a new vector allowing a Body to distinguish between frame-length changes and step-length changes. Several steps may run for every frame, particularly when fps is low.
+* `Body._reset` flag was removed and replaced it with a check of `Body.moves`. The flag only turned on when `moves` was true, and never turned off.
+* Added a reset of `prev` in Arcade.Body#step. This fixes the friction issue.
+* Stopped the `Body.postUpdate` method from setting `_dx`, `_dy`, and `prev`. They remain in the state they were at the end of the last physics step. This will affect the delta methods, which are documented to provide step-based data (not frame-based data); they now do so. However, because several steps may run per frame, you can't interrogate every step unless you're running functions based on physics events like collisions. You'll just see the latest step. This should partially balance out the extra load of resetting prev.
+* Added a zero-out of stepsLastFrame in Arcade.World#postUpdate, which would otherwise never zero out and keep running at least one pass per frame. This should improve performance when frames can be skipped.
+* Removed `blocked` checks from `TileCheckX` and `TileCheckY`. Originally, this prevented multiple checks when an object had come to rest on a floor. However, when multiple steps run per frame, the object will accelerate again, the floor won't stop it on steps 2+, and it will end the frame a short distance into the floor. Removing the blocked checks will fix the floor dip issue and the rest velocity issue. Although this opens up multiple checks, this is probably very rare: how many times does an object hit two different floors in a single frame?
+
+In combination these updates fix issues #4732 and #4672. My thanks to @BenjaminDRichards and @falifm.
+
 ### New Features
 
 * `GameConfig.antialiasGL` is a new boolean that allows you to set the `antialias` property of the WebGL context during creation, without impacting any subsequent textures or the canvas CSS.
 * `InteractiveObject.alwaysEnabled` is a new boolean that allows an interactive Game Object to always receive input events, even if it's invisible or won't render.
+* `Bob.setTint` is  a new method that allows you to set the tint of a Bob object within a Blitter. This is then used by the Blitter WebGL Renderer (thanks @rexrainbow)
+* The `UpdateList` now emits two new events: 'add' and 'remove' when children are added and removed from it. Fix #3487 (thanks @hexus)
+* The `Tilemap.setCollision` method has a new optional boolean parameter `updateLayer`. If set to `true`, it will update all of the collision settings of all tiles on the layer. If `false` it will skip doing this, which can be a huge performance boost in situations where the layer tiles haven't been modified and you're just changing collision flags. This is especially suitable for maps using procedural generated tilemaps, infinite tilemaps, multiplayer tilemaps, particularly large tilemaps (especially those dyanmic in nature) or who otherwise intend to index collisions before the tiles are loaded. This update also added the new parameter to the `SetCollision`, `SetCollisionBetween` and `DynamicTilemapLayer.setCollision` methods (thanks @tarsupin)
+* `ArcadePhysics.Body.setBoundsRectangle` is a new method that allows you to set a custom bounds rectangle for any Body to use, rather than the World bounds, which is the default (thanks @francois-n-dream)
+* `ArcadePhysics.Body.customBoundsRectangle` is a new property used for custom bounds collision (thanks @francois-n-dream)
+* The Arcade Physics Group has a new config object property `customBoundsRectangle` which, if set, will set the custom world bounds for all Bodies that Group creates (thanks @francois-n-dream)
 
 ### Updates
 
@@ -35,6 +58,33 @@
 * `WebGLPipeline.addAttribute` will now automatically update the vertextComponentCount for you, without you having to do it manually any more (thanks @yhwh)
 * `MultiFile` has three new internal properties: `baseURL`, `path` and `prefix` which allow them to retain the state of the loader at the time of creation, to be passed on to all child-files. Fix #4679.
 * `LoaderPlugin` and `MultiFile` have a new private property `multiKeyIndex` which multi-files use and increment when batching sub-file loads.
+* TileSprites will now throw a console warning if you try to use a RenderTexture or GLTexture as their frame source. Fix #4719 (thanks @pavel-shirobok)
+* `TextureSource.isGLTexture` now checks if the browser supports `WebGLTexture` before checking to see if source is an instance of one. This should fix issues with Phaser in HEADLESS mode running under node / jsdom, or where WebGLTexture isn't present. Fix #4711 (thanks @tsphillips)
+* `GameObject.ToJSON` will no longer output the `scaleMode` in the json because it's not a valid Game Object property.
+* `TextureSource.setFilter` will now set the `scaleMode` to the given filter.
+* `CanvasInterpolation` has updated the order of the CSS properties so that `crisp-edges` comes after the browser prefix versions.
+* The `CanvasRenderer.scaleMode` property has been removed as it was never set or used internally.
+* The `CanvasRenderer.currentScaleMode` property has been removed as it was never set or used internally.
+* The `BuildGameObject` function will no longer set `scaleMode` because it's not a valid Game Object property.
+* `CanvasRenderer.antialias` is a new property, populated by the game config property of the same name (or via the `pixelArt` property) that will tell the canvas renderer what to set image interpolation to during rendering of Sprites.
+* `SetTransform` will now set the imageSmoothingEnabled context value based on the renderer and texture source scale mode.
+* The Blitter Canvas Renderer will now respect the game config anti-alias / pixel art settings and render accordingly.
+* The Particle Emitter Canvas Renderer will now respect the game config anti-alias / pixel art settings and render accordingly.
+* The Static Tilemap Canvas Renderer will now respect the game config anti-alias / pixel art settings and render accordingly.
+* The Dynamic Tilemap Canvas Renderer will now respect the game config anti-alias / pixel art settings and render accordingly.
+* All Game Objects that use the Canvas Set Transform function (which is most of them) will aos now respect the game config anti-alias / pixel art settings and render accordingly. This means you can now have properly scaled Bitmap Text, Text, Sprites, Render Textures, etc when pixel art is enabled in your game. Fix #4701 (thanks @agar3s)
+* Containers are now able to set the alpha quadrant values (topLeft, topRight, bottomLeft and bottomRight) and have these passed onto children which are capable of supporting them, such as Sprites. Fix #4714 (thanks @MrcSnm)
+* The `ProcessQueue` struct now extends Event Emitter and will emit `PROCESS_QUEUE_ADD_EVENT` when a new item is added to it.
+* The `ProcessQueue` struct now extends Event Emitter and will emit `PROCESS_QUEUE_REMOVE_EVENT` when an item is removed from it.
+* `ProcessQueue.removeAll` is a new method that will remove all active entries from the queue.
+* `ProcessQueue.length` is a new property that returns the size of the active list.
+* `UpdateList` now extends the `ProcessQueue` struct and uses all of its methods for list management, instead of doing it directly. This means private properties such as `UpdateList._list` no longer exist. It also fixes an issue re: memory management where list items would remain until the end of a Scene. Fix #4721 (thanks @darkgod6)
+* `BaseSoundManager.forEachActiveSound` will now only invoke the callback if the sound actually exists and isn't pending removal. Fix #3383 (thanks @DouglasLapsley)
+* `MouseManager.target` can now be defined as either a string or by passing an HTMLElement directly. Fix #4353 (thanks @BigZaphod)
+* The `BasePlugin.boot` method has been removed and moved to `ScenePlugin.boot` as it's a Scene-level method only (thanks @samme)
+* The `BasePlugin.scene` and `BasePlugin.systems` properties have been removed and are defined in `ScenePlugin`, as they are Scene-level properties only (thanks @samme)
+* The `Tween.getValue` method has been removed. It was a legacy function from Phaser 2 and always only returned the first TweenData from the data array, ignoring any subsequent properties or targets, making it redundant. Fix #4717 (thanks @chepe263)
+* `TextureSource.isVideo` is a new boolean property that is set when the Texture Source is backed by an HTML Video Element.
 
 ### Bug Fixes
 
@@ -54,14 +104,21 @@
 * If more than one `MultiAtlasFile` used the same internal file name for its images, subsequent multi-atlases would fail to load. Fix #4330 (thanks @giviz)
 * `MultiAtlasFiles` would incorrectly add the atlas JSON into the JSON cache, causing you to not be able to destroy and reload the texture using the same atlas key as before. Fix #4720 (thanks @giviz)
 * `RenderTexture.fill` wasn't setting the camera up before drawing the fill rect, causing it to appear in the wrong place and the wrong size. Fix #4390 (thanks @Jerenaux)
+* `DynamicBitmapText.setOrigin` wouldn't change the origin when using the Canvas Renderer, only in WebGL. It now sets the origin regardless of renderer. Fix #4108 (thanks @garethwhittaker)
+* `DynamicBitmapText` wouldn't respect the multi-line alignment values when using the Canvas Renderer. It now uses them in the line calculations.
+* `DynamicBitmapText` and `BitmapText` wouldn't render at the correct position when using scaled BitmapText and an origin. Fix #4054 (thanks @Aveyder)
 
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@krzysztof-grzybek @NokFrt @r-onodera
+@krzysztof-grzybek @NokFrt @r-onodera @colorcube @neon-dev @SavedByZero
 
+### Thanks
 
+Thank you to the following people for contributing ideas for new features to be added to Phaser 3. Because we've now started Phaser 4 development, I am closing off old feature requests that I personally will not work on for Phaser 3 itself. They may be considered for v4 and, of course, if someone from the community wishes to submit a PR to add them, I will be only too happy to look at that. So, if you want to get involved, filter the GitHub issues by the [Feature Request tag](https://github.com/photonstorm/phaser/issues?q=is%3Aissue+is%3Aopen+label%3A%22%F0%9F%92%96+Feature+Request%22) and dig in. In the meantime, thank you to the following people for suggesting features, even if they didn't make it this time around:
+
+@njt1982 @TheTrope @allanbreyes @alexandernst @Secretmapper @murteira @oktayacikalin @TadejZupancic @SBCGames @hadikcz @jcyuan @pinkkis @Aedalus @jestarray @BigZaphod @Secretmapper @francois-n-dream @G-Rath 
 
 
 

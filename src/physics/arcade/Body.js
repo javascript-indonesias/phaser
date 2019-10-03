@@ -1,5 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
+ * @author       Benjamin D. Richards <benjamindrichards@gmail.com>
  * @copyright    2019 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
@@ -157,6 +158,15 @@ var Body = new Class({
          * @since 3.0.0
          */
         this.prev = new Vector2(gameObject.x, gameObject.y);
+
+        /**
+         * The position of this Body during the previous frame.
+         * 
+         * @name Phaser.Physics.Arcade.Body#prevFrame
+         * @type {Phaser.Math.Vector2}
+         * @since 3.20.0
+         */
+        this.prevFrame = new Vector2(gameObject.x, gameObject.y);
 
         /**
          * Whether this Body's `rotation` is affected by its angular acceleration and angular velocity.
@@ -372,6 +382,20 @@ var Body = new Class({
          * @since 3.0.0
          */
         this.worldBounce = null;
+
+        /**
+         * The rectangle used for world boundary collisions.
+         * 
+         * By default it is set to the world boundary rectangle. Or, if this Body was
+         * created by a Physics Group, then whatever rectangle that Group defined.
+         * 
+         * You can also change it by using the `Body.setBoundsRectangle` method.
+         *
+         * @name Phaser.Physics.Arcade.Body#customBoundsRectangle
+         * @type {?Phaser.Geom.Rectangle}
+         * @since 3.20
+         */
+        this.customBoundsRectangle = world.bounds;
 
         //  If true this Body will dispatch events
 
@@ -696,17 +720,6 @@ var Body = new Class({
         this.physicsType = CONST.DYNAMIC_BODY;
 
         /**
-         * Whether the Body's position needs updating from its Game Object.
-         *
-         * @name Phaser.Physics.Arcade.Body#_reset
-         * @type {boolean}
-         * @private
-         * @default true
-         * @since 3.0.0
-         */
-        this._reset = true;
-
-        /**
          * Cached horizontal scale of the Body's Game Object.
          *
          * @name Phaser.Physics.Arcade.Body#_sx
@@ -908,10 +921,12 @@ var Body = new Class({
 
         this.preRotation = this.rotation;
 
-        if (this._reset)
+        if (this.moves)
         {
             this.prev.x = this.position.x;
             this.prev.y = this.position.y;
+            this.prevFrame.x = this.position.x;
+            this.prevFrame.y = this.position.y;
         }
 
         if (willStep)
@@ -935,6 +950,9 @@ var Body = new Class({
      */
     update: function (delta)
     {
+        this.prev.x = this.position.x;
+        this.prev.y = this.position.y;
+
         if (this.moves)
         {
             this.world.updateMotion(this, delta);
@@ -974,8 +992,8 @@ var Body = new Class({
      */
     postUpdate: function ()
     {
-        var dx = this.position.x - this.prev.x;
-        var dy = this.position.y - this.prev.y;
+        var dx = this.position.x - this.prevFrame.x;
+        var dy = this.position.y - this.prevFrame.y;
 
         if (this.moves)
         {
@@ -1008,8 +1026,6 @@ var Body = new Class({
 
             this.gameObject.x += dx;
             this.gameObject.y += dy;
-
-            this._reset = true;
         }
 
         if (dx < 0)
@@ -1030,16 +1046,28 @@ var Body = new Class({
             this.facing = CONST.FACING_DOWN;
         }
 
-        this._dx = dx;
-        this._dy = dy;
-
         if (this.allowRotation)
         {
             this.gameObject.angle += this.deltaZ();
         }
+    },
 
-        this.prev.x = this.position.x;
-        this.prev.y = this.position.y;
+    /**
+     * Sets a custom collision boundary rectangle. Use if you want to have a custom
+     * boundary instead of the world boundaries.
+     *
+     * @method Phaser.Physics.Arcade.Body#setBoundsRectangle
+     * @since 3.20
+     *
+     * @param {?Phaser.Geom.Rectangle} [bounds] - The new boundary rectangle. Pass `null` to use the World bounds.
+     * 
+     * @return {this} This Body object.
+     */
+    setBoundsRectangle: function (bounds)
+    {
+        this.customBoundsRectangle = (!bounds) ? this.world.bounds : bounds;
+
+        return this;
     },
 
     /**
@@ -1053,7 +1081,7 @@ var Body = new Class({
     checkWorldBounds: function ()
     {
         var pos = this.position;
-        var bounds = this.world.bounds;
+        var bounds = this.customBoundsRectangle;
         var check = this.world.checkCollision;
 
         var bx = (this.worldBounce) ? -this.worldBounce.x : -this.bounce.x;
@@ -1246,6 +1274,7 @@ var Body = new Class({
         }
 
         this.prev.copy(this.position);
+        this.prevFrame.copy(this.position);
 
         this.rotation = gameObject.angle;
         this.preRotation = gameObject.angle;
