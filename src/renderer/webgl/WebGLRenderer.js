@@ -1490,16 +1490,18 @@ var WebGLRenderer = new Class({
      * @param {integer} wrapT - Wrapping mode of the texture.
      * @param {integer} wrapS - Wrapping mode of the texture.
      * @param {integer} format - Which format does the texture use.
-     * @param {object} pixels - pixel data.
+     * @param {?object} pixels - pixel data.
      * @param {integer} width - Width of the texture in pixels.
      * @param {integer} height - Height of the texture in pixels.
-     * @param {boolean} pma - Does the texture have premultiplied alpha?
+     * @param {boolean} [pma=true] - Does the texture have premultiplied alpha?
+     * @param {boolean} [forceSize=false] - If `true` it will use the width and height passed to this method, regardless of the pixels dimension.
      *
      * @return {WebGLTexture} The WebGLTexture that was created.
      */
-    createTexture2D: function (mipLevel, minFilter, magFilter, wrapT, wrapS, format, pixels, width, height, pma)
+    createTexture2D: function (mipLevel, minFilter, magFilter, wrapT, wrapS, format, pixels, width, height, pma, forceSize)
     {
         pma = (pma === undefined || pma === null) ? true : pma;
+        if (forceSize === undefined) { forceSize = false; }
 
         var gl = this.gl;
         var texture = gl.createTexture();
@@ -1518,10 +1520,13 @@ var WebGLRenderer = new Class({
         }
         else
         {
-            gl.texImage2D(gl.TEXTURE_2D, mipLevel, format, format, gl.UNSIGNED_BYTE, pixels);
+            if (!forceSize)
+            {
+                width = pixels.width;
+                height = pixels.height;
+            }
 
-            width = pixels.width;
-            height = pixels.height;
+            gl.texImage2D(gl.TEXTURE_2D, mipLevel, format, format, gl.UNSIGNED_BYTE, pixels);
         }
 
         this.setTexture2D(null, 0);
@@ -2312,12 +2317,67 @@ var WebGLRenderer = new Class({
         {
             this.setTexture2D(dstTexture, 0);
 
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
+            if (srcCanvas.width > 0 && srcCanvas.height > 0)
+            {
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
+            }
 
             dstTexture.width = srcCanvas.width;
             dstTexture.height = srcCanvas.height;
 
             this.setTexture2D(null, 0);
+        }
+
+        return dstTexture;
+    },
+
+    /**
+     * Creates a WebGL Texture based on the given Video element.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#videoToTexture
+     * @since 3.20.0
+     *
+     * @param {HTMLVideoElement} srcVideo - The Video element that will be used to populate the texture.
+     * @param {WebGLTexture} [dstTexture] - Is this going to replace an existing texture? If so, pass it here.
+     * @param {boolean} [noRepeat=false] - Should this texture never be allowed to set REPEAT?
+     *
+     * @return {WebGLTexture} The newly created WebGL Texture.
+     */
+    videoToTexture: function (srcVideo, dstTexture, noRepeat)
+    {
+        if (noRepeat === undefined) { noRepeat = false; }
+
+        var gl = this.gl;
+
+        var width = srcVideo.videoWidth;
+        var height = srcVideo.videoHeight;
+
+        if (!dstTexture)
+        {
+            var wrapping = gl.CLAMP_TO_EDGE;
+
+            if (!noRepeat && IsSizePowerOfTwo(width, height))
+            {
+                wrapping = gl.REPEAT;
+            }
+
+            var filter = (this.config.antialias) ? gl.LINEAR : gl.NEAREST;
+
+            dstTexture = this.createTexture2D(0, filter, filter, wrapping, wrapping, gl.RGBA, srcVideo, width, height, true, true);
+        }
+        else if (dstTexture)
+        {
+            if (width > 0 && height > 0)
+            {
+                this.setTexture2D(dstTexture, 0);
+
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcVideo);
+
+                dstTexture.width = width;
+                dstTexture.height = height;
+
+                this.setTexture2D(null, 0);
+            }
         }
 
         return dstTexture;

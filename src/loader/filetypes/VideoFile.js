@@ -8,6 +8,7 @@ var Class = require('../../utils/Class');
 var CONST = require('../../const');
 var File = require('../File');
 var FileTypesManager = require('../FileTypesManager');
+var GetURL = require('../GetURL');
 var GetFastValue = require('../../utils/object/GetFastValue');
 var IsPlainObject = require('../../utils/object/IsPlainObject');
 
@@ -37,28 +38,27 @@ var VideoFile = new Class({
 
     initialize:
 
-    //  URL is an object created by VideoFile.findAudioURL
-    function VideoFile (loader, key, urlConfig, xhrSettings, audioContext)
+    //  URL is an object created by VideoFile.getVideoURL
+    function VideoFile (loader, key, urlConfig, loadEvent, asBlob, xhrSettings)
     {
-        if (IsPlainObject(key))
-        {
-            var config = key;
-
-            key = GetFastValue(config, 'key');
-            xhrSettings = GetFastValue(config, 'xhrSettings');
-            audioContext = GetFastValue(config, 'context', audioContext);
-        }
+        if (loadEvent === undefined) { loadEvent = 'canplaythrough'; }
+        if (asBlob === undefined) { asBlob = false; }
 
         var fileConfig = {
             type: 'video',
             cache: loader.cacheManager.video,
             extension: urlConfig.type,
-            responseType: 'arraybuffer',
+            responseType: 'blob',
             key: key,
             url: urlConfig.url,
             xhrSettings: xhrSettings,
-            config: { context: audioContext }
+            config: {
+                loadEvent: loadEvent,
+                asBlob: asBlob
+            }
         };
+
+        console.log(fileConfig);
 
         File.call(this, loader, fileConfig);
     },
@@ -67,71 +67,168 @@ var VideoFile = new Class({
      * Called automatically by Loader.nextFile.
      * This method controls what extra work this File does with its loaded data.
      *
-     * @method Phaser.Loader.FileTypes.VideoFile#onProcess
-     * @since 3.20.0
+     * @method Phaser.Loader.FileTypes.BinaryFile#onProcess
+     * @since 3.7.0
      */
     onProcess: function ()
     {
+        console.log('Video.onProcess', this.config.asBlob);
+
         this.state = CONST.FILE_PROCESSING;
+
+        if (!this.config.asBlob)
+        {
+            this.onProcessComplete();
+
+            return;
+        }
+
+        var video = document.createElement('video');
+        video.controls = false;
+        video.canplay = true;
+        video.setAttribute('autoplay', 'autoplay');
+        video.setAttribute('playsinline', 'playsinline');
+
+        this.data = video;
 
         var _this = this;
 
-        // interesting read https://github.com/WebAudio/web-audio-api/issues/1305
-        this.config.context.decodeAudioData(this.xhrLoader.response,
-            function (audioBuffer)
+        this.data.onloadeddata = function ()
+        {
+            console.log('data.onloadeddata');
+            
+            File.revokeObjectURL(_this.data);
+
+            _this.onProcessComplete();
+        };
+
+        this.data.onerror = function ()
+        {
+            console.log('data.onerror');
+
+            File.revokeObjectURL(_this.data);
+
+            _this.onProcessError();
+        };
+
+        console.log('onProcess createURL');
+
+        File.createObjectURL(this.data, this.xhrLoader.response, '');
+    },
+
+    /**
+     * Called when the file finishes loading, is sent a DOM ProgressEvent.
+     *
+     * @method Phaser.Loader.File#onLoad
+     * @since 3.0.0
+     *
+     * @param {XMLHttpRequest} xhr - The XMLHttpRequest that caused this onload event.
+     * @param {ProgressEvent} event - The DOM ProgressEvent that resulted from this load.
+    onLoadVideo: function (event)
+    {
+        console.log('onLoadVideo');
+        console.log(event);
+        console.log(this);
+
+        var video = event.target;
+
+        video.removeEventListener(this.config.loadEvent, this.onLoadVideo, true);
+
+        this.data = video;
+
+        this.resetXHR();
+
+        this.loader.nextFile(this, true);
+    },
+     */
+
+    /**
+     * Called by the Loader, starts the actual file downloading.
+     * During the load the methods onLoad, onError and onProgress are called, based on the XHR events.
+     * You shouldn't normally call this method directly, it's meant to be invoked by the Loader.
+     *
+     * @method Phaser.Loader.FileTypes.HTML5AudioFile#load
+     * @since 3.0.0
+     */
+    load: function ()
+    {
+        var loadEvent = this.config.loadEvent;
+        var asBlob = this.config.asBlob;
+
+        if (asBlob)
+        {
+            console.log('Passing load over to File.load');
+            
+            File.prototype.load.call(this);
+        }
+        else
+        {
+            console.log('Loading as Video tag');
+
+            this.percentComplete = 0;
+
+            var video = document.createElement('video');
+    
+            video.controls = false;
+    
+            video.setAttribute('autoplay', 'autoplay');
+            video.setAttribute('playsinline', 'playsinline');
+
+            var _this = this;
+    
+            this.onVideoLoadHandler = function (event)
             {
-                _this.data = audioBuffer;
+                console.log('onVideoLoadHandler');
+                console.log(event);
+                console.log(_this.config.loadEvent);
+        
+                var video = event.target;
+        
+                video.removeEventListener(_this.config.loadEvent, _this.onVideoLoadHandler, true);
+        
+                _this.data = video;
+        
+                _this.resetXHR();
+        
+                _this.loader.nextFile(_this, true);
+            };
 
-                _this.onProcessComplete();
-            },
-            function (e)
-            {
-                // eslint-disable-next-line no-console
-                console.error('Error decoding audio: ' + this.key + ' - ', e ? e.message : null);
+            video.addEventListener(loadEvent, this.onVideoLoadHandler, true);
 
-                _this.onProcessError();
-            }
-        );
+            video.src = GetURL(this, this.loader.baseURL);
 
-        this.config.context = null;
+            video.canplay = true;
+
+            video.load();
+        }
     }
 
 });
 
-VideoFile.create = function (loader, key, urls, config, xhrSettings)
+VideoFile.create = function (loader, key, urls, loadEvent, asBlob, xhrSettings)
 {
     var game = loader.systems.game;
-    var audioConfig = game.config.audio;
-    var deviceAudio = game.device.audio;
 
     //  url may be inside key, which may be an object
     if (IsPlainObject(key))
     {
         urls = GetFastValue(key, 'url', []);
-        config = GetFastValue(key, 'config', {});
+        loadEvent = GetFastValue(key, 'loadEvent', 'canplaythrough');
+        asBlob = GetFastValue(key, 'asBlob', false);
+        xhrSettings = GetFastValue(key, 'xhrSettings');
     }
 
-    var urlConfig = VideoFile.getAudioURL(game, urls);
+    var urlConfig = VideoFile.getVideoURL(game, urls);
 
-    if (!urlConfig)
+    console.log(urlConfig);
+
+    if (urlConfig)
     {
-        return null;
+        return new VideoFile(loader, key, urlConfig, loadEvent, asBlob, xhrSettings);
     }
-
-    // https://developers.google.com/web/updates/2012/02/HTML5-audio-and-the-Web-Audio-API-are-BFFs
-    // var stream = GetFastValue(config, 'stream', false);
-
-    // if (deviceAudio.webAudio && !(audioConfig && audioConfig.disableWebAudio))
-    // {
-    //     return new VideoFile(loader, key, urlConfig, xhrSettings, game.sound.context);
-    // }
-    // else
-    // {
-    //     return new HTML5VideoFile(loader, key, urlConfig, config);
-    // }
 };
 
-VideoFile.getAudioURL = function (game, urls)
+VideoFile.getVideoURL = function (game, urls)
 {
     if (!Array.isArray(urls))
     {
@@ -147,15 +244,15 @@ VideoFile.getAudioURL = function (game, urls)
             return url;
         }
 
-        var audioType = url.match(/\.([a-zA-Z0-9]+)($|\?)/);
+        var videoType = url.match(/\.([a-zA-Z0-9]+)($|\?)/);
 
-        audioType = GetFastValue(urls[i], 'type', (audioType) ? audioType[1] : '').toLowerCase();
+        videoType = GetFastValue(urls[i], 'type', (videoType) ? videoType[1] : '').toLowerCase();
 
-        if (game.device.audio[audioType])
+        if (game.device.video[videoType])
         {
             return {
                 url: url,
-                type: audioType
+                type: videoType
             };
         }
     }
@@ -221,40 +318,30 @@ VideoFile.getAudioURL = function (game, urls)
  *
  * @return {Phaser.Loader.LoaderPlugin} The Loader instance.
  */
-FileTypesManager.register('video', function (key, urls, config, xhrSettings)
+FileTypesManager.register('video', function (key, urls, loadEvent, asBlob, xhrSettings)
 {
-    // var game = this.systems.game;
-    // var audioConfig = game.config.audio;
-    // var deviceAudio = game.device.audio;
-
-    // if ((audioConfig && audioConfig.noAudio) || (!deviceAudio.webAudio && !deviceAudio.audioData))
-    // {
-        //  Sounds are disabled, so skip loading audio
-        // return this;
-    // }
-
-    var audioFile;
+    var videoFile;
 
     if (Array.isArray(key))
     {
         for (var i = 0; i < key.length; i++)
         {
             //  If it's an array it has to be an array of Objects, so we get everything out of the 'key' object
-            audioFile = VideoFile.create(this, key[i]);
+            videoFile = VideoFile.create(this, key[i]);
 
-            if (audioFile)
+            if (videoFile)
             {
-                this.addFile(audioFile);
+                this.addFile(videoFile);
             }
         }
     }
     else
     {
-        audioFile = VideoFile.create(this, key, urls, config, xhrSettings);
+        videoFile = VideoFile.create(this, key, urls, loadEvent, asBlob, xhrSettings);
 
-        if (audioFile)
+        if (videoFile)
         {
-            this.addFile(audioFile);
+            this.addFile(videoFile);
         }
     }
 
