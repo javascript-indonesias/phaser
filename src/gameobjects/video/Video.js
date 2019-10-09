@@ -5,6 +5,7 @@
  */
 
 var Class = require('../../utils/Class');
+var Clamp = require('../../math/Clamp');
 var Components = require('../components');
 var GameEvents = require('../../core/events/');
 var GameObject = require('../GameObject');
@@ -17,6 +18,8 @@ var VideoRender = require('./VideoRender');
  * A Video Game Object.
  * 
  * https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement
+ * 
+ * https://developer.mozilla.org/en-US/docs/Web/Media/Formats
  *
  * @class Video
  * @extends Phaser.GameObjects.GameObject
@@ -84,8 +87,6 @@ var Video = new Class({
 
         this._key = UUID();
 
-        this.snapshot = null;
-
         /**
          * @property {boolean} touchLocked - true if this video is currently locked awaiting a touch event. This happens on some mobile devices, such as iOS.
          * @default
@@ -149,48 +150,32 @@ var Video = new Class({
         this._retryID = null;
 
         /**
-         * @property {boolean} _codeMuted - Internal mute tracking var.
+         * @property {boolean} _systemMuted - The video was muted due to a system event like losing focus, not a game code event.
+         * @private
+         * @default
+         */
+        this._systemMuted = false;
+
+        /**
+         * @property {boolean} _codeMuted - The video was muted due to a game code event, or the Loader setting, not a system event.
          * @private
          * @default
          */
         this._codeMuted = false;
 
         /**
-         * @property {boolean} _muted - Internal mute tracking var.
+         * @property {boolean} _systemPaused - The video was paused due to a system event like losing focus, not a game code event.
          * @private
          * @default
          */
-        this._muted = false;
+        this._systemPaused = false;
 
         /**
-         * @property {boolean} _codePaused - Internal paused tracking var.
+         * @property {boolean} _codePaused - The video was paused due to a game code event, not a system event.
          * @private
          * @default
          */
         this._codePaused = false;
-
-        /**
-         * @property {boolean} _paused - Internal paused tracking var.
-         * @private
-         * @default
-         */
-        this._paused = false;
-
-        /**
-         * @property {boolean} _pendingChangeSource - Internal var tracking play pending.
-         * @private
-         * @default
-         */
-        this._pendingChangeSource = false;
-
-        /**
-         * @property {boolean} _autoplay - Internal var tracking autoplay when changing source.
-         * @private
-         * @default
-         */
-        this._autoplay = false;
-
-        this._noAudio = false;
 
         this._callbacks = {
             end: this.completeHandler.bind(this),
@@ -208,7 +193,8 @@ var Video = new Class({
          */
         this._crop = this.resetCropObject();
 
-        this._textureState = 0;
+        this._lastUpdate = 0;
+        this._cacheKey = '';
 
         this.setPosition(x, y);
         this.initPipeline();
@@ -220,17 +206,26 @@ var Video = new Class({
             if (_video)
             {
                 this.video = _video;
+
+                this._cacheKey = key;
+
+                console.log('Video constructor, setting defaults', _video.videoWidth, 'x', _video.videoHeight);
+
+                this._codePaused = _video.paused;
+                this._codeMuted = _video.muted;
+
+                this.updateTexture();
             }
         }
         else if (url)
         {
-            this.createVideoFromURL(url);
+            this.playURL(url);
         }
 
         var game = scene.sys.game.events;
 
-        game.on(GameEvents.PAUSE, this.pause, this);
-        game.on(GameEvents.RESUME, this.resume, this);
+        game.on(GameEvents.PAUSE, this.globalPause, this);
+        game.on(GameEvents.RESUME, this.globalResume, this);
 
         var sound = scene.sys.sound;
 
@@ -238,15 +233,6 @@ var Video = new Class({
         {
             sound.on(SoundEvents.GLOBAL_MUTE, this.globalMute, this);
         }
-    },
-
-    setNoAudio: function (value)
-    {
-        if (value === undefined) { value = true; }
-
-        this._noAudio = value;
-
-        return this;
     },
 
     /**
@@ -258,84 +244,128 @@ var Video = new Class({
      * by clicking on it or pressing a key, or due to server settings. The policies that control autoplaying are vast and
      * vary between browser. You can read more here: https://developer.mozilla.org/en-US/docs/Web/Media/Autoplay_guide
      * 
-     * If your video doesn't contain any audio, then set the `noAudio` parameter to `true` and it will often allow the
-     * video the play immediately.
+     * If your video doesn't contain any audio, then set the `noAudio` parameter to `true` when the video is loaded,
+     * and it will often allow the video to play immediately:
      * 
-     * If you do need to hear the audio in your video, then you'll have to assume that the video cannot start playing until
-     * the user has interacted with the browser.
+     * ```javascript
+     * preload () {
+     *   this.load.video('pixar', 'nemo.mp4', 'loadeddata', false, true);
+     * }
+     * ```
+     * 
+     * The 5th parameter in the load call tells Phaser that the video doesn't contain any audio tracks. Video without
+     * audio can autoplay without a user gesture first. Video with audio cannot.
+     * 
+     * If need video audio, then you'll have to factor into your game flow the fact that the video cannot start playing
+     * until the user has interacted with the browser.
      *
      * @method Phaser.Video#play
      * @param {boolean} [loop=false] - Should the video loop automatically when it reaches the end? Please note that at present some browsers (i.e. Chrome) do not support *seamless* video looping.
      * @param {number} [playbackRate=1] - The playback rate of the video. 1 is normal speed, 2 is x2 speed, and so on. You cannot set a negative playback rate.
      * @return {Phaser.Video} This Video object for method chaining.
      */
-    play: function (loop, noAudio, playbackRate)
+    play: function (loop, playbackRate)
     {
-        if (loop === undefined) { loop = false; }
-        if (noAudio === undefined) { noAudio = false; }
-        if (playbackRate === undefined) { playbackRate = 1; }
-
-        if (this._pendingChangeSource || (this.touchLocked && this.playWhenUnlocked) || this.isPlaying())
+        if ((this.touchLocked && this.playWhenUnlocked) || this.isPlaying())
         {
             return this;
         }
 
-        this._noAudio = noAudio;
+        var video = this.video;
 
-        if (noAudio)
+        if (!video)
         {
-            //  Always overrides what the SoundManager is doing
+            // eslint-disable-next-line no-console
+            console.error('Video not loaded');
+
+            return this;
+        }
+
+        if (loop === undefined) { loop = video.loop; }
+        if (playbackRate === undefined) { playbackRate = video.playbackRate; }
+
+        var sound = this.scene.sys.sound;
+        
+        if (sound && sound.mute)
+        {
+            //  Mute will be set based on the global mute state of the Sound Manager (if there is one)
             this.setMute(true);
         }
-        else
-        {
-            var sound = this.scene.sys.sound;
-            
-            if (!sound || (sound && !sound.mute))
-            {
-                this.setMute(false);
-            }
-        }
 
-        this.video.loop = (loop) ? 'loop' : '';
-
-        this.video.playbackRate = playbackRate;
-
-        this.video.addEventListener('ended', this._callbacks.end, true);
-        this.video.addEventListener('webkitendfullscreen', this._callbacks.end, true);
-        this.video.addEventListener('timeupdate', this._callbacks.time, true);
-        this.video.addEventListener('playing', this._callbacks.play, true);
-    
-        if (this.video.readyState !== 4)
+        video.loop = loop;
+        video.playbackRate = playbackRate;
+   
+        //  If video hasn't downloaded properly yet ...
+        if (video.readyState !== 4)
         {
             this.retry = this.retryLimit;
 
             this._retryID = window.setTimeout(this.checkVideoProgress.bind(this), this.retryInterval);
+        }
 
-            this.video.play();
+        var playPromise = video.play();
+
+        if (playPromise !== undefined)
+        {
+            playPromise.then(this.playSuccessHandler.bind(this)).catch(this.playErrorHandler.bind(this));
         }
         else
         {
-            this._textureState = 0;
-
-            var playPromise = this.video.play();
-
-            if (playPromise !== undefined)
-            {
-                playPromise.then(this.playSuccessHandler.bind(this)).catch(this.playErrorHandler.bind(this));
-            }
+            //  Old-school browsers with no Promises
+            video.addEventListener('playing', this._callbacks.play, true);
         }
+
+        //  Set these after calling `play` or they don't fire (useful, thanks browsers)
+        video.addEventListener('ended', this._callbacks.end, true);
+        video.addEventListener('webkitendfullscreen', this._callbacks.end, true);
+        video.addEventListener('timeupdate', this._callbacks.time, true);
+
+        return this;
+    },
+
+    /**
+     * Creates a new Video element from the given URL.
+     *
+     * @method Phaser.Video#playURL
+     * @param {string} url - The URL of the video.
+     * @param {boolean} [autoplay=false] - Automatically start the video?
+     * @return {Phaser.Video} This Video object for method chaining.
+     */
+    playURL: function (url, loop, playbackRate)
+    {
+        // this.video = document.createElement('video');
+        // this.video.controls = false;
+
+        // if (autoplay)
+        // {
+        //     this.video.setAttribute('autoplay', 'autoplay');
+        // }
+
+        // this.video.src = url;
+
+        // this.video.canplay = true;
+
+        // this.video.load();
+
+        // this.retry = this.retryLimit;
+
+        // this._retryID = window.setTimeout(this.checkVideoProgress.bind(this), this.retryInterval);
 
         return this;
     },
 
     playSuccessHandler: function ()
     {
+        console.log('playSuccessHandler');
+
         this.touchLocked = false;
     },
 
     playErrorHandler: function (error)
     {
+        console.log('playErrorHandler');
+        console.log(error);
+
         this.scene.sys.input.once('pointerdown', this.unlockHandler, this);
 
         this.touchLocked = true;
@@ -360,13 +390,19 @@ var Video = new Class({
      */
     completeHandler: function ()
     {
+        console.log('Video has ended!');
     },
 
+    //  The timeUpdate event is so slow and irregular we can't use it for actual video timing.
+    //  But, we CAN use it to determine if the video has looped :)
     timeUpdateHandler: function ()
     {
-        this._textureState++;
+        if (this.video && this.video.currentTime < this._lastUpdate)
+        {
+            this.emit('loop', this);
 
-        this.video.removeEventListener('timeupdate', this._callbacks.time, true);
+            this._lastUpdate = 0;
+        }
     },
 
     /**
@@ -377,20 +413,23 @@ var Video = new Class({
      */
     playHandler: function ()
     {
-        this._textureState++;
-        
+        console.log('playHandler');
+
+        this.touchLocked = false;
+       
         this.video.removeEventListener('playing', this._callbacks.play, true);
     },
 
     preUpdate: function ()
     {
-        if (this._textureState === 3 && this.playing)
-        {
-            this.videoTextureSource.update();
-        }
-        else if (this._textureState === 2)
+        var video = this.video;
+
+        //  Don't render a new frame unless the video has actually changed time
+        if (video && video.currentTime > this._lastUpdate)
         {
             this.updateTexture();
+
+            this._lastUpdate = video.currentTime;
         }
     },
 
@@ -489,39 +528,6 @@ var Video = new Class({
     },
 
     /**
-     * Creates a new Video element from the given URL.
-     *
-     * @method Phaser.Video#createVideoFromURL
-     * @param {string} url - The URL of the video.
-     * @param {boolean} [autoplay=false] - Automatically start the video?
-     * @return {Phaser.Video} This Video object for method chaining.
-     */
-    createVideoFromURL: function (url, autoplay)
-    {
-        if (autoplay === undefined) { autoplay = false; }
-
-        this.video = document.createElement('video');
-        this.video.controls = false;
-
-        if (autoplay)
-        {
-            this.video.setAttribute('autoplay', 'autoplay');
-        }
-
-        this.video.src = url;
-
-        this.video.canplay = true;
-
-        this.video.load();
-
-        this.retry = this.retryLimit;
-
-        this._retryID = window.setTimeout(this.checkVideoProgress.bind(this), this.retryInterval);
-
-        return this;
-    },
-
-    /**
      * Internal callback that monitors the download progress of a video after changing its source.
      *
      * @method Phaser.Video#checkVideoProgress
@@ -557,17 +563,17 @@ var Video = new Class({
      *
      * @method Phaser.Video#updateTexture
      * @param {object} [event] - The event which triggered the texture update.
-     * @param {integer} [width] - The new width of the video. If undefined `video.videoWidth` is used.
-     * @param {integer} [height] - The new height of the video. If undefined `video.videoHeight` is used.
      */
-    updateTexture: function (event, width, height)
+    updateTexture: function ()
     {
-        if (width === undefined || width === null) { width = this.video.videoWidth; }
-        if (height === undefined || height === null) { height = this.video.videoHeight; }
+        var video = this.video;
+
+        var width = video.videoWidth;
+        var height = video.videoHeight;
 
         if (!this.videoTexture)
         {
-            this.videoTexture = this.scene.sys.textures.create(this._key, this.video, width, height);
+            this.videoTexture = this.scene.sys.textures.create(this._key, video, width, height);
             this.videoTextureSource = this.videoTexture.source[0];
             this.videoTexture.add('__BASE', 0, 0, 0, width, height);
 
@@ -575,20 +581,43 @@ var Video = new Class({
             this.frame = this.videoTexture.get();
     
             this.setSizeToFrame();
-            this.setOriginFromFrame();
+            this.updateDisplayOrigin();
     
-            this._textureState = 3;
-
             this.emit('created', this, width, height);
         }
         else
         {
             var textureSource = this.videoTextureSource;
 
-            textureSource.source = this.video;
-            textureSource.width = width;
-            textureSource.height = height;
+            if (textureSource.source !== video)
+            {
+                textureSource.source = video;
+                textureSource.width = width;
+                textureSource.height = height;
+            }
+            
+            textureSource.update();
         }
+    },
+
+    //  0 to 1
+    seekTo: function (value)
+    {
+        var video = this.video;
+
+        if (video)
+        {
+            var duration = video.duration;
+
+            if (duration !== Infinity && !isNaN(duration))
+            {
+                var seekTime = duration * value;
+
+                this.setCurrentTime(seekTime);
+            }
+        }
+
+        return this;
     },
 
     /**
@@ -605,12 +634,42 @@ var Video = new Class({
         if (this.video)
         {
             this.video.currentTime = value;
+
+            this.updateTexture();
+
+            this._lastUpdate = value;
         }
 
         return this;
     },
 
     /**
+     * @name Phaser.Video#currentTime
+     */
+    getProgress: function ()
+    {
+        var video = this.video;
+
+        if (video)
+        {
+            var now = video.currentTime;
+            var duration = video.duration;
+
+            if (duration !== Infinity && !isNaN(duration))
+            {
+                return now / duration;
+            }
+        }
+        
+        return 0;
+    },
+
+    /**
+     * A double-precision floating-point value which indicates the duration (total length) of the media in seconds, on the media's timeline.
+     * If no media is present on the element, or the media is not valid, the returned value is NaN.
+     * If the media has no known end (such as for live streams of unknown duration, web radio, media incoming from WebRTC, and so forth),
+     * this value is +Infinity.
+     * 
      * @name Phaser.Video#duration
      * @property {number} duration - The duration of the video in seconds.
      * @readOnly
@@ -620,74 +679,68 @@ var Video = new Class({
         return (this.video) ? this.video.duration : 0;
     },
 
-    /**
-     * @name Phaser.Video#progress
-     * @property {number} progress - The progress of this video. This is a value between 0 and 1, where 0 is the start and 1 is the end of the video.
-     * @readOnly
-     */
-    getProgress: function ()
-    {
-        return (this.video) ? (this.video.currentTime / this.video.duration) : 0;
-    },
-
     isMuted: function ()
     {
-        return this._muted;
+        return this._codeMuted;
     },
 
     globalMute: function (soundManager, value)
     {
-        this.setMute(value);
+        this._systemMuted = value;
+
+        var video = this.video;
+
+        if (video)
+        {
+            video.muted = (this._codeMuted) ? true : value;
+        }
     },
 
     setMute: function (value)
     {
         if (value === undefined) { value = true; }
 
-        if (value)
+        this._codeMuted = value;
+
+        var video = this.video;
+
+        if (video)
         {
-            if (!this._muted)
-            {
-                this._muted = true;
-                this._codeMuted = true;
-    
-                if (this.video)
-                {
-                    this.video.muted = true;
-                }
-            }
-        }
-        else
-        {
-            // eslint-disable-next-line no-lonely-if
-            if (this._muted)
-            {
-                this._muted = false;
-                this._codeMuted = false;
-    
-                if (this.video)
-                {
-                    this.video.muted = false;
-                }
-            }
+            video.muted = (this._systemMuted) ? true : value;
         }
 
         return this;
     },
 
-    pause: function ()
+    globalPause: function ()
     {
-        if (this._paused || this.touchLocked)
-        {
-            return this;
-        }
-
-        this._codePaused = true;
-        this._paused = true;
+        this._systemPaused = true;
 
         if (this.video)
         {
             this.video.pause();
+        }
+    },
+
+    globalResume: function ()
+    {
+        this._systemPaused = false;
+
+        if (this.video && !this._codePaused)
+        {
+            this.video.play();
+        }
+    },
+
+    pause: function ()
+    {
+        this._codePaused = true;
+
+        var video = this.video;
+
+        if (video && !video.paused)
+        {
+            video.pause();
         }
 
         return this;
@@ -695,17 +748,13 @@ var Video = new Class({
 
     resume: function ()
     {
-        if (!this._paused || this._codePaused || this.touchLocked)
-        {
-            return this;
-        }
-
         this._codePaused = false;
-        this._paused = false;
 
-        if (this.video && !this.video.ended)
+        var video = this.video;
+
+        if (video && video.paused && !this._systemPaused)
         {
-            this.video.play();
+            this.play();
         }
 
         return this;
@@ -724,18 +773,9 @@ var Video = new Class({
     {
         if (value === undefined) { value = 1; }
 
-        if (value < 0)
-        {
-            value = 0;
-        }
-        else if (value > 1)
-        {
-            value = 1;
-        }
-
         if (this.video)
         {
-            this.video.volume = value;
+            this.video.volume = Clamp(value, 0, 1);
         }
 
         return this;
@@ -767,7 +807,7 @@ var Video = new Class({
 
     /**
      * Gets or sets if the Video is set to loop.
-     * Please note that at present some browsers (i.e. Chrome) do not support *seamless* video looping.
+     * Please note that at present some browsers do not support *seamless* video looping for all video formats.
      * If the video isn't yet set this will always return false.
      *
      * @name Phaser.Video#loop
@@ -779,7 +819,7 @@ var Video = new Class({
 
         if (this.video)
         {
-            this.video.loop = (value) ? 'loop' : '';
+            this.video.loop = value;
         }
 
         return this;
@@ -795,6 +835,16 @@ var Video = new Class({
         return (this.video) ? !(this.video.paused || this.video.ended) : false;
     },
     
+    /**
+     * @name Phaser.Video#playing
+     * @property {boolean} playing - True if the video is currently playing (and not paused or ended), otherwise false.
+     * @readOnly
+     */
+    isPaused: function ()
+    {
+        return ((this.video && this.video.paused) || this._codePaused || this._systemPaused);
+    },
+
     /**
      * Stores a copy of this Render Texture in the Texture Manager using the given key.
      * 
@@ -839,54 +889,6 @@ var Video = new Class({
     },
 
     /**
-     * Grabs the current frame from the Video or Video Stream and renders it to the Video.snapshot BitmapData.
-     *
-     * You can optionally set if the BitmapData should be cleared or not, the alpha and the blend mode of the draw.
-     *
-     * If you need more advanced control over the grabbing them call `Video.snapshot.copy` directly with the same parameters as BitmapData.copy.
-     *
-     * @method Phaser.Video#grab
-     * @param {boolean} [clear=false] - Should the BitmapData be cleared before the Video is grabbed? Unless you are using alpha or a blend mode you can usually leave this set to false.
-     * @param {number} [alpha=1] - The alpha that will be set on the video before drawing. A value between 0 (fully transparent) and 1, opaque.
-     * @param {string} [blendMode=null] - The composite blend mode that will be used when drawing. The default is no blend mode at all. This is a Canvas globalCompositeOperation value such as 'lighter' or 'xor'.
-     * @return {Phaser.BitmapData} A reference to the Video.snapshot BitmapData object for further method chaining.
-     */
-    grab: function (clear, alpha, blendMode)
-    {
-        if (clear === undefined) { clear = false; }
-        if (alpha === undefined) { alpha = 1; }
-        if (blendMode === undefined) { blendMode = null; }
-
-        var source = this.videoTextureSource;
-        var width = (source) ? source.width : 128;
-        var height = (source) ? source.height : 128;
-
-        if (!this.snapshot)
-        {
-            this.snapshot = this.scene.sys.textures.createCanvas(UUID(), width, height);
-        }
-        else if (this.snapshot.width !== width || this.snapshot.height !== height)
-        {
-            this.snapshot.setSize(width, height);
-        }
-
-        if (clear)
-        {
-            this.snapshot.clear();
-        }
-
-        if (source)
-        {
-            //  Set globalAlpha
-            //  Set blendMode
-
-            this.snapshot.draw(0, 0, source.image);
-        }
-
-        return this.snapshot;
-    },
-
-    /**
      * Removes the Video element from the DOM by calling parentNode.removeChild on itself.
      * Also removes the autoplay and src attributes and nulls the reference.
      *
@@ -894,23 +896,25 @@ var Video = new Class({
      */
     removeVideoElement: function ()
     {
-        if (!this.video)
+        var video = this.video;
+
+        if (!video)
         {
             return;
         }
 
-        if (this.video.parentNode)
+        if (video.parentNode)
         {
-            this.video.parentNode.removeChild(this.video);
+            video.parentNode.removeChild(video);
         }
 
-        while (this.video.hasChildNodes())
+        while (video.hasChildNodes())
         {
-            this.video.removeChild(this.video.firstChild);
+            video.removeChild(video.firstChild);
         }
 
-        this.video.removeAttribute('autoplay');
-        this.video.removeAttribute('src');
+        video.removeAttribute('autoplay');
+        video.removeAttribute('src');
 
         this.video = null;
     },
@@ -929,8 +933,8 @@ var Video = new Class({
 
         var game = this.scene.sys.game.events;
 
-        game.off(GameEvents.PAUSE, this.pause, this);
-        game.off(GameEvents.RESUME, this.resume, this);
+        game.off(GameEvents.PAUSE, this.globalPause, this);
+        game.off(GameEvents.RESUME, this.globalResume, this);
 
         var sound = this.scene.sys.sound;
 
@@ -943,20 +947,6 @@ var Video = new Class({
         {
             window.clearTimeout(this._retryID);
         }
-    },
-
-    /**
-     * @name Phaser.Video#playing
-     * @property {boolean} playing - True if the video is currently playing (and not paused or ended), otherwise false.
-     * @readOnly
-     */
-    playing: {
-
-        get: function ()
-        {
-            return (this.video) ? !(this.video.paused || this.video.ended) : false;
-        }
-
     }
 
 });
