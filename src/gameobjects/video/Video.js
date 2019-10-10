@@ -72,7 +72,7 @@ var Video = new Class({
 
     initialize:
 
-    function Video (scene, x, y, key, url)
+    function Video (scene, x, y, key)
     {
         GameObject.call(this, scene, 'Video');
 
@@ -91,7 +91,7 @@ var Video = new Class({
          * @property {boolean} touchLocked - true if this video is currently locked awaiting a touch event. This happens on some mobile devices, such as iOS.
          * @default
          */
-        this.touchLocked = false;
+        this.touchLocked = true;
 
         /**
          * Start playing the video when it's unlocked.
@@ -180,7 +180,12 @@ var Video = new Class({
         this._callbacks = {
             end: this.completeHandler.bind(this),
             play: this.playHandler.bind(this),
-            time: this.timeUpdateHandler.bind(this)
+            time: this.timeUpdateHandler.bind(this),
+            seeking: this.seekingHandler.bind(this),
+            seeked: this.seekedHandler.bind(this),
+            loadeddata: this.loadeddataHandler.bind(this),
+            canplay: this.canplayHandler.bind(this),
+            canplaythrough: this.canplaythroughHandler.bind(this)
         };
 
         /**
@@ -193,33 +198,25 @@ var Video = new Class({
          */
         this._crop = this.resetCropObject();
 
+        this.markers = {};
+
+        this._markerIn = -1;
+        this._markerOut = Number.MAX_SAFE_INTEGER;
+
         this._lastUpdate = 0;
+
         this._cacheKey = '';
+
+        this._isSeeking = false;
+
+        this.snapshotTexture = null;
 
         this.setPosition(x, y);
         this.initPipeline();
 
         if (key)
         {
-            var _video = scene.sys.cache.video.get(key);
-
-            if (_video)
-            {
-                this.video = _video;
-
-                this._cacheKey = key;
-
-                console.log('Video constructor, setting defaults', _video.videoWidth, 'x', _video.videoHeight);
-
-                this._codePaused = _video.paused;
-                this._codeMuted = _video.muted;
-
-                this.updateTexture();
-            }
-        }
-        else if (url)
-        {
-            this.playURL(url);
+            this.changeSource(key, false);
         }
 
         var game = scene.sys.game.events;
@@ -261,10 +258,9 @@ var Video = new Class({
      *
      * @method Phaser.Video#play
      * @param {boolean} [loop=false] - Should the video loop automatically when it reaches the end? Please note that at present some browsers (i.e. Chrome) do not support *seamless* video looping.
-     * @param {number} [playbackRate=1] - The playback rate of the video. 1 is normal speed, 2 is x2 speed, and so on. You cannot set a negative playback rate.
      * @return {Phaser.Video} This Video object for method chaining.
      */
-    play: function (loop, playbackRate)
+    play: function (loop, markerIn, markerOut)
     {
         if ((this.touchLocked && this.playWhenUnlocked) || this.isPlaying())
         {
@@ -282,7 +278,6 @@ var Video = new Class({
         }
 
         if (loop === undefined) { loop = video.loop; }
-        if (playbackRate === undefined) { playbackRate = video.playbackRate; }
 
         var sound = this.scene.sys.sound;
         
@@ -292,9 +287,18 @@ var Video = new Class({
             this.setMute(true);
         }
 
+        if (!isNaN(markerIn))
+        {
+            this._markerIn = markerIn;
+        }
+
+        if (!isNaN(markerOut) && markerOut > markerIn)
+        {
+            this._markerOut = markerOut;
+        }
+
         video.loop = loop;
-        video.playbackRate = playbackRate;
-   
+
         //  If video hasn't downloaded properly yet ...
         if (video.readyState !== 4)
         {
@@ -302,6 +306,8 @@ var Video = new Class({
 
             this._retryID = window.setTimeout(this.checkVideoProgress.bind(this), this.retryInterval);
         }
+
+        var callbacks = this._callbacks;
 
         var playPromise = video.play();
 
@@ -312,15 +318,192 @@ var Video = new Class({
         else
         {
             //  Old-school browsers with no Promises
-            video.addEventListener('playing', this._callbacks.play, true);
+            video.addEventListener('playing', callbacks.play, true);
         }
 
         //  Set these after calling `play` or they don't fire (useful, thanks browsers)
-        video.addEventListener('ended', this._callbacks.end, true);
-        video.addEventListener('webkitendfullscreen', this._callbacks.end, true);
-        video.addEventListener('timeupdate', this._callbacks.time, true);
+        video.addEventListener('ended', callbacks.end, true);
+        video.addEventListener('webkitendfullscreen', callbacks.end, true);
+        video.addEventListener('timeupdate', callbacks.time, true);
 
         return this;
+    },
+
+    changeSource: function (key, autoplay, loop, markerIn, markerOut)
+    {
+        if (autoplay === undefined) { autoplay = true; }
+
+        var currentVideo = this.video;
+
+        if (currentVideo)
+        {
+            this.stop();
+        }
+
+        var newVideo = this.scene.sys.cache.video.get(key);
+
+        if (newVideo)
+        {
+            this.video = newVideo;
+
+            this._cacheKey = key;
+
+            this._codePaused = newVideo.paused;
+            this._codeMuted = newVideo.muted;
+
+            newVideo.addEventListener('seeking', this._callbacks.seeking, true);
+            newVideo.addEventListener('seeked', this._callbacks.seeked, true);
+
+            if (this.videoTexture)
+            {
+                this.scene.sys.textures.remove(this._key);
+
+                this.videoTexture = this.scene.sys.textures.create(this._key, newVideo, newVideo.videoWidth, newVideo.videoHeight);
+                this.videoTextureSource = this.videoTexture.source[0];
+                this.videoTexture.add('__BASE', 0, 0, 0, newVideo.videoWidth, newVideo.videoHeight);
+        
+                this.setTexture(this.videoTexture);
+                this.setSizeToFrame();
+                this.updateDisplayOrigin();
+            }
+            else
+            {
+                this.updateTexture();
+            }
+
+            newVideo.currentTime = 0;
+
+            this._lastUpdate = 0;
+
+            if (autoplay)
+            {
+                this.play(loop, markerIn, markerOut);
+            }
+        }
+        else
+        {
+            this.video = null;
+        }
+
+        return this;
+    },
+
+    //  https://github.com/w3c/media-and-entertainment/issues/4
+    addMarker: function (key, markerIn, markerOut)
+    {
+        if (!isNaN(markerIn) && markerIn >= 0 && !isNaN(markerOut))
+        {
+            this.markers[key] = [ markerIn, markerOut ];
+        }
+
+        return this;
+    },
+
+    playMarker: function (key, loop)
+    {
+        var marker = this.markers[key];
+
+        if (marker)
+        {
+            this.play(loop, marker[0], marker[1]);
+        }
+
+        return this;
+    },
+
+    removeMarker: function (key)
+    {
+        delete this.markers[key];
+
+        return this;
+    },
+
+    snapshot: function (width, height)
+    {
+        if (width === undefined) { width = this.width; }
+        if (height === undefined) { height = this.height; }
+
+        return this.snapshotArea(0, 0, this.width, this.height, width, height);
+    },
+
+    snapshotArea: function (x, y, srcWidth, srcHeight, destWidth, destHeight)
+    {
+        if (x === undefined) { x = 0; }
+        if (y === undefined) { y = 0; }
+        if (srcWidth === undefined) { srcWidth = this.width; }
+        if (srcHeight === undefined) { srcHeight = this.height; }
+        if (destWidth === undefined) { destWidth = srcWidth; }
+        if (destHeight === undefined) { destHeight = srcHeight; }
+
+        var video = this.video;
+        var snap = this.snapshotTexture;
+
+        if (!snap)
+        {
+            snap = this.scene.sys.textures.createCanvas(UUID(), destWidth, destHeight);
+
+            this.snapshotTexture = snap;
+
+            if (video)
+            {
+                snap.context.drawImage(video, x, y, srcWidth, srcHeight, 0, 0, destWidth, destHeight);
+            }
+        }
+        else
+        {
+            snap.setSize(destWidth, destHeight);
+
+            if (video)
+            {
+                snap.context.drawImage(video, x, y, srcWidth, srcHeight, 0, 0, destWidth, destHeight);
+            }
+        }
+
+        return snap.update();
+    },
+
+    saveSnapshotTexture: function (key)
+    {
+        if (this.snapshotTexture)
+        {
+            this.scene.sys.textures.renameTexture(this.snapshotTexture.key, key);
+        }
+        else
+        {
+            this.snapshotTexture = this.scene.sys.textures.createCanvas(key, this.width, this.height);
+        }
+
+        return this.snapshotTexture;
+    },
+
+    loadeddataHandler: function (event)
+    {
+        console.log('Video.loadeddataHandler');
+        console.log(event);
+
+        var video = event.target;
+
+        video.removeEventListener('loadeddata', this._callbacks.loadeddata, true);
+    },
+
+    canplayHandler: function (event)
+    {
+        console.log('Video.canplayHandler');
+        console.log(event);
+
+        var video = event.target;
+
+        video.removeEventListener('canplay', this._callbacks.canplay, true);
+    },
+
+    canplaythroughHandler: function (event)
+    {
+        console.log('Video.canplaythroughHandler');
+        console.log(event);
+
+        var video = event.target;
+
+        video.removeEventListener('canplaythrough', this._callbacks.canplaythrough, true);
     },
 
     /**
@@ -331,25 +514,69 @@ var Video = new Class({
      * @param {boolean} [autoplay=false] - Automatically start the video?
      * @return {Phaser.Video} This Video object for method chaining.
      */
-    playURL: function (url, loop, playbackRate)
+    loadURL: function (url, loadEvent, noAudio)
     {
-        // this.video = document.createElement('video');
-        // this.video.controls = false;
+        if (loadEvent === undefined) { loadEvent = 'loadeddata'; }
+        if (noAudio === undefined) { noAudio = false; }
+
+        if (this.video)
+        {
+            this.stop();
+        }
+
+        if (this.videoTexture)
+        {
+            this.scene.sys.textures.remove(this._key);
+        }
+
+        var video = document.createElement('video');
+    
+        video.controls = false;
+
+        if (noAudio)
+        {
+            video.muted = true;
+            video.defaultMuted = true;
+
+            video.setAttribute('autoplay', 'autoplay');
+        }
+
+        video.setAttribute('playsinline', 'playsinline');
+        video.setAttribute('preload', 'auto');
+
+        video.addEventListener(loadEvent, this._callbacks[loadEvent], true);
+
+        video.addEventListener('error', function (e)
+        {
+            console.log('Load Error');
+            console.log(e);
+        }, true);
+
+        video.addEventListener('loadstart', function (e)
+        {
+            console.log('Load Start');
+        }, true);
+
+        video.addEventListener('loadedmetadata', function (e)
+        {
+            console.log('Loaded Meta Data');
+        }, true);
+
+        video.addEventListener('emptied', function (e)
+        {
+            console.log('Load Emptied');
+        }, true);
+
+        video.src = url;
+
+        video.load();
+
+        this.video = video;
 
         // if (autoplay)
         // {
-        //     this.video.setAttribute('autoplay', 'autoplay');
+        //     this.play(loop);
         // }
-
-        // this.video.src = url;
-
-        // this.video.canplay = true;
-
-        // this.video.load();
-
-        // this.retry = this.retryLimit;
-
-        // this._retryID = window.setTimeout(this.checkVideoProgress.bind(this), this.retryInterval);
 
         return this;
     },
@@ -359,6 +586,13 @@ var Video = new Class({
         console.log('playSuccessHandler');
 
         this.touchLocked = false;
+
+        if (this._markerIn > -1)
+        {
+            console.log('jumping to', this._markerIn);
+
+            this.video.currentTime = this._markerIn;
+        }
     },
 
     playErrorHandler: function (error)
@@ -378,6 +612,13 @@ var Video = new Class({
     {
         this.touchLocked = false;
         this.playWhenUnlocked = false;
+
+        if (this._markerIn > -1)
+        {
+            console.log('jumping to', this._markerIn);
+
+            this.video.currentTime = this._markerIn;
+        }
 
         this.video.play();
     },
@@ -424,12 +665,32 @@ var Video = new Class({
     {
         var video = this.video;
 
+        var currentTime = video.currentTime;
+
         //  Don't render a new frame unless the video has actually changed time
-        if (video && video.currentTime > this._lastUpdate)
+        if (video && currentTime !== this._lastUpdate)
         {
+            this._lastUpdate = currentTime;
+
             this.updateTexture();
 
-            this._lastUpdate = video.currentTime;
+            if (currentTime >= this._markerOut)
+            {
+                console.log('marker out', currentTime, this._markerOut);
+
+                if (video.loop)
+                {
+                    video.currentTime = this._markerIn;
+
+                    this.updateTexture();
+
+                    this._lastUpdate = currentTime;
+                }
+                else
+                {
+                    this.stop();
+                }
+            }
         }
     },
 
@@ -451,54 +712,58 @@ var Video = new Class({
     {
         //  Stream or file?
 
+        var video = this.video;
+
         if (this.isStreaming)
         {
-            if (this.video.mozSrcObject)
+            var videoStream = this.videoStream;
+
+            if (video.mozSrcObject)
             {
-                this.video.mozSrcObject.stop();
-                this.video.src = null;
+                video.mozSrcObject.stop();
+                video.src = null;
             }
-            else if (this.video.srcObject)
+            else if (video.srcObject)
             {
-                this.video.srcObject.stop();
-                this.video.src = null;
+                video.srcObject.stop();
+                video.src = null;
             }
             else
             {
-                this.video.src = '';
+                video.src = '';
 
-                if (this.videoStream.active)
+                if (videoStream.active)
                 {
-                    this.videoStream.active = false;
+                    videoStream.active = false;
                 }
-                else
-                if (this.videoStream.getTracks)
+                else if (videoStream.getTracks)
                 {
-                    this.videoStream.getTracks().forEach(function (track)
+                    videoStream.getTracks().forEach(function (track)
                     {
                         track.stop();
                     });
                 }
                 else
                 {
-                    this.videoStream.stop();
+                    videoStream.stop();
                 }
             }
 
             this.videoStream = null;
             this.isStreaming = false;
         }
-        else if (this.video)
+        else if (video)
         {
-            this.video.removeEventListener('ended', this._callbacks.end, true);
-            this.video.removeEventListener('webkitendfullscreen', this._callbacks.end, true);
-            this.video.removeEventListener('timeupdate', this._callbacks.time, true);
-            this.video.removeEventListener('playing', this._callbacks.play, true);
+            var callbacks = this._callbacks;
 
-            if (!this.touchLocked)
-            {
-                this.video.pause();
-            }
+            video.removeEventListener('ended', callbacks.end, true);
+            video.removeEventListener('webkitendfullscreen', callbacks.end, true);
+            video.removeEventListener('timeupdate', callbacks.time, true);
+            video.removeEventListener('playing', callbacks.play, true);
+            video.removeEventListener('seeking', callbacks.seeking, true);
+            video.removeEventListener('seeked', callbacks.seeked, true);
+
+            video.pause();
         }
 
         return this;
@@ -576,10 +841,8 @@ var Video = new Class({
             this.videoTexture = this.scene.sys.textures.create(this._key, video, width, height);
             this.videoTextureSource = this.videoTexture.source[0];
             this.videoTexture.add('__BASE', 0, 0, 0, width, height);
-
-            this.texture = this.videoTexture;
-            this.frame = this.videoTexture.get();
     
+            this.setTexture(this.videoTexture);
             this.setSizeToFrame();
             this.updateDisplayOrigin();
     
@@ -598,6 +861,11 @@ var Video = new Class({
             
             textureSource.update();
         }
+    },
+
+    getVideoKey: function ()
+    {
+        return this._cacheKey;
     },
 
     //  0 to 1
@@ -631,16 +899,53 @@ var Video = new Class({
 
     setCurrentTime: function (value)
     {
-        if (this.video)
-        {
-            this.video.currentTime = value;
+        var video = this.video;
 
-            this.updateTexture();
+        if (video)
+        {
+            if (typeof value === 'string')
+            {
+                var op = value[0];
+                var num = parseFloat(value.substr(1));
+
+                if (op === '+')
+                {
+                    value = video.currentTime + num;
+                }
+                else if (op === '-')
+                {
+                    value = video.currentTime - num;
+                }
+            }
+
+            video.currentTime = value;
 
             this._lastUpdate = value;
         }
 
         return this;
+    },
+
+    isSeeking: function ()
+    {
+        return this._isSeeking;
+    },
+
+    seekingHandler: function ()
+    {
+        this._isSeeking = true;
+    },
+
+    seekedHandler: function ()
+    {
+        this._isSeeking = false;
+
+        var video = this.video;
+
+        if (video)
+        {
+            this.updateTexture();
+        }
     },
 
     /**
@@ -929,6 +1234,7 @@ var Video = new Class({
     {
         this.stop();
 
+        //  Only if this is a custom video AND hasn't been saved as a texture?
         this.removeVideoElement();
 
         var game = this.scene.sys.game.events;
