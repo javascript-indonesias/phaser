@@ -1,10 +1,38 @@
 # Change Log
 
-## Version 3.20.0 - Fitoria - in dev
+## Version 3.20.0 - Fitoria - 11th October 2019
 
 ### Video Game Object
 
-* `WebGLRenderer.videoToTexture` is a new method that will create or update a WebGL Texture from the given Video Element.
+This is a new Game Object is capable of handling playback of a previously loaded video from the Phaser Video Cache,
+or playing a video based on a given URL. Videos can be either local, or streamed:
+
+```javascript
+preload () {
+  this.load.video('pixar', 'nemo.mp4');
+}
+
+create () {
+  this.add.video(400, 300, 'pixar');
+}
+```
+
+To all intents and purposes, a video is a standard Game Object, just like a Sprite. And as such, you can do
+all the usual things to it, such as scaling, rotating, cropping, tinting, making interactive, giving a
+physics body, etc.
+
+Transparent videos are also possible via the WebM file format. Providing the video file has was encoded with
+an alpha channel, and providing the browser supports WebM playback (not all of them do), then it willl render
+in-game with full transparency.
+
+You can also save a video to the Texture Manager, allowing other Game Objects to use it as their texture,
+including using it as a sampler2D input for a shader.
+
+See the Video Game Object class for more details. Other Video related changes are as follows:
+
+* `Loader.FileTypes.VideoFile` is a new Video File Loader File Type, used for preloading videos as streams or blobs.
+* `WebGLRenderer.createVideoTexture` is a new method that will create a WebGL Texture from the given Video Element.
+* `WebGLRenderer.updateVideoTexture` is a new method that will update a WebGL Texture from the given Video Element.
 * `TextureSource.isVideo` is a new boolean property that is set when the Texture Source is backed by an HTML Video Element.
 * `Cache.video` is a new global cache that store loaded Video content.
 * `Device.Video.h264Video` has been renamed to `Device.Video.h264` to keep it in-line with the Audio Device names.
@@ -60,6 +88,14 @@ In combination these updates fix issues #4732 and #4672. My thanks to @BenjaminD
 * `ArcadePhysics.Body.setBoundsRectangle` is a new method that allows you to set a custom bounds rectangle for any Body to use, rather than the World bounds, which is the default (thanks @francois-n-dream)
 * `ArcadePhysics.Body.customBoundsRectangle` is a new property used for custom bounds collision (thanks @francois-n-dream)
 * The Arcade Physics Group has a new config object property `customBoundsRectangle` which, if set, will set the custom world bounds for all Bodies that Group creates (thanks @francois-n-dream)
+* `WebGLRenderer.createTexture2D` has a new optional parameter `flipY` which sets the `UNPACK_FLIP_Y_WEBGL` flag of the uploaded texture.
+* `WebGLRenderer.canvasToTexture` has a new optional parameter `flipY` which sets the `UNPACK_FLIP_Y_WEBGL` flag of the uploaded texture.
+* `WebGLRenderer.createCanvasTexture` is a new method that will create a WebGL Texture based on the given Canvas Element.
+* `WebGLRenderer.updateCanvasTexture` is a new method that will update an existing WebGL Texture based on the given Canvas Element.
+* `WebGLRenderer.createVideoTexture` is a new method that will create a WebGL Texture based on the given Video Element.
+* `WebGLRenderer.updateVideoTexture` is a new method that will update an existing WebGL Texture based on the given Video Element.
+* `TextureSource.flipY` is a new boolean that controls if the `UNPACK_FLIP_Y_WEBGL` flag is set when a WebGL Texture is uploaded.
+* `TextureSource.setFlipY` is a new method that toggles the `TextureSource.flipY` property.
 
 ### Updates
 
@@ -95,10 +131,14 @@ In combination these updates fix issues #4732 and #4672. My thanks to @BenjaminD
 * `MouseManager.target` can now be defined as either a string or by passing an HTMLElement directly. Fix #4353 (thanks @BigZaphod)
 * The `BasePlugin.boot` method has been removed and moved to `ScenePlugin.boot` as it's a Scene-level method only (thanks @samme)
 * The `BasePlugin.scene` and `BasePlugin.systems` properties have been removed and are defined in `ScenePlugin`, as they are Scene-level properties only (thanks @samme)
-* The `Tween.getValue` method has been removed. It was a legacy function from Phaser 2 and always only returned the first TweenData from the data array, ignoring any subsequent properties or targets, making it redundant. Fix #4717 (thanks @chepe263)
+* The `Tween.getValue` method has been updated so you can specify the index of the Tween Data to get the value of. Previously, it only returned the first TweenData from the data array, ignoring any subsequent properties or targets. Fix #4717 (thanks @chepe263)
 * `WebGLRenderer.createTexture2D` has a new optional parameter `forceSize`, which will force the gl texture creation to use the dimensions passed to the method, instead of extracting them from the pixels object, if provided.
 * The `GameObject.setTexture` method can now accept either a string, in which case it looks for the texture in the Texture Manager, or a Texture instance, in which case that instance is set as the Game Object's texture.
 * `TextureManager.get` can now accept either a string-based key, or a Texture instance, as its parameter.
+* `SceneManager.stop` and the matching `ScenePlugin.stop` now have an optional `data` parameter, which is passed to the Scene shutdown method. Fix #4510 (thanks @Olliebrown @GetsukenStudios)
+* `Cameras.BaseCamera` is now exposed in the namespace, allowing you to access them directly (thanks @rexrainbow)
+* Shaders have a new optional constructor parameter `textureData` which allows you to specify additional texture data, especially for NPOT textures (thanks @cristlee)
+* `TouchManager.disableContextMenu` is a new method that will try to disable the context menu on touch devices, if the Game Config `disableContextMenu` is set. Previously, it only tried to do it for the Mouse Manager, but now does it for touch as well. Fix #4778 (thanks @simplewei)
 
 ### Bug Fixes
 
@@ -121,21 +161,21 @@ In combination these updates fix issues #4732 and #4672. My thanks to @BenjaminD
 * `DynamicBitmapText.setOrigin` wouldn't change the origin when using the Canvas Renderer, only in WebGL. It now sets the origin regardless of renderer. Fix #4108 (thanks @garethwhittaker)
 * `DynamicBitmapText` wouldn't respect the multi-line alignment values when using the Canvas Renderer. It now uses them in the line calculations.
 * `DynamicBitmapText` and `BitmapText` wouldn't render at the correct position when using scaled BitmapText and an origin. Fix #4054 (thanks @Aveyder)
+* Incorrect lighting on batched Sprites. The lighting was not correct when batching several sprites with different rotations. Each sprite now uses its own `uInverseRotationMatrix` to compute the lighting correctly (thanks @gogoprog)
+* Matter.js Body wasn't setting the part angles correctly in `Body.update` (thanks @Frozzy6)
+* `ScaleManager.startFullscreen` now checks to see if the call returns a Promise, rather than checking if the browser supports them, before waiting for promise resolution. This fixes a runtime console warning in Microsoft Edge. Fix #4795 (thanks @maksdk)
 
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@krzysztof-grzybek @NokFrt @r-onodera @colorcube @neon-dev @SavedByZero
+@krzysztof-grzybek @NokFrt @r-onodera @colorcube @neon-dev @SavedByZero @arnekeller 
 
 ### Thanks
 
 Thank you to the following people for contributing ideas for new features to be added to Phaser 3. Because we've now started Phaser 4 development, I am closing off old feature requests that I personally will not work on for Phaser 3 itself. They may be considered for v4 and, of course, if someone from the community wishes to submit a PR to add them, I will be only too happy to look at that. So, if you want to get involved, filter the GitHub issues by the [Feature Request tag](https://github.com/photonstorm/phaser/issues?q=is%3Aissue+is%3Aopen+label%3A%22%F0%9F%92%96+Feature+Request%22) and dig in. In the meantime, thank you to the following people for suggesting features, even if they didn't make it this time around:
 
 @njt1982 @TheTrope @allanbreyes @alexandernst @Secretmapper @murteira @oktayacikalin @TadejZupancic @SBCGames @hadikcz @jcyuan @pinkkis @Aedalus @jestarray @BigZaphod @Secretmapper @francois-n-dream @G-Rath 
-
-
-
 
 ## Version 3.19.0 - Naofumi - 8th August 2019
 

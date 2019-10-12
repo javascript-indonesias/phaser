@@ -1208,16 +1208,17 @@ var SceneManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The Scene to stop.
+     * @param {object} [data] - Optional data object to pass to Scene.shutdown.
      *
      * @return {Phaser.Scenes.SceneManager} This SceneManager.
      */
-    stop: function (key)
+    stop: function (key, data)
     {
         var scene = this.getScene(key);
 
         if (scene && !scene.sys.isTransitioning())
         {
-            scene.sys.shutdown();
+            scene.sys.shutdown(data);
         }
 
         return this;
@@ -1528,7 +1529,7 @@ var SceneManager = new Class({
      *
      * @param {string} op - The operation to perform.
      * @param {(string|Phaser.Scene)} keyA - Scene A.
-     * @param {(string|Phaser.Scene)} [keyB] - Scene B.
+     * @param {(any|string|Phaser.Scene)} [keyB] - Scene B, or a data object.
      *
      * @return {Phaser.Scenes.SceneManager} This SceneManager.
      */
