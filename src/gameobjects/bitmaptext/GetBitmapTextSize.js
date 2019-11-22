@@ -44,13 +44,20 @@ var GetBitmapTextSize = function (src, round, out)
             lines: {
                 shortest: 0,
                 longest: 0,
-                lengths: null
-            }
+                lengths: null,
+                height: 0
+            },
+            words: [],
+            maxWidth: 0,
+            scaleX: 0,
+            scaleY: 0
         };
     }
 
     var text = src.text;
     var textLength = text.length;
+    var maxWidth = src.maxWidth;
+    var wordWrapCharCode = src.wordWrapCharCode;
 
     var bx = Number.MAX_VALUE;
     var by = Number.MAX_VALUE;
@@ -83,12 +90,183 @@ var GetBitmapTextSize = function (src, round, out)
     var currentLine = 0;
     var currentLineWidth = 0;
 
-    for (var i = 0; i < textLength; i++)
+    out.lines.height = lineHeight;
+    out.scaleX = src.scaleX;
+    out.scaleY = src.scaleY;
+
+    var words = [];
+    var current = null;
+
+    //  Scan for breach of maxWidth and insert carriage-returns
+    if (maxWidth > 0 && out.maxWidth !== maxWidth)
+    {
+        for (var i = 0; i < textLength; i++)
+        {
+            charCode = text.charCodeAt(i);
+
+            if (charCode === 10)
+            {
+                if (current !== null)
+                {
+                    //  This time it doesn't include the scale x/y modifiers,
+                    //  as we're comparing against an unscaled pixel value.
+                    words.push({
+                        word: current.word,
+                        i: current.i,
+                        x: current.x * sx,
+                        y: current.y * sy,
+                        w: current.w * sx,
+                        h: current.h * sy
+                    });
+
+                    current = null;
+                }
+
+                xAdvance = 0;
+                yAdvance += lineHeight;
+                lastGlyph = null;
+
+                continue;
+            }
+
+            glyph = chars[charCode];
+
+            if (!glyph)
+            {
+                continue;
+            }
+
+            if (lastGlyph !== null)
+            {
+                var glyphKerningOffset = glyph.kerning[lastCharCode];
+            }
+
+            if (charCode === wordWrapCharCode)
+            {
+                if (current !== null)
+                {
+                    words.push({
+                        word: current.word,
+                        i: current.i,
+                        x: current.x * sx,
+                        y: current.y * sy,
+                        w: current.w * sx,
+                        h: current.h * sy
+                    });
+    
+                    current = null;
+                }
+            }
+            else
+            {
+                if (current === null)
+                {
+                    //  We're starting a new word, recording the starting index, etc
+                    current = { word: '', i: i, x: xAdvance, y: yAdvance, w: 0, h: lineHeight };
+                }
+
+                current.word = current.word.concat(text[i]);
+                current.w += glyph.xOffset + glyph.xAdvance + ((glyphKerningOffset !== undefined) ? glyphKerningOffset : 0);
+            }
+
+            xAdvance += glyph.xAdvance + letterSpacing;
+            lastGlyph = glyph;
+            lastCharCode = charCode;
+        }
+
+        //  Last word
+        if (current !== null)
+        {
+            words.push({
+                word: current.word,
+                i: current.i,
+                x: current.x * sx,
+                y: current.y * sy,
+                w: current.w * sx,
+                h: current.h * sy
+            });
+        }
+
+        //  Reset for the next loop
+        xAdvance = 0;
+        yAdvance = 0;
+        lastGlyph = null;
+        lastCharCode = 0;
+
+        //  Loop through the words array and see if we've got any > maxWidth
+        var prev;
+        var offset = 0;
+        var crs = [];
+        var limit = maxWidth;
+
+        for (i = 0; i < words.length; i++)
+        {
+            var entry = words[i];
+            var left = entry.x;
+            var right = entry.x + entry.w;
+
+            if (prev)
+            {
+                var diff = left - (prev.x + prev.w);
+
+                offset = left - (diff + prev.w);
+
+                prev = null;
+            }
+
+            var checkLeft = left - offset;
+            var checkRight = right - offset;
+
+            if (checkLeft > limit || checkRight > limit)
+            {
+                //  CR needed
+                crs.push({ word: entry.word, index: entry.i - 1 });
+
+                prev = entry;
+            }
+        }
+
+        var stringInsert = function (str, index, value)
+        {
+            return str.substr(0, index) + value + str.substr(index + 1);
+        };
+
+        for (i = crs.length - 1; i >= 0; i--)
+        {
+            // eslint-disable-next-line quotes
+            text = stringInsert(text, crs[i].index, "\n");
+        }
+
+        out.maxWidth = maxWidth;
+
+        src._text = text;
+        textLength = text.length;
+
+        //  Recalculated in the next loop
+        words = [];
+        current = null;
+    }
+
+    for (i = 0; i < textLength; i++)
     {
         charCode = text.charCodeAt(i);
 
         if (charCode === 10)
         {
+            if (current !== null)
+            {
+                words.push({
+                    word: current.word,
+                    i: current.i,
+                    x: current.x * sx,
+                    y: current.y * sy,
+                    w: current.w * sx,
+                    h: current.h * sy
+                });
+
+                current = null;
+            }
+
             xAdvance = 0;
             yAdvance += lineHeight;
             lastGlyph = null;
@@ -107,6 +285,7 @@ var GetBitmapTextSize = function (src, round, out)
 
             currentLine++;
             currentLineWidth = 0;
+
             continue;
         }
 
@@ -123,6 +302,7 @@ var GetBitmapTextSize = function (src, round, out)
         if (lastGlyph !== null)
         {
             var kerningOffset = glyph.kerning[lastCharCode];
+
             x += (kerningOffset !== undefined) ? kerningOffset : 0;
         }
 
@@ -149,10 +329,51 @@ var GetBitmapTextSize = function (src, round, out)
             bh = gh;
         }
 
+        if (charCode === wordWrapCharCode)
+        {
+            if (current !== null)
+            {
+                words.push({
+                    word: current.word,
+                    i: current.i,
+                    x: current.x * sx,
+                    y: current.y * sy,
+                    w: current.w * sx,
+                    h: current.h * sy
+                });
+    
+                current = null;
+            }
+        }
+        else
+        {
+            if (current === null)
+            {
+                //  We're starting a new word, recording the starting index, etc
+                current = { word: '', i: i, x: xAdvance, y: yAdvance, w: 0, h: lineHeight };
+            }
+
+            current.word = current.word.concat(text[i]);
+            current.w += glyph.xOffset + glyph.xAdvance + ((kerningOffset !== undefined) ? kerningOffset : 0);
+        }
+
         xAdvance += glyph.xAdvance + letterSpacing;
         lastGlyph = glyph;
         lastCharCode = charCode;
         currentLineWidth = gw * scale;
+    }
+
+    //  Last word
+    if (current !== null)
+    {
+        words.push({
+            word: current.word,
+            i: current.i,
+            x: current.x * sx,
+            y: current.y * sy,
+            w: current.w * sx,
+            h: current.h * sy
+        });
     }
 
     lineWidths[currentLine] = currentLineWidth;
@@ -200,6 +421,8 @@ var GetBitmapTextSize = function (src, round, out)
         lines.shortest = Math.round(shortestLine);
         lines.longest = Math.round(longestLine);
     }
+
+    out.words = words;
 
     return out;
 };
