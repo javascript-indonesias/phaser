@@ -1,6 +1,6 @@
 # Change Log
 
-## Version 3.21.1 - Senku - in development
+## Version 3.22 - Senku - in development
 
 ### Matter Physics Updates
 
@@ -88,9 +88,21 @@
 * `MatterPhysics.setCollisionCategory` is a new method that will set the collision filter category to the value given, on all of the bodies given. This allows you to easily set the category on bodies that don't have a Phaser Matter Collision component.
 * `MatterPhysics.setCollisionGroup` is a new method that will set the collision filter group to the value given, on all of the bodies given. This allows you to easily set the group on bodies that don't have a Phaser Matter Collision component.
 * `MatterPhysics.setCollidesWith` is a new method that will set the collision filter mask to the value given, on all of the bodies given. This allows you to easily set the filter mask on bodies that don't have a Phaser Matter Collision component.
+* `Matter.Body.centerOfMass` is a new property added to the Matter Body object that retains the center of mass coordinates when the Body is first created.
+* `Matter.Body.render.sprite.xOffset` and `yOffset` are no longer set to anything when a Body is created. They are left as zero, or you can override them in the Body config, in which case the value is added to the sprite origin offset.
+* `Matter.Transform.centerOffsetX` is a new read-only property available on all Matter Game Objects that returns the horizontal offset between the center of the frame and the center of mass. This can be used to allow for accurately mapping texture centers to the body center.
+* `Matter.Transform.centerOffsetY` is a new read-only property available on all Matter Game Objects that returns the vertical offset between the center of the frame and the center of mass. This can be used to allow for accurately mapping texture centers to the body center.
+* The `Matter.Mass.centerOfMass` component property now returns the pre-calculated Body `centerOfMass` property, which is much more accurate than the previous bounds offset value.
+* `Matter.setExistingBody`, which is called interally whenever a Body is set on a Game Object, now uses the new `centerOffset` values to ensure that the texture frame is correctly centered based on the center of mass, not the Body bounds, allowing for much more accurate body to texture mapping with complex multi-part compound bodies.
+* The `Matter.PhysicsEditorParser` has been updated so it no longer needs to set the render offsets, and instead uses the center of mass values.
+* If the `Matter.Body` config doesn't contain a `position` property, it will now default to using `Vertices.centre(body.vertices)` as the position. In most cases, this is what you need, so it saves having to pass it in the config object.
 
 ### Updates
 
+* `Body.deltaXFinal` is a new method on Arcade Physics Bodies that will return the final change in the horizontal position of the body, as based on all the steps that took place this frame. This property is calculated during the `postUpdate` phase, so must be listened for accordingly (thanks Bambosh)
+* `Body.deltaYFinal` is a new method on Arcade Physics Bodies that will return the final change in the vertical position of the body, as based on all the steps that took place this frame. This property is calculated during the `postUpdate` phase, so must be listened for accordingly (thanks Bambosh)
+* `Body._tx` is a new internal private var, holding the Arcade Physics Body combined total delta x value.
+* `Body._ty` is a new internal private var, holding the Arcade Physics Body combined total delta y value.
 
 ### Bug Fixes
 
@@ -100,7 +112,7 @@
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@fselcukcan 
+@fselcukcan Bambosh @louisth @hexus
 
 
 ## Version 3.21.0 - Senku - 22nd November 2019
