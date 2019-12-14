@@ -49,7 +49,7 @@ var Body = require('../body/Body');
             velocityIterations: 4,
             constraintIterations: 2,
             enableSleeping: false,
-            syncVerts: true,
+            syncVerts: true, // custom Phaser property
             events: [],
             plugin: {},
             timing: {
@@ -62,28 +62,6 @@ var Body = require('../body/Body');
         };
 
         var engine = Common.extend(defaults, options);
-
-        /*
-        // @deprecated
-        if (element || engine.render) {
-            var renderDefaults = {
-                element: element,
-                controller: Render
-            };
-            
-            engine.render = Common.extend(renderDefaults, engine.render);
-        }
-
-        // @deprecated
-        if (engine.render && engine.render.controller) {
-            engine.render = engine.render.controller.create(engine.render);
-        }
-
-        // @deprecated
-        if (engine.render) {
-            engine.render.engine = engine;
-        }
-        */
 
         engine.world = options.world || World.create(engine.world);
         engine.pairs = Pairs.create();
@@ -221,10 +199,10 @@ var Body = require('../body/Body');
         if (pairs.collisionEnd.length > 0)
             Events.trigger(engine, 'collisionEnd', { pairs: pairs.collisionEnd });
 
-        if (engine.syncVerts)
-        {
-            Engine._bodiesSync(allBodies);
-        }
+        // if (engine.syncVerts)
+        // {
+        //     Engine._bodiesSync(allBodies);
+        // }
 
         // @if DEBUG
         // update metrics log
@@ -360,7 +338,7 @@ var Body = require('../body/Body');
         {
             var body = bodies[i];
 
-            if (body.isStatic || body.isSleeping)
+            if (!body.syncVerts || body.isStatic)
             {
                 continue;
             }

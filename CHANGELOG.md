@@ -20,7 +20,7 @@
 * `lineThickness` - If rendering lines, the thickness of the line.
 * `staticFillColor` - The color value of the fill when rendering static bodies.
 * `staticLineColor` - The color value of the line stroke when rendering static bodies.
-* `staticBodySleepOpacity`7] - The amount to multiply the opacity of sleeping static bodies by.
+* `staticBodySleepOpacity` - The amount to multiply the opacity of sleeping static bodies by.
 * `sleepFillColor` - The color value of the fill when rendering sleeping dynamic bodies.
 * `sleepLineColor` - The color value of the line stroke when rendering sleeping dynamic bodies.
 * `jointColor` - The color value of joints when `showJoint` is set.
@@ -41,7 +41,6 @@
 * `World.renderBodies` has been rewritten to cache commonly-used values and avoid a situation when a single body would be rendered twice.
 * The private method `World.renderConvexHulls` has been removed as it's no longer used internally.
 * The private method `World.renderWireframes` has been removed as it's no longer used internally.
-* The `Matter.Factory.worldConstraint` argument signature has changed. It now takes `x` and `y` arguments first, as the world position where the constraint will be created.
 * Due to the rewrite of the debug rendering, it is now possible to render _just_ constraints, where-as before this was only possible if bodies were being rendered as well. Fix #4880 (thanks @roberto257)
 * The method `World.fromPath` has been removed. This was never used internally and you can get the same results by calling `Vertices.fromPath`.
 * The `World.setBounds` argument `thickness` now defaults to 64, not 128, to keep it matching the Matter World Config.
@@ -72,8 +71,9 @@
 * `Body.render.lineOpacity` is a new property on the Matter Body object that allows for custom debug rendering.
 * `Body.render.lineThickness` is a new property on the Matter Body object that allows for custom debug rendering.
 * `Body.render.fillOpacity` is a new property on the Matter Body object that allows for custom debug rendering.
-* `MatterPhysics.setBodyRenderStyle` is a new method that lets you quickly set the render style values on the given Body.
-* `MatterPhysics.setConstraintRenderStyle` is a new method that lets you quickly set the render style values on the given Constraint.
+* `World.setCompositeRenderStyle` is a new method that lets you quickly set the render style values on the children of the given compposite.
+* `World.setBodyRenderStyle` is a new method that lets you quickly set the render style values on the given Body.
+* `World.setConstraintRenderStyle` is a new method that lets you quickly set the render style values on the given Constraint.
 * You can now set `restingThresh` in the Matter Configuration file to adjust the Resolver property.
 * You can now set `restingThreshTangent` in the Matter Configuration file to adjust the Resolver property.
 * You can now set `positionDampen` in the Matter Configuration file to adjust the Resolver property.
@@ -101,9 +101,12 @@
 * `Body.setCentre` is a new method added to Matter that allows you to set the center of mass of a Body (please note the English spelling of this function.)
 * Bumped Matter Plugin versions to avoid console logs from Common.info and Common.warn.
 * `Vertices.calcOffset` is a new function that calculates the vert body position offset, used for keeping data in sync.
-* `Engine.syncVerts` is a new Engine config property that allows you to run a vert re-sync at the end of the Engine step. This can help massively if you find you've got verts drifting out of alignment with the body position when using pointer contraints, or high velocity environments. Uses the new `Engine._bodiesSync` function.
-* `Body.syncVerts` is a new function that will re-sync the vert positions with the body position. Called if `Engine.syncVerts` is set (which is now the default)
+* `Engine.syncVerts` is a new Engine config property that allows you to re-sync all the vertices ofa Body with the bodies position at the end of the Engine step. This can help massively if you find you've got verts drifting out of alignment with the body position when using pointer contraints, or high velocity environments. Uses the new `Engine._bodiesSync` function.
+* `Body.syncVerts` is a new function that will re-sync the vert positions with the body position. Called if `Engine.syncVerts` is `true` and if the Body has its `syncVerts` property set to `true`.
 * `Body.scale` is a new vector that holds the most recent scale values as passed to `Body.scale`.
+* `Matter.Bodies.flagCoincidentParts` is a new function that will flags all internal edges (coincident parts) on an array of body parts. This was previously part of the `fromVertices` function, but has been made external for outside use.
+* `PhysicsEditorParser.parseVertices` now uses `Bodies.flagCoincidentParts` to avoid duplicating code.
+* `MatterGameObject` has a new optional boolean parameter `addToWorld` which lets you control if the Body should be added to the world or not. Useful for toggling off should you be merging pre-existing bodies with Game Objects.
 
 ### Updates
 

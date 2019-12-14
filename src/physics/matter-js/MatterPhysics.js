@@ -679,7 +679,7 @@ var MatterPhysics = new Class({
     /**
      * Checks the given coordinates to see if any vertices of the given bodies contain it.
      * 
-     * If no bodies are provided it will search all bodies in the Matter World.
+     * If no bodies are provided it will search all bodies in the Matter World, including within Composites.
      * 
      * The coordinates should be transformed into the Matter World coordinate system in advance. This happens by
      * default with Input Pointers, but if you wish to use coordinates from another system you may need to
@@ -700,7 +700,19 @@ var MatterPhysics = new Class({
 
         var position = Vector.create(x, y);
 
-        return Query.point(bodies, position);
+        var output = [];
+
+        var result = Query.point(bodies, position);
+
+        result.forEach(function (body)
+        {
+            if (output.indexOf(body) === -1)
+            {
+                output.push(body);
+            }
+        });
+
+        return output;
     },
 
     /**
@@ -708,7 +720,7 @@ var MatterPhysics = new Class({
      * Or, if the `outside` parameter is set to `true`, it checks to see which bodies do not
      * intersect with it.
      * 
-     * If no bodies are provided it will search all bodies in the Matter World.
+     * If no bodies are provided it will search all bodies in the Matter World, including within Composites.
      * 
      * @method Phaser.Physics.Matter.MatterPhysics#intersectRect
      * @since 3.22.0
@@ -733,7 +745,19 @@ var MatterPhysics = new Class({
             max: { x: x + width, y: y + height }
         };
 
-        return Query.region(bodies, bounds, outside);
+        var output = [];
+
+        var result = Query.region(bodies, bounds, outside);
+
+        result.forEach(function (body)
+        {
+            if (output.indexOf(body) === -1)
+            {
+                output.push(body);
+            }
+        });
+
+        return output;
     },
 
     /**
@@ -830,47 +854,48 @@ var MatterPhysics = new Class({
      * @method Phaser.Physics.Matter.MatterPhysics#overlap
      * @since 3.22.0
      *
-     * @param {(MatterJS.Body|MatterJS.Body[])} body - The target body, or array of target bodies, to check.
-     * @param {MatterJS.Body[]} [object2] - The second body, or array of bodies, to check. If falsey it will check against all bodis in the world.
+     * @param {(MatterJS.Body|MatterJS.Body[])} target - The target body, or array of target bodies, to check.
+     * @param {MatterJS.Body[]} [bodies] - The second body, or array of bodies, to check. If falsey it will check against all bodies in the world.
      * @param {ArcadePhysicsCallback} [overlapCallback] - An optional callback function that is called if the bodies overlap.
      * @param {ArcadePhysicsCallback} [processCallback] - An optional callback function that lets you perform additional checks against the two bodies if they overlap. If this is set then `overlapCallback` will only be invoked if this callback returns `true`.
      * @param {*} [callbackContext] - The context, or scope, in which to run the callbacks.
      * 
      * @return {boolean} `true` if the target body intersects with _any_ of the bodies given, otherwise `false`.
      */
-    overlap: function (body, bodies, overlapCallback, processCallback, callbackContext)
+    overlap: function (target, bodies, overlapCallback, processCallback, callbackContext)
     {
         if (overlapCallback === undefined) { overlapCallback = null; }
         if (processCallback === undefined) { processCallback = null; }
         if (callbackContext === undefined) { callbackContext = overlapCallback; }
 
-        if (!Array.isArray(body))
+        if (!Array.isArray(target))
         {
-            body = [ body ];
+            target = [ target ];
         }
 
+        target = this.getMatterBodies(target);
         bodies = this.getMatterBodies(bodies);
 
         var match = false;
 
-        for (var i = 0; i < body.length; i++)
+        for (var i = 0; i < target.length; i++)
         {
-            var target = body[i];
+            var entry = target[i];
 
-            var collisions = Query.collides(target, bodies);
+            var collisions = Query.collides(entry, bodies);
 
             for (var c = 0; c < collisions.length; c++)
             {
                 var info = collisions[c];
-                var bodyB = (info.bodyA.id === target.id) ? info.bodyB : info.bodyA;
+                var bodyB = (info.bodyA.id === entry.id) ? info.bodyB : info.bodyA;
 
-                if (!processCallback || processCallback.call(callbackContext, target, bodyB, info))
+                if (!processCallback || processCallback.call(callbackContext, entry, bodyB, info))
                 {
                     match = true;
 
                     if (overlapCallback)
                     {
-                        overlapCallback.call(callbackContext, target, bodyB, info);
+                        overlapCallback.call(callbackContext, entry, bodyB, info);
                     }
                     else if (!processCallback)
                     {

@@ -15,7 +15,6 @@ var MatterSprite = require('./MatterSprite');
 var MatterTileBody = require('./MatterTileBody');
 var PointerConstraint = require('./PointerConstraint');
 var Vertices = require('./lib/geometry/Vertices');
-var Vector = require('./lib/geometry/Vector');
 
 /**
  * @classdesc
@@ -180,6 +179,49 @@ var Factory = new Class({
         }
 
         var body = Bodies.fromVertices(x, y, vertexSets, options, flagInternal, removeCollinear, minimumArea);
+
+        this.world.add(body);
+
+        return body;
+    },
+
+    fromJSON: function (x, y, data, options)
+    {
+        if (options === undefined) { options = {}; }
+
+        var body;
+        var vertexSets = data.verts;
+
+        if (vertexSets.length === 1)
+        {
+            //  Just a single Body
+            options.vertices = vertexSets[0];
+
+            body = Body.create(options);
+
+            Bodies.flagCoincidentParts(body.parts);
+        }
+        else
+        {
+            var parts = [];
+
+            for (var i = 0; i < vertexSets.length; i++)
+            {
+                var part = Body.create({
+                    vertices: vertexSets[i]
+                });
+
+                parts.push(part);
+            }
+
+            Bodies.flagCoincidentParts(parts);
+
+            options.parts = parts;
+
+            body = Body.create(options);
+        }
+
+        Body.setPosition(body, { x: x, y: y });
 
         this.world.add(body);
 
@@ -475,8 +517,6 @@ var Factory = new Class({
      * @method Phaser.Physics.Matter.Factory#worldConstraint
      * @since 3.0.0
      *
-     * @param {number} x - The x position in the world to create the constraint at.
-     * @param {number} y - The y position in the world to create the constraint at.
      * @param {MatterJS.Body} body - The Matter `Body` that this constraint is attached to.
      * @param {number} [length] - A number that specifies the target resting length of the constraint. If not given it is calculated automatically in `Constraint.create` from initial positions of the `constraint.bodyA` and `constraint.bodyB`.
      * @param {number} [stiffness=1] - A Number that specifies the stiffness of the constraint, i.e. the rate at which it returns to its resting `constraint.length`. A value of `1` means the constraint should be very stiff. A value of `0.2` means the constraint acts as a soft spring.
@@ -484,12 +524,11 @@ var Factory = new Class({
      *
      * @return {MatterJS.Constraint} A Matter JS Constraint.
      */
-    worldConstraint: function (x, y, body, length, stiffness, options)
+    worldConstraint: function (body, length, stiffness, options)
     {
         if (stiffness === undefined) { stiffness = 1; }
         if (options === undefined) { options = {}; }
 
-        options.pointA = Vector.create(x, y);
         options.bodyB = (body.type === 'body') ? body : body.body;
 
         if (!isNaN(length))
@@ -619,13 +658,14 @@ var Factory = new Class({
      * @since 3.3.0
      *
      * @param {Phaser.GameObjects.GameObject} gameObject - The Game Object to inject the Matter Body in to.
-     * @param {(object|MatterJS.Body)} options - A Matter Body configuration object, or an instance of a Matter Body.
+     * @param {(object|MatterJS.Body)} [options] - A Matter Body configuration object, or an instance of a Matter Body.
+     * @param {boolean} [addToWorld=true] - Add this Matter Body to the World?
      *
      * @return {Phaser.GameObjects.GameObject} The Game Object that had the Matter Body injected into it.
      */
-    gameObject: function (gameObject, options)
+    gameObject: function (gameObject, options, addToWorld)
     {
-        return MatterGameObject(this.world, gameObject, options);
+        return MatterGameObject(this.world, gameObject, options, addToWorld);
     },
 
     /**
