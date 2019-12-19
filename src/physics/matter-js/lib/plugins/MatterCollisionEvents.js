@@ -13,34 +13,6 @@ var MatterCollisionEvents = {
 
     install: function (matter)
     {
-        matter.after('Body.create', function (body)
-        {
-            body.onCollideCallback;
-            body.onCollideEndCallback;
-            body.onCollideActiveCallback;
-
-            body.setOnCollide = function (callback)
-            {
-                this.onCollideCallback = callback;
-
-                return this;
-            }
-
-            body.setOnCollideEnd = function (callback)
-            {
-                this.onCollideEndCallback = callback;
-
-                return this;
-            }
-
-            body.setOnCollideActive = function (callback)
-            {
-                this.onCollideActiveCallback = callback;
-
-                return this;
-            }
-        });
-      
         matter.after('Engine.create', function ()
         {
             matter.Events.on(this, 'collisionStart', function (event)
@@ -49,6 +21,16 @@ var MatterCollisionEvents = {
                 {
                     var bodyA = pair.bodyA;
                     var bodyB = pair.bodyB;
+
+                    if (bodyA.gameObject)
+                    {
+                        bodyA.gameObject.emit('collide', bodyA, bodyB, pair);
+                    }
+
+                    if (bodyB.gameObject)
+                    {
+                        bodyB.gameObject.emit('collide', bodyB, bodyA, pair);
+                    }
 
                     matter.Events.trigger(bodyA, 'onCollide', { pair: pair });
                     matter.Events.trigger(bodyB, 'onCollide', { pair: pair });
@@ -62,6 +44,16 @@ var MatterCollisionEvents = {
                     {
                         bodyB.onCollideCallback(pair);
                     }
+
+                    if (bodyA.onCollideWith[bodyB.id])
+                    {
+                        bodyA.onCollideWith[bodyB.id](bodyB, pair);
+                    }
+
+                    if (bodyB.onCollideWith[bodyA.id])
+                    {
+                        bodyB.onCollideWith[bodyA.id](bodyA, pair);
+                    }
                 });
             });
 
@@ -71,6 +63,16 @@ var MatterCollisionEvents = {
                 {
                     var bodyA = pair.bodyA;
                     var bodyB = pair.bodyB;
+
+                    if (bodyA.gameObject)
+                    {
+                        bodyA.gameObject.emit('collideActive', bodyA, bodyB, pair);
+                    }
+
+                    if (bodyB.gameObject)
+                    {
+                        bodyB.gameObject.emit('collideActive', bodyB, bodyA, pair);
+                    }
 
                     matter.Events.trigger(bodyA, 'onCollideActive', { pair: pair });
                     matter.Events.trigger(bodyB, 'onCollideActive', { pair: pair });
@@ -93,6 +95,16 @@ var MatterCollisionEvents = {
                 {
                     var bodyA = pair.bodyA;
                     var bodyB = pair.bodyB;
+
+                    if (bodyA.gameObject)
+                    {
+                        bodyA.gameObject.emit('collideEnd', bodyA, bodyB, pair);
+                    }
+
+                    if (bodyB.gameObject)
+                    {
+                        bodyB.gameObject.emit('collideEnd', bodyB, bodyA, pair);
+                    }
 
                     matter.Events.trigger(bodyA, 'onCollideEnd', { pair: pair });
                     matter.Events.trigger(bodyB, 'onCollideEnd', { pair: pair });

@@ -100,13 +100,27 @@
 * `Constraint.pointBWorld` is a new method added to Matter that returns the world-space position of `constraint.pointB`, accounting for `constraint.bodyB`.
 * `Body.setCentre` is a new method added to Matter that allows you to set the center of mass of a Body (please note the English spelling of this function.)
 * Bumped Matter Plugin versions to avoid console logs from Common.info and Common.warn.
-* `Vertices.calcOffset` is a new function that calculates the vert body position offset, used for keeping data in sync.
-* `Engine.syncVerts` is a new Engine config property that allows you to re-sync all the vertices ofa Body with the bodies position at the end of the Engine step. This can help massively if you find you've got verts drifting out of alignment with the body position when using pointer contraints, or high velocity environments. Uses the new `Engine._bodiesSync` function.
-* `Body.syncVerts` is a new function that will re-sync the vert positions with the body position. Called if `Engine.syncVerts` is `true` and if the Body has its `syncVerts` property set to `true`.
 * `Body.scale` is a new vector that holds the most recent scale values as passed to `Body.scale`.
 * `Matter.Bodies.flagCoincidentParts` is a new function that will flags all internal edges (coincident parts) on an array of body parts. This was previously part of the `fromVertices` function, but has been made external for outside use.
 * `PhysicsEditorParser.parseVertices` now uses `Bodies.flagCoincidentParts` to avoid duplicating code.
 * `MatterGameObject` has a new optional boolean parameter `addToWorld` which lets you control if the Body should be added to the world or not. Useful for toggling off should you be merging pre-existing bodies with Game Objects.
+* The `Matter.SetBody.setExistingBody` function, which all Matter Game Objects have, has a new parameter `addToWorld` which allows you to control when the body is added to the Matter world should you not require it immediately. It will also only add the body to the world if it doesn't already exist within it, or any of its composites.
+* `PointerConstraint` has been recoded so that when pressed down, it only polls the World for a body hit test during the next game update. This stops it coming out of sync with the state of the world. Useage of the constraint remains the same as before.
+* `Matter.getMatterBodies` is a new function that will return an array of Matter JS Bodies from the given input array, which can be Matter Game Objects, or any class that extends them.
+* `Matter.World.has` is a new method that will take a Matter Body, or Game Object, and search the world for it. If found, it will return `true`.
+* Matter now has the option to use the Runner that it ships with. The Matter Runner operates in two modes: fixed and variable. In the fixed mode, the Matter Engine updates at a fixed delta value every frame (which is what Phaser has used since the first version). In variable mode, the delta will be smoothed and capped each frame to keep the simulation constant, but at the cost of determininism. You can configure the runner by setting the `runner` property in the Matter Config object, both of which are fully covered with JSDocs. As of 3.22 the runner is now used by default in variable (non-fixed) mode. If you wish to return to the previous behavior, set `runner: { isFixed: true }`.
+* `Body.onCollideCallback` is a new Matter Body property that can point to a callback to invoke when the body starts colliding.
+* `Body.onCollideEndCallback` is a new Matter Body property that can point to a callback to invoke when the body stops colliding.
+* `Body.onCollideActiveCallback` is a new Matter Body property that can point to a callback to invoke for the duration the body is colliding.
+* `Body.onCollideWith` is a new Matter Body property that holds a mapping between bodies and collision callbacks.
+* `MatterGameObject.setOnCollide` is a new method available on any Matter Game Object, that sets a callback that is invoked when the body collides with another.
+* `MatterGameObject.setOnCollideEnd` is a new method available on any Matter Game Object, that sets a callback that is invoked when the body stops colliding.
+* `MatterGameObject.setOnCollideActive` is a new method available on any Matter Game Object, that sets a callback which is invoked for the duration of the bodies collision with another.
+* `MatterGameObject.setOnCollideWith` is a new method available on any Matter Game Object, that allows you to set a callback to be invoked whenever the body collides with another specific body, or array of bodies.
+
+### New Features
+
+* `TimeStep.smoothStep` is a new boolean property that controls if any delta smoothing takes place during the game step. Delta smoothing has been enabled in Phaser since the first version and helps avoid delta spikes and dips, especially after loss of focus. However, you can now easily toggle if this happens via this property and the corresponding `FPSConfig` property.
 
 ### Updates
 
@@ -114,16 +128,22 @@
 * `Body.deltaYFinal` is a new method on Arcade Physics Bodies that will return the final change in the vertical position of the body, as based on all the steps that took place this frame. This property is calculated during the `postUpdate` phase, so must be listened for accordingly (thanks Bambosh)
 * `Body._tx` is a new internal private var, holding the Arcade Physics Body combined total delta x value.
 * `Body._ty` is a new internal private var, holding the Arcade Physics Body combined total delta y value.
+* `LineCurve.getUtoTmapping` has been updated to return `u` directly to avoid calculations as it's identical to `t` in a Line (thanks @rexrainbow)
+* `Curve.getSpacedPoints` will now take an optional array as the 3rd parameter to store the points results in (thanks @rexrainbow)
 
 ### Bug Fixes
 
 * BitmapText with a `maxWidth` set wouldn't update the text correctly if it was modified post-creation. You can now update the text and/or width independantly and it'll update correctly. Fix #4881 (thanks @oxguy3)
+* Text objects will no longer add any white-space when word-wrapping if the last line is only one word long. Fix #4867 (thanks @gaamoo @rexrainbow)
+* When `Game.destroy` is running, Scenes are now destroyed _before_ plugins, avoiding bugs when closing down plugins and deleting Render Textures. Fix #4849 #4876 (thanks @rexrainbow @siyuanqiao)
+* The `Mesh` and `Quad` Game Objects have had the `GetBounds` component removed as it cannot operate on a Mesh as they don't have origins. Fix #4902 (thanks @samme)
+* Setting `lineSpacing` in the Text Game Object style config would set the value but not apply it to the Text, leaving you to call `updateText` yourself. If set, it's now applied on instantiation. Fix #4901 (thanks @FantaZZ)
 
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@fselcukcan Bambosh @louisth @hexus
+@fselcukcan Bambosh @louisth @hexus @javigaralva @samme @BeLi4L
 
 
 ## Version 3.21.0 - Senku - 22nd November 2019

@@ -40,14 +40,10 @@ var Axes = require('../geometry/Axes');
             id: Common.nextId(),
             type: 'body',
             label: 'Body',
-            gameObject: null, // custom Phaser property
-            syncVerts: false, // custom Phaser property
             parts: [],
             plugin: {},
             angle: 0,
-            vertices: Vertices.fromPath('L 0 0 L 40 0 L 40 40 L 0 40'),
-            scale: { x: 1, y: 1 },  // custom Phaser property
-            centerOfMass: { x: 0, y: 0 },  // custom Phaser property
+            vertices: null, // Phaser change: no point calling fromPath if they pass in vertices anyway
             position: { x: 0, y: 0 },
             force: { x: 0, y: 0 },
             torque: 0,
@@ -62,8 +58,6 @@ var Axes = require('../geometry/Axes');
             isSensor: false,
             isStatic: false,
             isSleeping: false,
-            ignoreGravity: false, // custom Phaser property
-            ignorePointer: false, // custom Phaser property
             motion: 0,
             sleepThreshold: 60,
             density: 0.001,
@@ -78,21 +72,6 @@ var Axes = require('../geometry/Axes');
             },
             slop: 0.05,
             timeScale: 1,
-            render: {
-                visible: true,
-                opacity: 1,
-                sprite: {
-                    xScale: 1,
-                    yScale: 1,
-                    xOffset: 0,
-                    yOffset: 0
-                },
-                fillColor: null, // custom Phaser property
-                fillOpacity: null, // custom Phaser property
-                lineColor: null, // custom Phaser property
-                lineOpacity: null, // custom Phaser property
-                lineThickness: null // custom Phaser property
-            },
             events: null,
             bounds: null,
             chamfer: null,
@@ -104,17 +83,58 @@ var Axes = require('../geometry/Axes');
             area: 0,
             mass: 0,
             inertia: 0,
-            _original: null
+            _original: null,
+            render: {
+                visible: true,
+                opacity: 1,
+                sprite: {
+                    xOffset: 0,
+                    yOffset: 0
+                },
+                fillColor: null,            // custom Phaser property
+                fillOpacity: null,          // custom Phaser property
+                lineColor: null,            // custom Phaser property
+                lineOpacity: null,          // custom Phaser property
+                lineThickness: null         // custom Phaser property
+            },
+            gameObject: null,               // custom Phaser property
+            scale: { x: 1, y: 1 },          // custom Phaser property
+            centerOfMass: { x: 0, y: 0 },   // custom Phaser property
+            ignoreGravity: false,           // custom Phaser property
+            ignorePointer: false,           // custom Phaser property
+            onCollideCallback: null,        // custom Phaser property
+            onCollideEndCallback: null,     // custom Phaser property
+            onCollideActiveCallback: null,  // custom Phaser property
+            onCollideWith: {}               // custom Phaser property
         };
 
         if (!options.hasOwnProperty('position') && options.hasOwnProperty('vertices'))
         {
             options.position = Vertices.centre(options.vertices);
         }
+        else if (!options.hasOwnProperty('vertices'))
+        {
+            defaults.vertices = Vertices.fromPath('L 0 0 L 40 0 L 40 40 L 0 40');
+        }
 
         var body = Common.extend(defaults, options);
 
         _initProperties(body, options);
+
+        //  Helper function
+        body.setOnCollideWith = function (body, callback)
+        {
+            if (callback)
+            {
+                this.onCollideWith[body.id] = callback;
+            }
+            else
+            {
+                delete this.onCollideWith[body.id];
+            }
+
+            return this;
+        }
 
         return body;
     };
@@ -179,16 +199,8 @@ var Axes = require('../geometry/Axes');
             inertia: options.inertia || body.inertia
         });
 
-        if (body.parts.length === 1)
-        {
-            var w = (body.bounds.max.x - body.bounds.min.x);
-            var h = (body.bounds.max.y - body.bounds.min.y);
-
-            body.centerOfMass.x = w / 2;
-            body.centerOfMass.y = h / 2;
-
-            Vertices.calcOffset(body.vertices, body.position);
-        }
+        body.centerOfMass.x = -(body.bounds.min.x - body.position.x) / (body.bounds.max.x - body.bounds.min.x);
+        body.centerOfMass.y = -(body.bounds.min.y - body.position.y) / (body.bounds.max.y - body.bounds.min.y);
     };
 
     /**
@@ -450,11 +462,6 @@ var Axes = require('../geometry/Axes');
         Body.setMass(body, total.mass);
         Body.setInertia(body, total.inertia);
         Body.setPosition(body, total.centre);
-
-        for (i = 0; i < parts.length; i++)
-        {
-            Vertices.calcOffset(parts[i].vertices, total.centre);
-        }
     };
 
     /**
@@ -710,45 +717,6 @@ var Axes = require('../geometry/Axes');
     };
 
     /**
-     * Syncs the vertices back to the Body position.
-     * 
-     * @method syncVerts
-     * @param {body} body
-     */
-    Body.syncVerts = function (body)
-    {
-        var parts = body.parts;
-        var angle = body.angle;
-
-        var px = body.position.x;
-        var py = body.position.y;
-
-        var sx = body.scale.x;
-        var sy = body.scale.y;
-
-        for (var i = 0; i < parts.length; i++)
-        {
-            var vertices = parts[i].vertices;
-
-            for (var c = 0; c < vertices.length; c++)
-            {
-                var vert = vertices[c];
-                var offset = vert.offset;
-
-                var distance = offset.distance;
-
-                var tx = px + offset.x;
-                var ty = py + offset.y;
-
-                var t = angle + Math.atan2(ty - py, tx - px);
-
-                vert.x = px + ((distance * Math.cos(t)) * sx);
-                vert.y = py + ((distance * Math.sin(t)) * sy);
-            }
-        }
-    };
-
-    /**
      * Applies a force to a body from a given world-space position, including resulting torque.
      * @method applyForce
      * @param {body} body
@@ -906,18 +874,6 @@ var Axes = require('../geometry/Axes');
      */
 
     /**
-     * If `Engine.syncVerts` has been enabled in the Matter config, then this Body will have its vertices
-     * resynced with its body position at the end of the `Engine.update` step. This is important if you are
-     * moving a Body around at high speed and colliding with static objects, or are using pointer constraints
-     * and allowing a Body to be dragged around, as Matter can often lose sync between the body position and
-     * its vertices under these situations.
-     *
-     * @property syncVerts
-     * @type boolean
-     * @default false
-     */
-
-    /**
      * A `Vector` that specifies the current world-space position of the body.
      *
      * @property position
@@ -927,7 +883,6 @@ var Axes = require('../geometry/Axes');
 
     /**
      * A `Vector` that holds the current scale values as set by `Body.setScale`.
-     * These values are not used internally, other than by the syncVerts function.
      *
      * @property scale
      * @type vector
@@ -1230,29 +1185,6 @@ var Axes = require('../geometry/Axes');
      * @type object
      */
 
-    /**
-     * An `String` that defines the path to the image to use as the sprite texture, if any.
-     *
-     * @property render.sprite.texture
-     * @type string
-     */
-     
-    /**
-     * A `Number` that defines the scaling in the x-axis for the sprite, if any.
-     *
-     * @property render.sprite.xScale
-     * @type number
-     * @default 1
-     */
-
-    /**
-     * A `Number` that defines the scaling in the y-axis for the sprite, if any.
-     *
-     * @property render.sprite.yScale
-     * @type number
-     * @default 1
-     */
-
      /**
       * A `Number` that defines the offset in the x-axis for the sprite (normalised by texture width).
       *
@@ -1270,30 +1202,38 @@ var Axes = require('../geometry/Axes');
       */
 
     /**
-     * A `Number` that defines the line width to use when rendering the body outline (if a sprite is not defined).
-     * A value of `0` means no outline will be rendered.
+     * A hex color value that defines the fill color to use when rendering the body.
      *
-     * @property render.lineWidth
+     * @property render.fillColor
      * @type number
-     * @default 0
      */
 
     /**
-     * A `String` that defines the fill style to use when rendering the body (if a sprite is not defined).
-     * It is the same as when using a canvas, so it accepts CSS style property values.
+     * A value that defines the fill opqcity to use when rendering the body.
      *
-     * @property render.fillStyle
-     * @type string
-     * @default a random colour
+     * @property render.fillOpacity
+     * @type number
+     */
+
+     /**
+     * A hex color value that defines the line color to use when rendering the body.
+     *
+     * @property render.lineColor
+     * @type number
      */
 
     /**
-     * A `String` that defines the stroke style to use when rendering the body outline (if a sprite is not defined).
-     * It is the same as when using a canvas, so it accepts CSS style property values.
+     * A value that defines the line opqcity to use when rendering the body.
      *
-     * @property render.strokeStyle
-     * @type string
-     * @default a random colour
+     * @property render.lineOpacity
+     * @type number
+     */
+
+     /**
+     * A `Number` that defines the line width to use when rendering the body outline.
+     *
+     * @property render.lineThickness
+     * @type number
      */
 
     /**
@@ -1319,6 +1259,83 @@ var Axes = require('../geometry/Axes');
      *
      * @property bounds
      * @type bounds
+     */
+
+    /**
+     * A reference to the Phaser Game Object this body belongs to, if any.
+     *
+     * @property gameObject
+     * @type Phaser.GameObjects.GameObject
+     */
+
+    /**
+     * The scale of the Body when Body.setScale was called. Not used internally by Matter.
+     *
+     * @property scale
+     * @type vector
+     * @default { x: 1, y: 1 }
+     */
+
+    /**
+     * The center of mass of the Body.
+     *
+     * @property centerOfMass
+     * @type vector
+     * @default { x: 0, y: 0 }
+     */
+
+    /**
+     * Will this Body ignore World gravity during the Engine update?
+     *
+     * @property ignoreGravity
+     * @type boolean
+     * @default false
+     */
+
+    /**
+     * Will this Body ignore Phaser Pointer input events?
+     *
+     * @property ignorePointer
+     * @type boolean
+     * @default false
+     */
+
+    /**
+     * A callback that is invoked when this Body starts colliding with any other Body.
+     * 
+     * You can register callbacks by providing a function of type `( pair: Matter.Pair) => void`.
+     *
+     * @property onCollideCallback
+     * @type function
+     * @default null
+     */
+
+    /**
+     * A callback that is invoked when this Body stops colliding with any other Body.
+     * 
+     * You can register callbacks by providing a function of type `( pair: Matter.Pair) => void`.
+     *
+     * @property onCollideEndCallback
+     * @type function
+     * @default null
+     */
+
+    /**
+     * A callback that is invoked for the duration that this Body is colliding with any other Body.
+     * 
+     * You can register callbacks by providing a function of type `( pair: Matter.Pair) => void`.
+     *
+     * @property onCollideActiveCallback
+     * @type function
+     * @default null
+     */
+
+    /**
+     * A collision callback dictionary used by the `Body.setOnCollideWith` function.
+     *
+     * @property onCollideWith
+     * @type object
+     * @default null
      */
 
 })();
