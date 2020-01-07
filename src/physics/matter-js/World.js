@@ -244,9 +244,11 @@ var World = new Class({
             showBody: GetFastValue(debugConfig, 'showBody', true),
             showStaticBody: GetFastValue(debugConfig, 'showStaticBody', true),
             showSleeping: GetFastValue(debugConfig, 'showSleeping', false),
+            showBodyPosition: GetFastValue(debugConfig, 'showBodyPosition', true),
             showJoint: GetFastValue(debugConfig, 'showJoint', true),
             showInternalEdges: GetFastValue(debugConfig, 'showInternalEdges', false),
             showConvexHulls: GetFastValue(debugConfig, 'showConvexHulls', false),
+            showSensors: GetFastValue(debugConfig, 'showSensors', true),
 
             renderFill: GetFastValue(debugConfig, 'renderFill', false),
             renderLine: GetFastValue(debugConfig, 'renderLine', true),
@@ -263,6 +265,12 @@ var World = new Class({
             staticBodySleepOpacity: GetFastValue(debugConfig, 'staticBodySleepOpacity', 0.7),
             sleepFillColor: GetFastValue(debugConfig, 'sleepFillColor', 0x464646),
             sleepLineColor: GetFastValue(debugConfig, 'sleepLineColor', 0x999a99),
+
+            sensorFillColor: GetFastValue(debugConfig, 'sensorFillColor', 0x0d177b),
+            sensorLineColor: GetFastValue(debugConfig, 'sensorLineColor', 0x1327e4),
+
+            positionSize: GetFastValue(debugConfig, 'positionSize', 4),
+            positionColor: GetFastValue(debugConfig, 'positionColor', 0xe042da),
 
             jointColor: GetFastValue(debugConfig, 'jointColor', 0xe0e042),
             jointLineOpacity: GetFastValue(debugConfig, 'jointLineOpacity', 1),
@@ -1411,20 +1419,14 @@ var World = new Class({
         if (fillColor === undefined) { fillColor = null; }
         if (fillOpacity === undefined) { fillOpacity = null; }
 
+        var config = this.debugConfig;
+
+        var sensorFillColor = config.sensorFillColor;
+        var sensorLineColor = config.sensorLineColor;
+
         //  Handle compound parts
         var parts = body.parts;
         var partsLength = parts.length;
-
-        /*
-        if (!body.isStatic)
-        {
-            var w = body.bounds.max.x - body.bounds.min.x;
-            var h = body.bounds.max.y - body.bounds.min.y;
-
-            graphics.fillStyle(0x6d6d6d, 0.3);
-            graphics.fillRect(body.bounds.min.x, body.bounds.min.y, w, h);
-        }
-        */
 
         for (var k = (partsLength > 1) ? 1 : 0; k < partsLength; k++)
         {
@@ -1432,7 +1434,7 @@ var World = new Class({
             var render = part.render;
             var opacity = render.opacity;
 
-            if (!render.visible || opacity === 0)
+            if (!render.visible || opacity === 0 || (part.isSensor && !config.showSensors))
             {
                 continue;
             }
@@ -1442,14 +1444,29 @@ var World = new Class({
 
             graphics.beginPath();
 
-            if (fillColor !== null)
+            if (part.isSensor)
             {
-                graphics.fillStyle(fillColor, fillOpacity * opacity);
+                if (fillColor !== null)
+                {
+                    graphics.fillStyle(sensorFillColor, fillOpacity * opacity);
+                }
+    
+                if (lineColor !== null)
+                {
+                    graphics.lineStyle(lineThickness, sensorLineColor, lineOpacity * opacity);
+                }
             }
-
-            if (lineColor !== null)
+            else
             {
-                graphics.lineStyle(lineThickness, lineColor, lineOpacity * opacity);
+                if (fillColor !== null)
+                {
+                    graphics.fillStyle(fillColor, fillOpacity * opacity);
+                }
+    
+                if (lineColor !== null)
+                {
+                    graphics.lineStyle(lineThickness, lineColor, lineOpacity * opacity);
+                }
             }
 
             if (circleRadius)
@@ -1498,13 +1515,14 @@ var World = new Class({
             }
         }
 
-        if (!body.isStatic)
+        if (config.showBodyPosition && !body.isStatic)
         {
             var px = body.position.x;
             var py = body.position.y;
+            var hs = Math.ceil(config.positionSize / 2);
 
-            graphics.fillStyle(0xff00ff, 1);
-            graphics.fillRect(px - 3, py - 3, 6, 6);
+            graphics.fillStyle(config.positionColor, 1);
+            graphics.fillRect(px - hs, py - hs, config.positionSize, config.positionSize);
         }
 
         return this;

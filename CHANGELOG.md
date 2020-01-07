@@ -11,6 +11,8 @@
 * `showJoint` - Render all world constraints to the Graphics object?
 * `showInternalEdges` - When rendering bodies, render the internal edges as well?
 * `showConvexHulls` - When rendering polygon bodies, render the convex hull as well?
+* `showBodyPosition` - Render the position of non-static bodies?
+* `showSensors` - Render sensors?
 * `renderFill` - Render the bodies using a fill color.
 * `renderLine`- Render the bodies using a line stroke.
 * `fillColor` - The color value of the fill when rendering dynamic bodies.
@@ -23,6 +25,8 @@
 * `staticBodySleepOpacity` - The amount to multiply the opacity of sleeping static bodies by.
 * `sleepFillColor` - The color value of the fill when rendering sleeping dynamic bodies.
 * `sleepLineColor` - The color value of the line stroke when rendering sleeping dynamic bodies.
+* `sensorFillColor` - The color value of the fill when rendering sensor bodies.
+* `sensorLineColor` - The color value of the line stroke when rendering sensor bodies.
 * `jointColor` - The color value of joints when `showJoint` is set.
 * `jointLineOpacity` - The line opacity when rendering joints, a value between 0 and 1.
 * `jointLineThickness` - The line thickness when rendering joints.
@@ -32,6 +36,8 @@
 * `anchorColor` - The color value of constraint anchors.
 * `anchorSize` - The size of the circles drawn as the constraint anchors.
 * `hullColor` - The color value of hulls when `showConvexHulls` is set.
+* `positionSize` - The size of the rectangle drawn when rendering the body position.
+* `positionColor` - The color value of the rectangle drawn when rendering the body position.
 * The `debug` property in the Matter World Config is now a `MatterDebugConfig` option instead of a boolean. However, if a boolean is given, it will use the default debug config values.
 * The following `MatterWorldConfig` options have now been removed: `debugShowBody`, `debugShowStaticBody`, `debugBodyColor`, `debugBodyFillColor`, `debugStaticBodyColor`, `debugShowJoint`, `debugJointColor`, `debugWireframes`, `debugShowInternalEdges`, `debugShowConvexHulls`, `debugConvexHullColor` and `debugShowSleeping`. These can all be set via the new `MatterDebugConfig` object instead.
 * The object `World.defaults` has been removed. Defaults are now access via `World.debugDefaults`.
@@ -164,7 +170,7 @@
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs and TypeScript definitions, either by reporting errors, fixing them or helping author the docs:
 
-@fselcukcan Bambosh @louisth @hexus @javigaralva @samme @BeLi4L @jcyuan @javigaralva 
+@fselcukcan Bambosh @louisth @hexus @javigaralva @samme @BeLi4L @jcyuan @javigaralva @T-Grave
 
 
 ## Version 3.21.0 - Senku - 22nd November 2019
