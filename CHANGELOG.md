@@ -4,46 +4,66 @@
 
 ### Matter Physics Updates
 
+* Matter Physics now has 100% JSDoc coverage! Woohoo :)
 * `MatterDebugConfig` is a new configuration object that contains all of the following new Matter debug settings:
-* `showBody` - Render the dynamic bodies in the world to the Graphics object?
-* `showStaticBody` - Render the static bodies in the world to the Graphics object?
-* `showSleeping` - Render any sleeping bodies (dynamic or static) in the world to the Graphics object?
-* `showJoint` - Render all world constraints to the Graphics object?
-* `showInternalEdges` - When rendering bodies, render the internal edges as well?
-* `showConvexHulls` - When rendering polygon bodies, render the convex hull as well?
-* `showBodyPosition` - Render the position of non-static bodies?
-* `showSensors` - Render sensors?
-* `renderFill` - Render the bodies using a fill color.
+* `showAxes`- Render all of the body axes?
+* `showAngleIndicator`- Render just a single body axis?
+* `angleColor`- The color of the body angle / axes lines.
+* `showBroadphase`- Render the broadphase grid?
+* `broadphaseColor`- The color of the broadphase grid.
+* `showBounds`- Render the bounds of the bodies in the world?
+* `boundsColor`- The color of the body bounds.
+* `showVelocity`- Render the velocity of the bodies in the world?
+* `velocityColor`- The color of the body velocity line.
+* `showCollisions`- Render the collision points and normals for colliding pairs.
+* `collisionColor`- The color of the collision points.
+* `showSeparation`- Render lines showing the separation between bodies.
+* `separationColor`- The color of the body separation line.
+* `showBody`- Render the dynamic bodies in the world to the Graphics object?
+* `showStaticBody`- Render the static bodies in the world to the Graphics object?
+* `showInternalEdges`- When rendering bodies, render the internal edges as well?
+* `renderFill`- Render the bodies using a fill color.
 * `renderLine`- Render the bodies using a line stroke.
-* `fillColor` - The color value of the fill when rendering dynamic bodies.
-* `fillOpacity` - The opacity of the fill when rendering dynamic bodies, a value between 0 and 1.
-* `lineColor` - The color value of the line stroke when rendering dynamic bodies.
-* `lineOpacity` - The opacity of the line when rendering dynamic bodies, a value between 0 and 1.
-* `lineThickness` - If rendering lines, the thickness of the line.
-* `staticFillColor` - The color value of the fill when rendering static bodies.
-* `staticLineColor` - The color value of the line stroke when rendering static bodies.
-* `staticBodySleepOpacity` - The amount to multiply the opacity of sleeping static bodies by.
-* `sleepFillColor` - The color value of the fill when rendering sleeping dynamic bodies.
-* `sleepLineColor` - The color value of the line stroke when rendering sleeping dynamic bodies.
-* `sensorFillColor` - The color value of the fill when rendering sensor bodies.
-* `sensorLineColor` - The color value of the line stroke when rendering sensor bodies.
-* `jointColor` - The color value of joints when `showJoint` is set.
-* `jointLineOpacity` - The line opacity when rendering joints, a value between 0 and 1.
-* `jointLineThickness` - The line thickness when rendering joints.
-* `pinSize` - The size of the circles drawn when rendering pin constraints.
-* `pinColor` - The color value of the circles drawn when rendering pin constraints.
-* `springColor` - The color value of spring constraints.
-* `anchorColor` - The color value of constraint anchors.
-* `anchorSize` - The size of the circles drawn as the constraint anchors.
-* `hullColor` - The color value of hulls when `showConvexHulls` is set.
-* `positionSize` - The size of the rectangle drawn when rendering the body position.
-* `positionColor` - The color value of the rectangle drawn when rendering the body position.
+* `fillColor`- The color value of the fill when rendering dynamic bodies.
+* `fillOpacity`- The opacity of the fill when rendering dynamic bodies, a value between 0 and 1.
+* `lineColor`- The color value of the line stroke when rendering dynamic bodies.
+* `lineOpacity`- The opacity of the line when rendering dynamic bodies, a value between 0 and 1.
+* `lineThickness`- If rendering lines, the thickness of the line.
+* `staticFillColor`- The color value of the fill when rendering static bodies.
+* `staticLineColor`- The color value of the line stroke when rendering static bodies.
+* `showSleeping`- Render any sleeping bodies (dynamic or static) in the world to the Graphics object?
+* `staticBodySleepOpacity`] - The amount to multiply the opacity of sleeping static bodies by.
+* `sleepFillColor`- The color value of the fill when rendering sleeping dynamic bodies.
+* `sleepLineColor`- The color value of the line stroke when rendering sleeping dynamic bodies.
+* `showSensors`- Render bodies or body parts that are flagged as being a sensor?
+* `sensorFillColor`- The fill color when rendering body sensors.
+* `sensorLineColor`- The line color when rendering body sensors.
+* `showPositions`- Render the position of non-static bodies?
+* `positionSize`- The size of the rectangle drawn when rendering the body position.
+* `positionColor`- The color value of the rectangle drawn when rendering the body position.
+* `showJoint`- Render all world constraints to the Graphics object?
+* `jointColor`- The color value of joints when `showJoint` is set.
+* `jointLineOpacity`- The line opacity when rendering joints, a value between 0 and 1.
+* `jointLineThickness`- The line thickness when rendering joints.
+* `pinSize`- The size of the circles drawn when rendering pin constraints.
+* `pinColor`- The color value of the circles drawn when rendering pin constraints.
+* `springColor`- The color value of spring constraints.
+* `anchorColor`- The color value of constraint anchors.
+* `anchorSize`- The size of the circles drawn as the constraint anchors.
+* `showConvexHulls`- When rendering polygon bodies, render the convex hull as well?
+* `hullColor`- The color value of hulls when `showConvexHulls` is set.
 * The `debug` property in the Matter World Config is now a `MatterDebugConfig` option instead of a boolean. However, if a boolean is given, it will use the default debug config values.
 * The following `MatterWorldConfig` options have now been removed: `debugShowBody`, `debugShowStaticBody`, `debugBodyColor`, `debugBodyFillColor`, `debugStaticBodyColor`, `debugShowJoint`, `debugJointColor`, `debugWireframes`, `debugShowInternalEdges`, `debugShowConvexHulls`, `debugConvexHullColor` and `debugShowSleeping`. These can all be set via the new `MatterDebugConfig` object instead.
 * The object `World.defaults` has been removed. Defaults are now access via `World.debugDefaults`.
 * `World.renderBody` is a new method that will render a single Matter Body to the given Graphics object. This is used internally during debug rendering but is also public. This allows you to control which bodies are rendered and to which Graphics object, should you wish to use them in-game and not just during debugging.
 * `World.renderConstraint` is a new method that will render a single Matter Constraint, such as a pin or a spring, to the given Graphics object. This is used internally during debug rendering but is also public. This allows you to control which constraints are rendered and to which Graphics object, should you wish to use them in-game and not just during debugging.
 * `World.renderConvexHull` is a new method that will render the convex hull of a single Matter Body, to the given Graphics object. This is used internally during debug rendering but is also public. This allows you to control which hulls are rendered and to which Graphics object, should you wish to use them in-game and not just during debugging.
+* `World.renderGrid` is a new method that will render the broadphase Grid to the given graphics instance.
+* `World.renderBodyBounds` is a new method that will render the bounds of all the given bodies to the given graphics instance.
+* `World.renderBodyAxes` is a new method that will render the axes of all the given bodies to the given graphics instance.
+* `World.renderBodyVelocity` is a new method that will render a velocity line for all the given bodies to the given graphics instance.
+* `World.renderSeparations` is a new method that will render the separations in the current pairs list to the given graphics instance.
+* `World.renderCollisions` is a new method that will render the collision points and normals in the current pairs list to the given graphics instance.
 * `World.renderBodies` has been rewritten to cache commonly-used values and avoid a situation when a single body would be rendered twice.
 * The private method `World.renderConvexHulls` has been removed as it's no longer used internally.
 * The private method `World.renderWireframes` has been removed as it's no longer used internally.
@@ -130,7 +150,24 @@
 * `MatterPhysics.setVelocityY` is a new method that will set the vertical linear velocity of the given physics bodies. This can be used on all Matter bodies, not just those created via the factory.
 * `MatterPhysics.setAngularVelocity` is a new method that will set the angular velocity of the given physics bodies. This can be used on all Matter bodies, not just those created via the factory.
 * `MatterPhysics.applyForce` is a new method that applies a force to a body, at the bodies current position, including resulting torque. This can be used on all Matter bodies, not just those created via the factory.
-* `MatterPhysics.applyForceFromAngle` is a new method that applies a force to a body from the given angle, at the bodies current position, including resulting torque. This can be used on all Matter bodies, not just those created via the factory.
+* `MatterPhysics.applyForceFromPosition` is a new method that applies a force to a body from the given world position, including resulting torque. If no angle is given, the current body angle is used. This can be used on all Matter bodies, not just those created via the factory.
+* You can now set `gravity: false` in your Matter Config and it will reset gravity from the defaults to zero.
+* The internal Matter `Composite.setModified` function will now emit a `compositeModified` event, which the Matter World listens for, if debug draw is enabled, so it can update the composite children render styles.
+* `MatterPhysics.fromSVG` is a new method that allows you to create a Body from the given SVG path data.
+* The `Matter.Factory.velocity` method has been removed. Please now use `MatterPhysics.setVelocity` instead.
+* The `Matter.Factory.angularVelocity` method has been removed. Please now use `MatterPhysics.setAngularVelocity` instead.
+* The `Matter.Factory.force` method has been removed. Please now use `MatterPhysics.applyForce` instead.
+* `MatterBodyConfig` is a new type def that contains all of the Body configuration properties. This is now used through-out the JSDocs to aid in code-completion.
+* `MatterBodyRenderConfig` is a new type def that contains all of the Body debug rendering configuration properties. This is now used through-out the JSDocs to aid in code-completion.
+* `MatterChamferConfig` is a new type def that contains all of the chamfer configuration properties. This is now used through-out the JSDocs to aid in code-completion.
+* `MatterCollisionFilter` is a new type def that contains all of the collision configuration properties. This is now used through-out the JSDocs to aid in code-completion.
+* `MatterConstraintConfig` is a new type def that contains all of the constraint configuration properties. This is now used through-out the JSDocs to aid in code-completion.
+* `MatterConstraintRenderConfig` is a new type def that contains all of the Constraint debug rendering configuration properties. This is now used through-out the JSDocs to aid in code-completion.
+* `MatterSetBodyConfig` is a new type def that contains all of the Constraint debug rendering configuration properties. This is now used through-out the JSDocs to aid in code-completion.
+* `MatterPhysics.getConstraintLength` is a new method that will return the length of the given constraint, as this is something you cannot get from the constraint properties directly.
+* `MatterPhysics.alignBody` is a new method that will align a Body, or Matter Game Object, against the given coordinates, using the given alignment constant. For example, this allows you to easily position a body to the `BOTTOM_LEFT`, or `TOP_CENTER`, or a coordinate. Alignment is based on the body bounds.
+* `Phaser.Types.Physics.Matter.MatterBody` is a new type def that contains all of the valid Matter Body objects. This is now used through-out the JSDocs to aid in code-completion.
+* `Matter.BodyBounds` is a new class that contains methods to help you extract world coordinates from various points around the bounds of a Matter Body. Because Matter bodies are positioned based on their center of mass, and not a dimension based center, you often need to get the bounds coordinates in order to properly align them in the world. You can access this new class via `this.matter.bodyBounds`.
 
 ### New Features
 
@@ -157,6 +194,8 @@
 * The `Container` Game Object now uses the AlphaSingle component, allowing you to uniformly set the alpha of the container, rather than a quad alpha, which never worked consistently across Container children. Fix #4916 (thanks @laineus)
 * The `DOMElement` Game Object now uses the AlphaSingle component, allowing you to uniformly set the alpha of the element, rather than a quad alpha, which never worked for these objects.
 * The `Graphics` Game Object now uses the AlphaSingle component, allowing you to uniformly set the alpha of the element, rather than a quad alpha, which never worked for these objects.
+* `TweenData` has a new property called `previous` which holds the eased property value prior to the update.
+* The `TWEEN_UPDATE` event now sends two new parameters to the handler: `current` and `previous` which contain the current and previous property values.
 
 ### Bug Fixes
 
