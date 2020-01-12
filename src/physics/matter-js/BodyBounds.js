@@ -5,7 +5,7 @@
  */
 
 var Class = require('../../utils/Class');
-var Vec2 = require('../../math/Vector2');
+var Vector2 = require('../../math/Vector2');
 
 /**
  * @classdesc
@@ -33,12 +33,31 @@ var BodyBounds = new Class({
 
     function BodyBounds ()
     {
-        this.boundsCenter = new Vec2();
-        this.centerDiff = new Vec2();
+        /**
+         * A Vector2 that stores the temporary bounds center value during calculations by methods in this class.
+         *
+         * @name Phaser.Physics.Matter.BodyBounds#boundsCenter
+         * @type {Phaser.Math.Vector2}
+         * @since 3.22.0
+         */
+        this.boundsCenter = new Vector2();
+
+        /**
+         * A Vector2 that stores the temporary center diff values during calculations by methods in this class.
+         *
+         * @name Phaser.Physics.Matter.BodyBounds#centerDiff
+         * @type {Phaser.Math.Vector2}
+         * @since 3.22.0
+         */
+        this.centerDiff = new Vector2();
     },
 
     /**
-     * Returns the length of the given constraint, which is the distance between the two points.
+     * Parses the given body to get the bounds diff values from it.
+     * 
+     * They're stored in this class in the temporary properties `boundsCenter` and `centerDiff`.
+     * 
+     * This method is called automatically by all other methods in this class.
      *
      * @method Phaser.Physics.Matter.BodyBounds#parseBody
      * @since 3.22.0
@@ -96,7 +115,7 @@ var BodyBounds = new Class({
             var center = this.boundsCenter;
             var diff = this.centerDiff;
 
-            return new Vec2(
+            return new Vector2(
                 x + center.x + diff.x,
                 y + center.y + diff.y
             );
@@ -130,7 +149,7 @@ var BodyBounds = new Class({
             var center = this.boundsCenter;
             var diff = this.centerDiff;
 
-            return new Vec2(
+            return new Vector2(
                 x + diff.x,
                 y + center.y + diff.y
             );
@@ -164,7 +183,7 @@ var BodyBounds = new Class({
             var center = this.boundsCenter;
             var diff = this.centerDiff;
 
-            return new Vec2(
+            return new Vector2(
                 x - (center.x - diff.x),
                 y + center.y + diff.y
             );
@@ -198,7 +217,7 @@ var BodyBounds = new Class({
             var center = this.boundsCenter;
             var diff = this.centerDiff;
 
-            return new Vec2(
+            return new Vector2(
                 x + center.x + diff.x,
                 y + diff.y
             );
@@ -231,7 +250,7 @@ var BodyBounds = new Class({
         {
             var diff = this.centerDiff;
 
-            return new Vec2(
+            return new Vector2(
                 x + diff.x,
                 y + diff.y
             );
@@ -265,7 +284,7 @@ var BodyBounds = new Class({
             var center = this.boundsCenter;
             var diff = this.centerDiff;
 
-            return new Vec2(
+            return new Vector2(
                 x - (center.x - diff.x),
                 y + diff.y
             );
@@ -299,7 +318,7 @@ var BodyBounds = new Class({
             var center = this.boundsCenter;
             var diff = this.centerDiff;
 
-            return new Vec2(
+            return new Vector2(
                 x + center.x + diff.x,
                 y - (center.y - diff.y)
             );
@@ -333,7 +352,7 @@ var BodyBounds = new Class({
             var center = this.boundsCenter;
             var diff = this.centerDiff;
 
-            return new Vec2(
+            return new Vector2(
                 x + diff.x,
                 y - (center.y - diff.y)
             );
@@ -367,7 +386,7 @@ var BodyBounds = new Class({
             var center = this.boundsCenter;
             var diff = this.centerDiff;
 
-            return new Vec2(
+            return new Vector2(
                 x - (center.x - diff.x),
                 y - (center.y - diff.y)
             );

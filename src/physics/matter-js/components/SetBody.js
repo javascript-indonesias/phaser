@@ -8,6 +8,7 @@ var Bodies = require('../lib/factory/Bodies');
 var Body = require('../lib/body/Body');
 var GetFastValue = require('../../../utils/object/GetFastValue');
 var PhysicsEditorParser = require('../PhysicsEditorParser');
+var PhysicsJSONParser = require('../PhysicsJSONParser');
 var Vertices = require('../lib/geometry/Vertices');
 
 /**
@@ -102,9 +103,6 @@ var SetBody = {
      * Set this Game Object to use the given existing Matter Body.
      * 
      * The body is first removed from the world before being added to this Game Object.
-     * 
-     * Calling this methods resets previous properties you may have set on the body, including
-     * plugins, mass, friction, etc. So be sure to re-apply these in the options object if needed.
      *
      * @method Phaser.Physics.Matter.Components.SetBody#setExistingBody
      * @since 3.0.0
@@ -146,13 +144,28 @@ var SetBody = {
                 this.world.remove(body, true);
             }
 
-            //  Only add the body if it's not already in the world
             this.world.add(body);
         }
 
         if (this._originComponent)
         {
-            this.setOrigin(this.centerOffsetX, this.centerOffsetY);
+            var rx = body.render.sprite.xOffset;
+            var ry = body.render.sprite.yOffset;
+
+            var comx = body.centerOfMass.x;
+            var comy = body.centerOfMass.y;
+
+            if (comx === 0.5 && comy === 0.5)
+            {
+                this.setOrigin(rx + 0.5, ry + 0.5);
+            }
+            else
+            {
+                var cx = body.centerOffset.x;
+                var cy = body.centerOffset.y;
+
+                this.setOrigin(rx + (cx / this.displayWidth), ry + (cy / this.displayHeight));
+            }
         }
 
         return this;
@@ -161,7 +174,7 @@ var SetBody = {
     /**
      * Set this Game Object to create and use a new Body based on the configuration object given.
      * 
-     * Calling this methods resets previous properties you may have set on the body, including
+     * Calling this method resets previous properties you may have set on the body, including
      * plugins, mass, friction, etc. So be sure to re-apply these in the options object if needed.
      *
      * @method Phaser.Physics.Matter.Components.SetBody#setBody
@@ -249,7 +262,11 @@ var SetBody = {
                 break;
 
             case 'fromPhysicsEditor':
-                body = PhysicsEditorParser.parseBody(bodyX, bodyY, bodyWidth, bodyHeight, config);
+                body = PhysicsEditorParser.parseBody(bodyX, bodyY, config, options);
+                break;
+
+            case 'fromPhysicsTracer':
+                body = PhysicsJSONParser.parseBody(bodyX, bodyY, config, options);
                 break;
         }
 
