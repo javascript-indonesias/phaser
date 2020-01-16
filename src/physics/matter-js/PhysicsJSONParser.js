@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -61,7 +61,7 @@ var PhysicsJSONParser = {
      * @param {object} config - The body configuration data.
      * @param {Phaser.Types.Physics.Matter.MatterBodyConfig} [options] - An optional Body configuration object that is used to set initial Body properties on creation.
      * 
-     * @return {MatterJS.Body} A Matter JS Body.
+     * @return {MatterJS.BodyType} A Matter JS Body.
      */
     parseBody: function (x, y, config, options)
     {

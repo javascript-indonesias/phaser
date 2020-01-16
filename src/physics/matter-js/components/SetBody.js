@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -108,7 +108,7 @@ var SetBody = {
      * @method Phaser.Physics.Matter.Components.SetBody#setExistingBody
      * @since 3.0.0
      *
-     * @param {MatterJS.Body} body - The Body this Game Object should use.
+     * @param {MatterJS.BodyType} body - The Body this Game Object should use.
      * @param {boolean} [addToWorld=true] - Should the body be immediately added to the World?
      *
      * @return {Phaser.GameObjects.GameObject} This Game Object.
