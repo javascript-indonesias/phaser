@@ -8,12 +8,13 @@ var Class = require('../../utils/Class');
 var Components = require('../components');
 var GameObject = require('../GameObject');
 var RopeRender = require('./RopeRender');
-var NOOP = require('../../utils/NOOP');
 var Vector2 = require('../../math/Vector2');
 
 /**
  * @classdesc
  * A Rope Game Object.
+ * 
+ * A Ropes origin is always 0.5 x 0.5 and cannot be changed.
  *
  * @class Rope
  * @extends Phaser.GameObjects.GameObject
@@ -22,8 +23,10 @@ var Vector2 = require('../../math/Vector2');
  * @webglOnly
  * @since 3.23.0
  *
+ * @extends Phaser.GameObjects.Components.AlphaSingle
  * @extends Phaser.GameObjects.Components.BlendMode
  * @extends Phaser.GameObjects.Components.Depth
+ * @extends Phaser.GameObjects.Components.Flip
  * @extends Phaser.GameObjects.Components.Mask
  * @extends Phaser.GameObjects.Components.Pipeline
  * @extends Phaser.GameObjects.Components.Size
@@ -33,11 +36,12 @@ var Vector2 = require('../../math/Vector2');
  * @extends Phaser.GameObjects.Components.ScrollFactor
  *
  * @param {Phaser.Scene} scene - The Scene to which this Game Object belongs. A Game Object can only belong to one Scene at a time.
- * @param {number} x - The horizontal position of this Game Object in the world.
- * @param {number} y - The vertical position of this Game Object in the world.
- * @param {string} texture - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager.
+ * @param {number} [x=0] - The horizontal position of this Game Object in the world.
+ * @param {number} [y=0] - The vertical position of this Game Object in the world.
+ * @param {string} [texture] - The key of the Texture this Game Object will use to render with, as stored in the Texture Manager. If not given, `__DEFAULT` is used.
  * @param {(string|integer|null)} [frame] - An optional frame from the Texture this Game Object is rendering with.
- * @param {(integer|Phaser.Types.Math.Vector2Like[])} [points] - An array containing the vertices data for this Rope, or a number that indicates how many segments to split the texture frame into. If none is provided a simple quad is created. See `setPoints` to set this post-creation.
+ * @param {(integer|Phaser.Types.Math.Vector2Like[])} [points=2] - An array containing the vertices data for this Rope, or a number that indicates how many segments to split the texture frame into. If none is provided a simple quad is created. See `setPoints` to set this post-creation.
+ * @param {boolean} [horizontal=true] - Should the vertices of this Rope be aligned horizontally (`true`), or vertically (`false`)?
  * @param {number[]} [colors] - An optional array containing the color data for this Rope. You should provide one color value per pair of vertices.
  * @param {number[]} [alphas] - An optional array containing the alpha data for this Rope. You should provide one alpha value per pair of vertices.
  */
@@ -46,8 +50,10 @@ var Rope = new Class({
     Extends: GameObject,
 
     Mixins: [
+        Components.AlphaSingle,
         Components.BlendMode,
         Components.Depth,
+        Components.Flip,
         Components.Mask,
         Components.Pipeline,
         Components.Size,
@@ -60,14 +66,22 @@ var Rope = new Class({
 
     initialize:
 
-    function Rope (scene, x, y, texture, frame, points, colors, alphas)
+    function Rope (scene, x, y, texture, frame, points, horizontal, colors, alphas)
     {
-        if (points === undefined)
-        {
-            points = 2;
-        }
+        if (texture === undefined) { texture = '__DEFAULT'; }
+        if (points === undefined) { points = 2; }
+        if (horizontal === undefined) { horizontal = true; }
 
         GameObject.call(this, scene, 'Rope');
+
+        /**
+         * The Animation Controller of this Rope.
+         *
+         * @name Phaser.GameObjects.Rope#anims
+         * @type {Phaser.GameObjects.Components.Animation}
+         * @since 3.23.0
+         */
+        this.anims = new Components.Animation(this);
 
         /**
          * An array containing the points data for this Rope.
@@ -141,14 +155,17 @@ var Rope = new Class({
         this.alphas;
 
         /**
-         * Fill or additive mode used when blending the color values?
+         * The tint fill mode.
+         * 
+         * 0 = An additive tint (the default), where vertices colors are blended with the texture.
+         * 1 = A fill tint, where the vertices colors replace the texture, but respects texture alpha.
+         * 2 = A complete tint, where the vertices colors replace the texture, including alpha, entirely.
          * 
          * @name Phaser.GameObjects.Rope#tintFill
-         * @type {boolean}
-         * @default false
+         * @type {integer}
          * @since 3.23.0
          */
-        this.tintFill = false;
+        this.tintFill = (texture === '__DEFAULT') ? 2 : 0;
 
         /**
          * If the Rope is marked as `dirty` it will automatically recalculate its vertices
@@ -159,6 +176,49 @@ var Rope = new Class({
          * @since 3.23.0
          */
         this.dirty = false;
+
+        /**
+         * Are the Rope vertices aligned horizontally, in a strip, or vertically, in a column?
+         * 
+         * This property is set during instantiation and cannot be changed directly.
+         * See the `setVertical` and `setHorizontal` methods.
+         * 
+         * @name Phaser.GameObjects.Rope#horizontal
+         * @type {boolean}
+         * @readonly
+         * @since 3.23.0
+         */
+        this.horizontal = horizontal;
+
+        /**
+         * The horizontally flipped state of the Game Object.
+         * 
+         * A Game Object that is flipped horizontally will render inversed on the horizontal axis.
+         * Flipping always takes place from the middle of the texture and does not impact the scale value.
+         * If this Game Object has a physics body, it will not change the body. This is a rendering toggle only.
+         * 
+         * @name Phaser.GameObjects.Rope#_flipX
+         * @type {boolean}
+         * @default false
+         * @private
+         * @since 3.23.0
+         */
+        this._flipX = false;
+
+        /**
+         * The vertically flipped state of the Game Object.
+         * 
+         * A Game Object that is flipped vertically will render inversed on the vertical axis (i.e. upside down)
+         * Flipping always takes place from the middle of the texture and does not impact the scale value.
+         * If this Game Object has a physics body, it will not change the body. This is a rendering toggle only.
+         * 
+         * @name Phaser.GameObjects.Rope#flipY
+         * @type {boolean}
+         * @default false
+         * @private
+         * @since 3.23.0
+         */
+        this._flipY = false;
 
         /**
          * Internal Vector2 used for vertices updates.
@@ -186,14 +246,58 @@ var Rope = new Class({
     },
 
     /**
-     * This method is left intentionally empty and does not do anything.
-     * It is retained to allow a Rope to be added to a Container.
-     * You should modify the alphas array values instead. See `setAlphas`.
-     * 
-     * @method Phaser.GameObjects.Rope#setAlpha
+     * The Rope update loop.
+     *
+     * @method Phaser.GameObjects.Rope#preUpdate
+     * @protected
+     * @since 3.23.0
+     *
+     * @param {number} time - The current timestamp.
+     * @param {number} delta - The delta time, in ms, elapsed since the last frame.
+     */
+    preUpdate: function (time, delta)
+    {
+        var prevFrame = this.anims.currentFrame;
+
+        this.anims.update(time, delta);
+
+        if (this.anims.currentFrame !== prevFrame)
+        {
+            this.updateUVs();
+            this.updateVertices();
+        }
+    },
+
+    /**
+     * NOOP. Included to allow animations to play.
+     *
+     * @method Phaser.GameObjects.Rope#updateDisplayOrigin
+     * @private
      * @since 3.23.0
      */
-    setAlpha: NOOP,
+    updateDisplayOrigin: function ()
+    {
+        //  NOOP
+    },
+
+    /**
+     * Start playing the given animation.
+     *
+     * @method Phaser.GameObjects.Rope#play
+     * @since 3.23.0
+     *
+     * @param {string} key - The string-based key of the animation to play.
+     * @param {boolean} [ignoreIfPlaying=false] - If an animation is already playing then ignore this call.
+     * @param {integer} [startFrame=0] - Optionally start the animation playing from this frame index.
+     *
+     * @return {this} This Game Object.
+     */
+    play: function (key, ignoreIfPlaying, startFrame)
+    {
+        this.anims.play(key, ignoreIfPlaying, startFrame);
+
+        return this;
+    },
 
     /**
      * Flags this Rope as being dirty. A dirty rope will recalculate all of its vertices data
@@ -213,23 +317,88 @@ var Rope = new Class({
     },
 
     /**
-     * Swap this Game Object from using a fill-tint to an additive tint.
+     * Sets the alignment of the points in this Rope to be horizontal, in a strip format.
      * 
-     * Unlike an additive tint, a fill-tint literally replaces the pixel colors from the texture
-     * with those in the tint. You can use this for effects such as making a player flash 'white'
-     * if hit by something. See the `setColors` method for details of tinting the vertices.
+     * Calling this method will reset this Rope. The current points, vertices, colors and alpha
+     * values will be reset to thoes values given as parameters.
+     * 
+     * @method Phaser.GameObjects.Rope#setHorizontal
+     * @since 3.23.0
+     * 
+     * @param {(integer|Phaser.Types.Math.Vector2Like[])} [points] - An array containing the vertices data for this Rope, or a number that indicates how many segments to split the texture frame into. If none is provided the current points length is used.
+     * @param {(number|number[])} [colors] - Either a single color value, or an array of values.
+     * @param {(number|number[])} [alphas] - Either a single alpha value, or an array of values.
+     * 
+     * @return {this} This Game Object instance.
+     */
+    setHorizontal: function (points, colors, alphas)
+    {
+        if (points === undefined) { points = this.points.length; }
+
+        if (this.horizontal)
+        {
+            return this;
+        }
+
+        this.horizontal = true;
+
+        return this.setPoints(points, colors, alphas);
+    },
+
+    /**
+     * Sets the alignment of the points in this Rope to be vertical, in a column format.
+     * 
+     * Calling this method will reset this Rope. The current points, vertices, colors and alpha
+     * values will be reset to thoes values given as parameters.
+     * 
+     * @method Phaser.GameObjects.Rope#setVertical
+     * @since 3.23.0
+     * 
+     * @param {(integer|Phaser.Types.Math.Vector2Like[])} [points] - An array containing the vertices data for this Rope, or a number that indicates how many segments to split the texture frame into. If none is provided the current points length is used.
+     * @param {(number|number[])} [colors] - Either a single color value, or an array of values.
+     * @param {(number|number[])} [alphas] - Either a single alpha value, or an array of values.
+     * 
+     * @return {this} This Game Object instance.
+     */
+    setVertical: function (points, colors, alphas)
+    {
+        if (points === undefined) { points = this.points.length; }
+
+        if (!this.horizontal)
+        {
+            return this;
+        }
+
+        this.horizontal = false;
+
+        return this.setPoints(points, colors, alphas);
+    },
+
+    /**
+     * Sets the tint fill mode.
+     * 
+     * Mode 0 is an additive tint, the default, which blends the vertices colors with the texture.
+     * This mode respects the texture alpha.
+     * 
+     * Mode 1 is a fill tint. Unlike an additive tint, a fill-tint literally replaces the pixel colors
+     * from the texture with those in the tint. You can use this for effects such as making a player flash 'white'
+     * if hit by something. This mode respects the texture alpha.
+     * 
+     * Mode 2 is a complete tint. The texture colors and alpha are replaced entirely by the vertices colors.
+     * 
+     * See the `setColors` method for details of how to color each of the vertices.
      *
      * @method Phaser.GameObjects.Rope#setTintFill
      * @webglOnly
      * @since 3.23.0
      *
-     * @param {boolean} [value=false] - Use tint fill (`true`) or an additive tint (`false`)
+     * @param {integer} [value=0] - Set to 0 for an Additive tint, 1 for a fill tint with alpha, or 2 for a fill tint without alpha.
      * 
      * @return {this} This Game Object instance.
      */
     setTintFill: function (value)
     {
-        if (value === undefined) { value = false; }
+        if (value === undefined) { value = 0; }
 
         this.tintFill = value;
 
@@ -342,8 +511,8 @@ var Rope = new Class({
      * 
      * You can provide the values in a number of ways:
      * 
-     * 1) One single numeric value: `setColors(0xff0000)` - This will set a single color tint for the whole Rope.
-     * 3) An array of values: `setColors([ 0xff0000, 0x00ff00, 0x0000ff ])`
+     * * One single numeric value: `setColors(0xff0000)` - This will set a single color tint for the whole Rope.
+     * * An array of values: `setColors([ 0xff0000, 0x00ff00, 0x0000ff ])`
      * 
      * If you provide an array of values and the array has exactly the same number of values as `points` in the Rope, it
      * will use each color per rope segment.
@@ -455,7 +624,7 @@ var Rope = new Class({
      * @method Phaser.GameObjects.Rope#setPoints
      * @since 3.23.0
      * 
-     * @param {(integer|Phaser.Types.Math.Vector2Like[])} [points] - An array containing the vertices data for this Rope, or a number that indicates how many segments to split the texture frame into. If none is provided a simple quad is created.
+     * @param {(integer|Phaser.Types.Math.Vector2Like[])} [points=2] - An array containing the vertices data for this Rope, or a number that indicates how many segments to split the texture frame into. If none is provided a simple quad is created.
      * @param {(number|number[])} [colors] - Either a single color value, or an array of values.
      * @param {(number|number[])} [alphas] - Either a single alpha value, or an array of values.
      * 
@@ -475,13 +644,31 @@ var Rope = new Class({
                 segments = 2;
             }
 
-            var frameSegment = this.frame.width / (segments - 1);
-
             points = [];
 
-            for (var s = 0; s < segments; s++)
+            var s;
+            var frameSegment;
+            var offset;
+    
+            if (this.horizontal)
             {
-                points.push({ x: s * frameSegment, y: 0 });
+                offset = -(this.frame.halfWidth);
+                frameSegment = this.frame.width / (segments - 1);
+
+                for (s = 0; s < segments; s++)
+                {
+                    points.push({ x: offset + s * frameSegment, y: 0 });
+                }
+            }
+            else
+            {
+                offset = -(this.frame.halfHeight);
+                frameSegment = this.frame.height / (segments - 1);
+
+                for (s = 0; s < segments; s++)
+                {
+                    points.push({ x: 0, y: offset + s * frameSegment });
+                }
             }
         }
 
@@ -505,7 +692,35 @@ var Rope = new Class({
             this.resizeArrays(total);
         }
 
+        this.points = points;
+
+        this.updateUVs();
+
+        if (colors !== undefined)
+        {
+            this.setColors(colors);
+        }
+
+        if (alphas !== undefined)
+        {
+            this.setAlphas(alphas);
+        }
+
+        return this;
+    },
+
+    /**
+     * Updates all of the UVs based on the Rope.points and `flipX` and `flipY` settings.
+     * 
+     * @method Phaser.GameObjects.Rope#updateUVs
+     * @since 3.23.0
+     * 
+     * @return {this} This Game Object instance.
+     */
+    updateUVs: function ()
+    {
         var currentUVs = this.uv;
+        var total = this.points.length;
 
         var u0 = this.frame.u0;
         var v0 = this.frame.v0;
@@ -518,22 +733,64 @@ var Rope = new Class({
         {
             var index = i * 4;
 
-            currentUVs[index] = u0 + (i * part);
-            currentUVs[index + 1] = v0;
-            currentUVs[index + 2] = u0 + (i * part);
-            currentUVs[index + 3] = v1;
-        }
+            var uv0;
+            var uv1;
+            var uv2;
+            var uv3;
 
-        this.points = points;
+            if (this.horizontal)
+            {
+                if (this._flipX)
+                {
+                    uv0 = u1 - (i * part);
+                    uv2 = u1 - (i * part);
+                }
+                else
+                {
+                    uv0 = u0 + (i * part);
+                    uv2 = u0 + (i * part);
+                }
 
-        if (colors !== undefined)
-        {
-            this.setColors(colors);
-        }
+                if (this._flipY)
+                {
+                    uv1 = v1;
+                    uv3 = v0;
+                }
+                else
+                {
+                    uv1 = v0;
+                    uv3 = v1;
+                }
+            }
+            else
+            {
+                if (this._flipX)
+                {
+                    uv0 = u0;
+                    uv2 = u1;
+                }
+                else
+                {
+                    uv0 = u1;
+                    uv2 = u0;
+                }
 
-        if (alphas !== undefined)
-        {
-            this.setAlphas(alphas);
+                if (this._flipY)
+                {
+                    uv1 = v1 - (i * part);
+                    uv3 = v1 - (i * part);
+                }
+                else
+                {
+                    uv1 = v0 + (i * part);
+                    uv3 = v0 + (i * part);
+                }
+            }
+
+            currentUVs[index + 0] = uv0;
+            currentUVs[index + 1] = uv1;
+            currentUVs[index + 2] = uv2;
+            currentUVs[index + 3] = uv3;
         }
 
         return this;
@@ -603,8 +860,10 @@ var Rope = new Class({
             return;
         }
 
-        var lastPoint = points[0];
         var nextPoint;
+        var lastPoint = points[0];
+
+        var frameSize = (this.horizontal) ? this.frame.halfHeight : this.frame.halfWidth;
    
         for (var i = 0; i < total; i++)
         {
@@ -624,14 +883,13 @@ var Rope = new Class({
             perp.y = -(nextPoint.x - lastPoint.x);
     
             var perpLength = perp.length();
-            var num = this.frame.halfHeight;
 
             perp.x /= perpLength;
             perp.y /= perpLength;
     
-            perp.x *= num;
-            perp.y *= num;
-    
+            perp.x *= frameSize;
+            perp.y *= frameSize;
+
             vertices[index] = point.x + perp.x;
             vertices[index + 1] = point.y + perp.y;
             vertices[index + 2] = point.x - perp.x;
@@ -641,6 +899,82 @@ var Rope = new Class({
         }
 
         return this;
+    },
+
+    /**
+     * Handles the pre-destroy step for the Rope, which removes the Animation component and typed arrays.
+     *
+     * @method Phaser.GameObjects.Rope#preDestroy
+     * @private
+     * @since 3.23.0
+     */
+    preDestroy: function ()
+    {
+        this.anims.destroy();
+
+        this.anims = undefined;
+
+        this.points = null;
+        this.vertices = null;
+        this.uv = null;
+        this.colors = null;
+        this.alphas = null;
+    },
+
+    /**
+     * The horizontally flipped state of the Game Object.
+     * 
+     * A Game Object that is flipped horizontally will render inversed on the horizontal axis.
+     * Flipping always takes place from the middle of the texture and does not impact the scale value.
+     * If this Game Object has a physics body, it will not change the body. This is a rendering toggle only.
+     * 
+     * @name Phaser.GameObjects.Rope#flipX
+     * @type {boolean}
+     * @default false
+     * @since 3.23.0
+     */
+    flipX: {
+
+        get: function ()
+        {
+            return this._flipX;
+        },
+
+        set: function (value)
+        {
+            this._flipX = value;
+
+            return this.updateUVs();
+        }
+
+    },
+
+    /**
+     * The vertically flipped state of the Game Object.
+     * 
+     * A Game Object that is flipped vertically will render inversed on the vertical axis (i.e. upside down)
+     * Flipping always takes place from the middle of the texture and does not impact the scale value.
+     * If this Game Object has a physics body, it will not change the body. This is a rendering toggle only.
+     * 
+     * @name Phaser.GameObjects.Rope#flipY
+     * @type {boolean}
+     * @default false
+     * @since 3.23.0
+     */
+    flipY: {
+
+        get: function ()
+        {
+            return this._flipY;
+        },
+
+        set: function (value)
+        {
+            this._flipY = value;
+
+            return this.updateUVs();
+        }
+
     }
 
 });
