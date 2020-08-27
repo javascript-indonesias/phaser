@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2019 Photon Storm Ltd.
+ * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
@@ -12,17 +12,22 @@ var ScenePlugin = require('../../../src/plugins/ScenePlugin');
 var Spine = require('Spine');
 var SpineFile = require('./SpineFile');
 var SpineGameObject = require('./gameobject/SpineGameObject');
+var SpineContainer = require('./container/SpineContainer');
+var NOOP = require('../../../src/utils/NOOP');
 
 /**
  * @classdesc
  * The Spine Plugin is a Scene based plugin that handles the creation and rendering of Spine Game Objects.
  *
+ * Find more details about Spine itself at http://esotericsoftware.com/.
+ *
  * All rendering and object creation is handled via the official Spine Runtimes. This version of the plugin
- * uses the Spine 3.8.72 runtimes. Please note that due to the way the Spine runtimes use semver, you will
+ * uses the Spine 3.8.95 runtimes. Please note that due to the way the Spine runtimes use semver, you will
  * get breaking changes in point-releases. Therefore, files created in a different version of Spine may not
  * work as a result, without you first updating the runtimes and rebuilding the plugin.
  *
- * You can find more details about Spine at http://esotericsoftware.com/.
+ * Esoteric themselves recommend that you freeze your Spine editor version against the runtime versions.
+ * You can find more information about this here: http://esotericsoftware.com/spine-settings#Version
  *
  * Please note that you require a Spine license in order to use Spine Runtimes in your games.
  *
@@ -71,10 +76,15 @@ var SpineGameObject = require('./gameobject/SpineGameObject');
  * this.load.spine('stretchyman', 'stretchyman-pro.json', [ 'stretchyman-pma.atlas' ], true);
  * ```
  *
- * It also installs a Game Object Factory method, allowing you to create Spine Game Objects:
+ * It also installs two Game Object Factory methods, allowing you to create Spine Game Objects
+ * and Spine Containers:
  *
  * ```javascript
- * this.add.spine(512, 650, 'stretchyman')
+ * const man = this.add.spine(512, 650, 'stretchyman');
+ *
+ * const container = this.add.spineContainer();
+ *
+ * container.add(man);
  * ```
  *
  * The first argument is the key which you used when importing the Spine data. There are lots of
@@ -91,6 +101,13 @@ var SpineGameObject = require('./gameobject/SpineGameObject');
  * The only exception to this is with the caches this plugin creates. Spine atlas and texture data are
  * stored in their own caches, which are global, meaning they're accessible from any Scene in your
  * game, regardless if the Scene loaded the Spine data or not.
+ *
+ * When destroying a Phaser Game instance, if you need to re-create it again on the same page without
+ * reloading, you must remember to remove the Spine Plugin as part of your tear-down process:
+ *
+ * ```javascript
+ * this.plugins.removeScenePlugin('SpinePlugin');
+ * ```
  *
  * For details about the Spine Runtime API see http://esotericsoftware.com/spine-api-reference
  *
@@ -275,6 +292,19 @@ var SpinePlugin = new Class({
             this.getAtlas = this.getAtlasCanvas;
         }
 
+        //  Headless mode?
+        if (!this.renderer)
+        {
+            this.renderer = {
+                width: game.scale.width,
+                height: game.scale.height,
+                preRender: NOOP,
+                postRender: NOOP,
+                render: NOOP,
+                destroy: NOOP
+            };
+        }
+
         var _this = this;
 
         var add = function (x, y, key, animationName, loop)
@@ -323,8 +353,38 @@ var SpinePlugin = new Class({
             return spineGO.refresh();
         };
 
+        var addContainer = function (x, y, children)
+        {
+            var spineGO = new SpineContainer(this.scene, _this, x, y, children);
+
+            this.displayList.add(spineGO);
+
+            return spineGO;
+        };
+
+        var makeContainer = function (config, addToScene)
+        {
+            if (config === undefined) { config = {}; }
+
+            var x = GetValue(config, 'x', 0);
+            var y = GetValue(config, 'y', 0);
+            var children = GetValue(config, 'children', null);
+
+            var container = new SpineContainer(this.scene, _this, x, y, children);
+
+            if (addToScene !== undefined)
+            {
+                config.add = addToScene;
+            }
+
+            BuildGameObject(this.scene, container, config);
+
+            return container;
+        };
+
         pluginManager.registerFileType('spine', this.spineFileCallback, scene);
         pluginManager.registerGameObject('spine', add, make);
+        pluginManager.registerGameObject('spineContainer', addContainer, makeContainer);
     },
 
     /**
@@ -376,7 +436,7 @@ var SpinePlugin = new Class({
     {
         this.sceneRenderer = new Spine.webgl.SceneRenderer(this.renderer.canvas, this.gl, true);
 
-        //  Monkeypatch the Spine setBlendMode functions, or batching is destroyed
+        //  Monkeypatch the Spine setBlendMode functions, or batching is destroyed!
 
         var setBlendMode = function (srcBlend, dstBlend)
         {
@@ -1041,6 +1101,7 @@ var SpinePlugin = new Class({
         }
 
         this.pluginManager.removeGameObject('spine', true, true);
+        this.pluginManager.removeGameObject('spineContainer', true, true);
 
         this.pluginManager = null;
         this.game = null;
@@ -1057,6 +1118,9 @@ var SpinePlugin = new Class({
     }
 
 });
+
+SpinePlugin.SpineGameObject = SpineGameObject;
+SpinePlugin.SpineContainer = SpineContainer;
 
 /**
  * Creates a new Spine Game Object and adds it to the Scene.

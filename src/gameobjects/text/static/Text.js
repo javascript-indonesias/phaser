@@ -191,7 +191,7 @@ var Text = new Class({
          * Allows you to add extra spacing if the browser is unable to accurately determine the true font dimensions.
          *
          * @name Phaser.GameObjects.Text#padding
-         * @type {{left:number,right:number,top:number,bottom:number}}
+         * @type {Phaser.Types.GameObjects.Text.TextPadding}
          * @since 3.0.0
          */
         this.padding = { left: 0, right: 0, top: 0, bottom: 0 };
@@ -1022,9 +1022,9 @@ var Text = new Class({
      * @since 3.0.0
      *
      * @param {(number|Phaser.Types.GameObjects.Text.TextPadding)} left - The left padding value, or a padding config object.
-     * @param {number} top - The top padding value.
-     * @param {number} right - The right padding value.
-     * @param {number} bottom - The bottom padding value.
+     * @param {number} [top] - The top padding value.
+     * @param {number} [right] - The right padding value.
+     * @param {number} [bottom] - The bottom padding value.
      *
      * @return {this} This Text object.
      */
