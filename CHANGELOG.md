@@ -209,6 +209,8 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * The Spine TypeScript defs have been updated for the latest version of the plugin and to add SpineContainers.
 * The `SpineGameObject.setAnimation` method will now use the `trackIndex` parameter if `ignoreIfPlaying` is set and run the check against this track index. Fix #4842 (thanks @vinerz)
 * The `SpineFile` will no longer throw a warning if adding a texture into the Texture Manager that already exists. This allows you to have multiple Spine JSON use the same texture file, however, it also means you now get no warning if you accidentally load a texture that exists, so be careful with your keys! Fix #4947 (thanks @Nomy1)
+* The Spine Plugin `destroy` method will now no longer remove the Game Objects from the Game Object Factory, or dispose of the Scene Renderer. This means when a Scene is destroyed, it will keep the Game Objects in the factory for other Scene's to use. Fix #5279 (thanks @Racoonacoon)
+* `SpinePlugin.gameDestroy` is a new method that is called if the Game instance emits a `destroy` event. It removes the Spine Game Objects from the factory and disposes of the Spine scene renderer.
 
 ### New Features
 
@@ -232,6 +234,11 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * You can now use `this.renderer` from within a Scene, as it's now a Scene-level property and part of the Injection Map.
 * `Clock.addEvent` can now take an existing `TimerEvent` object, as well as a config object. If a `TimerEvent` is given it will be removed from the Clock, reset and then added. This allows you to pool TimerEvents rather than constantly create and delete them. Fix #4115 (thanks @jcyuan)
 * `Clock.removeEvent` is a new method that allows you to remove a `TimerEvent`, or an array of them, from all internal lists of the current Clock.
+* `Group.getMatching` is a new method that will return any members of the Group that match the given criteria, such as `getMatching('visible', true)` (thanks @atursams)
+* The `Animation.play` and `playReverse` methods have a new optional parameter `timeScale`. This allows you to set the Animations time scale as you're actually playing it, rather than having to chain two calls together. Close #3963 (thanks @inmylo)
+* `ArcadePhysics.disableUpdate` is a new method that will prevent the Arcade Physics World `update` method from being called when the Scene updates. By disabling it, you're free to call the update method yourself, passing in your own delta and time values.
+* `ArcadePhysics.enableUpdate` is a new method that will make the Arcade Physics World update in time with the Scene update. This is the default, so only call this if you have specifically disabled it previously.
+* `ArcadeWorldConfig.customUpdate` is a new boolean property you can set in the Arcade Physics config object, either in the Scene or in the Game Config. If `true` the World update will never be called, allowing you to call it yourself from your own component. Close #5190 (thanks @cfortuner)
 
 ### Updates and API Changes
 
@@ -264,6 +271,31 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * `Textures.Parsers.JSONHash` will now perform a `hasOwnProperty` check when iterating the frames, skipping anything that isn't a direct property. This should allow you to use generated atlas data that comes from `JSON.parse`. Fix #4768 (thanks @RollinSafary)
 * The `Camera3D` Plugin has been rebuilt for Phaser 3.50 and the webpack config updated. This plugin is now considered deprecated and will not be updated beyond this release.
 * `Tween.seek` will no longer issue a console warning for `'Tween.seek duration too long'`, it's now up to you to check on the performance of tween seeking.
+* `WebGLRenderer.previousPipeline` is a new property that is set during a call to `clearPipeline` and used during calls to `rebindPipeline`, allowing the renderer to rebind any previous pipeline, not just the Multi Pipeline.
+* The `WebGLRenderer.rebindPipeline` method has been changed slightly. Previously, you had to specify the `pipelineInstance`, but this is now optional. If you don't, it will use the new `previousPipeline` property instead. If not set, or none given, it will now return without throwing gl errors as well.
+* If `inputWindowEvents` is set in the Game Config, then the `MouseManager` will now listen for the events on `window.top` instead of just `window`, which should help in situations where the pointer is released outside of an embedded iframe. Fix #4824 (thanks @rexrainbow)
+* `Types.GameObjects.Text.GetTextSizeObject` is a new type def for the GetTextSize function results.
+* The `Phaser.Curves.MoveTo` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.DOM.GetInnerHeight` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.GameObjects.Bob` class has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.GameObjects.LightsManager` class has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.GameObjects.LightsPlugin` class has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.GameObjects.Particles.EmitterOp` class has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.GameObjects.GetTextSize` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.GameObjects.MeasureText` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.GameObjects.TextStyle` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Input.CreatePixelPerfectHandler` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Physics.Arcade.Components.OverlapCirc` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Physics.Arcade.Components.OverlapRect` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Physics.Arcade.Tilemap` namespace has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Physics.Matter.Components` namespace has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Physics.Matter.Events` namespace has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Physics.Matter.MatterGameObject` class has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Physics.Matter.PointerConstraint` class has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Scenes.GetPhysicsPlugins` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Scenes.GetScenePlugins` function has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Structs.Events` namespace has now been exposed on the Phaser namespace (thanks @samme)
+* The `Phaser.Tilemaps.Parsers.Tiled` function has now been exposed on the Phaser namespace (thanks @samme)
 
 ### Bug Fixes
 
@@ -275,6 +307,7 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * Calling `Rectangle.setSize()` wouldn't change the underlying geometry of the Shape Game Object, causing any stroke to be incorrectly rendered after a size change.
 * The `ProcessQueue` was emitting the wrong events internally. It now emits 'add' and 'remove' correctly (thanks @halilcakar)
 * The `GridAlign` action didn't work if only the `height` parameter was set. Fix #5019 (thanks @halilcakar)
+* The `Color.HSVToRGB` function has been rewritten to use the HSL and HSV formula from Wikipedia, giving much better results. Fix #5089 (thanks @DiamondeX)
 
 ### Examples, Documentation and TypeScript
 

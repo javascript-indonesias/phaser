@@ -36,19 +36,20 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
 
     if (!skeleton || !willRender)
     {
-        //  If there is already a batch running, we need to close it
-        if (!renderer.nextTypeMatch)
+        //  If there is already a batch running, and the next type isn't a Spine object, or this is the end, we need to close it
+
+        if (sceneRenderer.batcher.isDrawing && (!renderer.nextTypeMatch || renderer.finalType))
         {
             //  The next object in the display list is not a Spine object, so we end the batch
             sceneRenderer.end();
 
-            if (!renderer.finalType)
-            {
-                //  Reset the current type
-                renderer.currentType = '';
+            renderer.rebindPipeline();
+        }
 
-                renderer.rebindPipeline(renderer.pipelines.MultiPipeline);
-            }
+        if (!renderer.finalType)
+        {
+            //  Reset the current type
+            renderer.currentType = '';
         }
 
         return;
@@ -56,6 +57,7 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
 
     if (renderer.newType)
     {
+        //  flush + clear previous pipeline if this is a new type
         renderer.clearPipeline();
     }
 
@@ -156,13 +158,11 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
 
     if (!renderer.nextTypeMatch)
     {
-        //  The next object in the display list is not a Spine Game Object or Spine Container, so we end the batch.
+        //  The next object in the display list is not a Spine Game Object or Spine Container, so we end the batch
         sceneRenderer.end();
 
-        if (!renderer.finalType)
-        {
-            renderer.rebindPipeline(renderer.pipelines.MultiPipeline);
-        }
+        //  And rebind the previous pipeline
+        renderer.rebindPipeline();
     }
 };
 
