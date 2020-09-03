@@ -212,6 +212,37 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * The Spine Plugin `destroy` method will now no longer remove the Game Objects from the Game Object Factory, or dispose of the Scene Renderer. This means when a Scene is destroyed, it will keep the Game Objects in the factory for other Scene's to use. Fix #5279 (thanks @Racoonacoon)
 * `SpinePlugin.gameDestroy` is a new method that is called if the Game instance emits a `destroy` event. It removes the Spine Game Objects from the factory and disposes of the Spine scene renderer.
 
+
+
+
+
+### Animation API New Features and Updates
+
+The Animation API has had a significant overhaul to improve playback handling. Instead of just playing an animation based on its global key, you can now supply a new `PlayAnimationConfig` object instead, which allows you to override any of the default animation settings, such as `duration`, `delay` and `yoyo` (see below for the full list). This means you no longer have to create lots of duplicate animations, just to change properties such as `duration`, and can now set them dynamically at run-time as well.
+
+* The `play`, `playReverse`, `delayedPlay` and `chain` Animation Component methods can now all take a `Phaser.Types.Animations.PlayAnimationConfig` configuration object instead of a string as the `key` parameter. This allows you to override any default animation setting with those defined in the config, giving you far greater control over animations on a Game Object level, without needing to globally duplicate them.
+* The `PlayAnimationConfig.frameRate` property lets you optionally override the animation frame rate.
+* The `PlayAnimationConfig.duration` property lets you optionally override the animation duration.
+* The `PlayAnimationConfig.delay` property lets you optionally override the animation delay.
+* The `PlayAnimationConfig.repeat` property lets you optionally override the animation repeat counter.
+* The `PlayAnimationConfig.repeatDelay` property lets you optionally override the animation repeat delay value.
+* The `PlayAnimationConfig.yoyo` property lets you optionally override the animation yoyo boolean.
+* The `PlayAnimationConfig.showOnStart` property lets you optionally override the animation show on start value.
+* The `PlayAnimationConfig.hideOnComplete` property lets you optionally override the animation hide on complete value.
+* The `PlayAnimationConfig.startFrame` property lets you optionally set the animation frame to start on.
+* The `PlayAnimationConfig.timeScale` property lets you optionally set the animation time scale factor.
+* `Components.Animation.delayCounter` is a new property that allows you to control the delay before an animation will start playing. Only once this delay has expired, will the animation `START` events fire. Fix #4426 (thanks @bdaenen)
+* `Components.Animation.hasStarted` is a new boolean property that allows you to tell if the current animation has started playing, or is still waiting for a delay to expire.
+* `Components.Animation.showOnStart` is a new boolean property that controls if the Game Object should have `setVisible(true)` called on it when the animation starts.
+* `Components.Animation.hideOnComplete` is a new boolean property that controls if the Game Object should have `setVisible(false)` called on it when the animation completes.
+* The `Components.Animation.chain` method docs said it would remove all pending animations if called with no parameters. However, it didn't - and now does!
+* The `Components.Animation.setDelay` method has been removed. It never actually worked and you can now perform the same thing by calling either `delayedPlay` or setting the `delay` property in the play config.
+* The `Components.Animation.getDelay` method has been removed. It never actually worked and you can now perform the same thing by calling either `delayedPlay` or setting the `delay` property in the play config.
+* `Components.Animation._fireStartEvents` is a new internal private method that handles dispatching the animation start events, to cut down on duplicate code.
+* The `Components.Animation.restart` method has a new optional boolean parameter `resetRepeats` which controls if you want to reset the repeat counter during the restart, or not.
+* `Animation.getTotalFrames` is a new method that will return the total number of frames in the animation. You can access it via `this.anims.currentAnim.getTotalFrames` from a Sprite.
+* `Animation.calculateDuration` is a new method that calculates the duration, frameRate and msPerFrame for a given animation target.
+
 ### New Features
 
 * `Geom.Intersects.GetLineToLine` is a new function that will return a Vector3 containing the point of intersection between 2 line segments, with the `z` property holding the distance value.
@@ -235,7 +266,6 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * `Clock.addEvent` can now take an existing `TimerEvent` object, as well as a config object. If a `TimerEvent` is given it will be removed from the Clock, reset and then added. This allows you to pool TimerEvents rather than constantly create and delete them. Fix #4115 (thanks @jcyuan)
 * `Clock.removeEvent` is a new method that allows you to remove a `TimerEvent`, or an array of them, from all internal lists of the current Clock.
 * `Group.getMatching` is a new method that will return any members of the Group that match the given criteria, such as `getMatching('visible', true)` (thanks @atursams)
-* The `Animation.play` and `playReverse` methods have a new optional parameter `timeScale`. This allows you to set the Animations time scale as you're actually playing it, rather than having to chain two calls together. Close #3963 (thanks @inmylo)
 * `ArcadePhysics.disableUpdate` is a new method that will prevent the Arcade Physics World `update` method from being called when the Scene updates. By disabling it, you're free to call the update method yourself, passing in your own delta and time values.
 * `ArcadePhysics.enableUpdate` is a new method that will make the Arcade Physics World update in time with the Scene update. This is the default, so only call this if you have specifically disabled it previously.
 * `ArcadeWorldConfig.customUpdate` is a new boolean property you can set in the Arcade Physics config object, either in the Scene or in the Game Config. If `true` the World update will never be called, allowing you to call it yourself from your own component. Close #5190 (thanks @cfortuner)
@@ -275,6 +305,12 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * The `WebGLRenderer.rebindPipeline` method has been changed slightly. Previously, you had to specify the `pipelineInstance`, but this is now optional. If you don't, it will use the new `previousPipeline` property instead. If not set, or none given, it will now return without throwing gl errors as well.
 * If `inputWindowEvents` is set in the Game Config, then the `MouseManager` will now listen for the events on `window.top` instead of just `window`, which should help in situations where the pointer is released outside of an embedded iframe. Fix #4824 (thanks @rexrainbow)
 * `Types.GameObjects.Text.GetTextSizeObject` is a new type def for the GetTextSize function results.
+* The `Arcade.Body.resetFlags` method has a new optional boolean parameter `clear`. If set, it clears the `wasTouching` flags on the Body. This happens automatically when `Body.reset` is called. Previous to this, the flags were not reset until the next physics step (thanks @samme)
+* `Utils.Array.StableSort` has been recoded. It's now based on Two-Screens stable sort 0.1.8 and has been updated to fit into Phaser better and no longer create any window bound objects. The `inplace` function has been removed, just call `StableSort(array)` directly now. All classes that used `StableSort.inplace` have been updated to call it directly.
+* If a Scene is paused, or sent to sleep, it will automatically call `Keyboard.resetKeys`. This means that if you hold a key down, then sleep or pause a Scene, then release the key and resume or wake the Scene, it will no longer think it is still being held down (thanks @samme)
+
+### Namespace Updates
+
 * The `Phaser.Curves.MoveTo` function has now been exposed on the Phaser namespace (thanks @samme)
 * The `Phaser.DOM.GetInnerHeight` function has now been exposed on the Phaser namespace (thanks @samme)
 * The `Phaser.GameObjects.Bob` class has now been exposed on the Phaser namespace (thanks @samme)
@@ -296,6 +332,7 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * The `Phaser.Scenes.GetScenePlugins` function has now been exposed on the Phaser namespace (thanks @samme)
 * The `Phaser.Structs.Events` namespace has now been exposed on the Phaser namespace (thanks @samme)
 * The `Phaser.Tilemaps.Parsers.Tiled` function has now been exposed on the Phaser namespace (thanks @samme)
+* Every single `Tilemap.Component` function has now been made public. This means you can call the Component functions directly, should you need to, outside of the Tilemap system.
 
 ### Bug Fixes
 
@@ -308,6 +345,8 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * The `ProcessQueue` was emitting the wrong events internally. It now emits 'add' and 'remove' correctly (thanks @halilcakar)
 * The `GridAlign` action didn't work if only the `height` parameter was set. Fix #5019 (thanks @halilcakar)
 * The `Color.HSVToRGB` function has been rewritten to use the HSL and HSV formula from Wikipedia, giving much better results. Fix #5089 (thanks @DiamondeX)
+* Previously, the `easeParams` array within a Tweens `props` object, or a multi-object tween, were ignored and it was only used if set on the root Tween object. It will now work correctly set at any depth. Fix #4292 (thanks @willblackmore)
+* When using `Camera.setRenderToTexture` its `zoom` and `rotation` values would be applied twice. Fix #4221 #4924 #4713 (thanks @wayfu @DanMcgraw @pavel-shirobok)
 
 ### Examples, Documentation and TypeScript
 
