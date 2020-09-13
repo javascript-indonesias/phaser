@@ -338,13 +338,12 @@ var MultiPipeline = new Class({
      *
      * @param {number} width - The new width.
      * @param {number} height - The new height.
-     * @param {number} resolution - The resolution.
      *
      * @return {this} This WebGLPipeline instance.
      */
-    resize: function (width, height, resolution)
+    resize: function (width, height)
     {
-        WebGLPipeline.prototype.resize.call(this, width, height, resolution);
+        WebGLPipeline.prototype.resize.call(this, width, height);
 
         ProjectOrtho(this, 0, this.width, this.height, 0, -1000, 1000);
 
@@ -416,7 +415,7 @@ var MultiPipeline = new Class({
     batchSprite: function (sprite, camera, parentTransformMatrix)
     {
         //  Will cause a flush if this isn't the current pipeline, vertexbuffer or program
-        this.renderer.setPipeline(this);
+        this.renderer.pipelines.set(this);
 
         var camMatrix = this._tempMatrix1;
         var spriteMatrix = this._tempMatrix2;
@@ -823,7 +822,7 @@ var MultiPipeline = new Class({
     {
         var renderer = this.renderer;
 
-        renderer.setPipeline(this, gameObject);
+        renderer.pipelines.set(this, gameObject);
 
         var camMatrix = this._tempMatrix1;
         var spriteMatrix = this._tempMatrix2;
@@ -975,7 +974,7 @@ var MultiPipeline = new Class({
         parentTransformMatrix
     )
     {
-        this.renderer.setPipeline(this);
+        this.renderer.pipelines.set(this);
 
         var spriteMatrix = this._tempMatrix1.copyFrom(transformMatrix);
         var calcMatrix = this._tempMatrix2;
@@ -1064,7 +1063,7 @@ var MultiPipeline = new Class({
      */
     batchFillRect: function (x, y, width, height, currentMatrix, parentMatrix)
     {
-        this.renderer.setPipeline(this);
+        this.renderer.pipelines.set(this);
 
         var calcMatrix = this._tempMatrix3;
 
@@ -1119,7 +1118,7 @@ var MultiPipeline = new Class({
      */
     batchFillTriangle: function (x0, y0, x1, y1, x2, y2, currentMatrix, parentMatrix)
     {
-        this.renderer.setPipeline(this);
+        this.renderer.pipelines.set(this);
 
         var calcMatrix = this._tempMatrix3;
 
@@ -1206,7 +1205,7 @@ var MultiPipeline = new Class({
      */
     batchFillPath: function (path, currentMatrix, parentMatrix)
     {
-        this.renderer.setPipeline(this);
+        this.renderer.pipelines.set(this);
 
         var calcMatrix = this._tempMatrix3;
 
@@ -1289,7 +1288,7 @@ var MultiPipeline = new Class({
      */
     batchStrokePath: function (path, lineWidth, pathOpen, currentMatrix, parentMatrix)
     {
-        this.renderer.setPipeline(this);
+        this.renderer.pipelines.set(this);
 
         //  Reset the closePath booleans
         this.prevQuad[4] = 0;
@@ -1335,7 +1334,7 @@ var MultiPipeline = new Class({
      */
     batchLine: function (ax, ay, bx, by, aLineWidth, bLineWidth, lineWidth, index, closePath, currentMatrix, parentMatrix)
     {
-        this.renderer.setPipeline(this);
+        this.renderer.pipelines.set(this);
 
         var calcMatrix = this._tempMatrix3;
 

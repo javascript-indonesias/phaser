@@ -88,16 +88,6 @@ var WebGLPipeline = new Class({
         this.view = game.canvas;
 
         /**
-         * The current game resolution.
-         * This is hard-coded to 1.
-         *
-         * @name Phaser.Renderer.WebGL.WebGLPipeline#resolution
-         * @type {number}
-         * @since 3.0.0
-         */
-        this.resolution = 1;
-
-        /**
          * Width of the current viewport.
          *
          * @name Phaser.Renderer.WebGL.WebGLPipeline#width
@@ -167,7 +157,14 @@ var WebGLPipeline = new Class({
          * @type {WebGLBuffer}
          * @since 3.0.0
          */
-        this.vertexBuffer = this.renderer.createVertexBuffer(this.vertexData.byteLength, this.gl.STREAM_DRAW);
+        if (GetFastValue(config, 'vertices', null))
+        {
+            this.vertexBuffer = this.renderer.createVertexBuffer(this.vertexData, this.gl.STREAM_DRAW);
+        }
+        else
+        {
+            this.vertexBuffer = this.renderer.createVertexBuffer(this.vertexData.byteLength, this.gl.STREAM_DRAW);
+        }
 
         /**
          * The handle to a WebGL program.
@@ -364,15 +361,13 @@ var WebGLPipeline = new Class({
      *
      * @param {number} width - The new width of this WebGL Pipeline.
      * @param {number} height - The new height of this WebGL Pipeline.
-     * @param {number} resolution - The resolution this WebGL Pipeline should be resized to.
      *
      * @return {this} This WebGLPipeline instance.
      */
-    resize: function (width, height, resolution)
+    resize: function (width, height)
     {
-        this.width = width * resolution;
-        this.height = height * resolution;
-        this.resolution = resolution;
+        this.width = width;
+        this.height = height;
 
         return this;
     },
