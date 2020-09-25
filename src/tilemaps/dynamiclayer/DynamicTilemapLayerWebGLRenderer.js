@@ -17,10 +17,9 @@ var Utils = require('../../renderer/webgl/Utils');
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
  * @param {Phaser.Tilemaps.DynamicTilemapLayer} src - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  */
-var DynamicTilemapLayerWebGLRenderer = function (renderer, src, interpolationPercentage, camera)
+var DynamicTilemapLayerWebGLRenderer = function (renderer, src, camera)
 {
     src.cull(camera);
 
@@ -36,7 +35,7 @@ var DynamicTilemapLayerWebGLRenderer = function (renderer, src, interpolationPer
     var gidMap = src.gidMap;
     var pipeline = renderer.pipelines.set(src.pipeline);
 
-    var getTint = Utils.getTintAppendFloatAlphaAndSwap;
+    var getTint = Utils.getTintAppendFloatAlpha;
 
     var scrollFactorX = src.scrollFactorX;
     var scrollFactorY = src.scrollFactorY;

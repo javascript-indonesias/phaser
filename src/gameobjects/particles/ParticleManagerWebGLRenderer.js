@@ -17,11 +17,10 @@ var Utils = require('../../renderer/webgl/Utils');
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
  * @param {Phaser.GameObjects.Particles.ParticleEmitterManager} emitterManager - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var ParticleManagerWebGLRenderer = function (renderer, emitterManager, interpolationPercentage, camera, parentMatrix)
+var ParticleManagerWebGLRenderer = function (renderer, emitterManager, camera, parentMatrix)
 {
     var emitters = emitterManager.emitters.list;
     var emittersLength = emitters.length;
@@ -36,13 +35,24 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, interpola
     var camMatrix = pipeline._tempMatrix1.copyFrom(camera.matrix);
     var calcMatrix = pipeline._tempMatrix2;
     var particleMatrix = pipeline._tempMatrix3;
-    var managerMatrix = pipeline._tempMatrix4.applyITRS(emitterManager.x, emitterManager.y, emitterManager.rotation, emitterManager.scaleX, emitterManager.scaleY);
+    var managerMatrix = pipeline._tempMatrix4;
 
-    camMatrix.multiply(managerMatrix);
+    if (parentMatrix)
+    {
+        managerMatrix.loadIdentity();
+        managerMatrix.multiply(parentMatrix);
+        managerMatrix.translate(emitterManager.x, emitterManager.y);
+        managerMatrix.rotate(emitterManager.rotation);
+        managerMatrix.scale(emitterManager.scaleX, emitterManager.scaleY);
+    }
+    else
+    {
+        managerMatrix.applyITRS(emitterManager.x, emitterManager.y, emitterManager.rotation, emitterManager.scaleX, emitterManager.scaleY);
+    }
 
     var roundPixels = camera.roundPixels;
     var texture = emitterManager.defaultFrame.glTexture;
-    var getTint = Utils.getTintAppendFloatAlphaAndSwap;
+    var getTint = Utils.getTintAppendFloatAlpha;
 
     var textureUnit = pipeline.setGameObject(emitterManager, emitterManager.defaultFrame);
 
@@ -57,23 +67,13 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, interpola
             continue;
         }
 
-        var scrollX = camera.scrollX * emitter.scrollFactorX;
-        var scrollY = camera.scrollY * emitter.scrollFactorY;
+        var followX = (emitter.follow) ? emitter.follow.x + emitter.followOffset.x : 0;
+        var followY = (emitter.follow) ? emitter.follow.y + emitter.followOffset.y : 0;
 
-        if (parentMatrix)
-        {
-            //  Multiply the camera by the parent matrix
-            camMatrix.multiplyWithOffset(parentMatrix, -scrollX, -scrollY);
+        var scrollFactorX = emitter.scrollFactorX;
+        var scrollFactorY = emitter.scrollFactorY;
 
-            scrollX = 0;
-            scrollY = 0;
-        }
-
-        if (renderer.setBlendMode(emitter.blendMode))
-        {
-            //  Rebind the texture if we've flushed
-            // pipeline.setTexture2D(texture, 0);
-        }
+        renderer.setBlendMode(emitter.blendMode);
 
         if (emitter.mask)
         {
@@ -95,19 +95,25 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, interpola
                 continue;
             }
 
+            particleMatrix.applyITRS(particle.x, particle.y, particle.rotation, particle.scaleX, particle.scaleY);
+
+            camMatrix.copyFrom(camera.matrix);
+
+            camMatrix.multiplyWithOffset(managerMatrix, followX + -camera.scrollX * scrollFactorX, followY + -camera.scrollY * scrollFactorY);
+
+            //  Undo the camera scroll
+            particleMatrix.e = particle.x;
+            particleMatrix.f = particle.y;
+
+            //  Multiply by the particle matrix, store result in calcMatrix
+            camMatrix.multiply(particleMatrix, calcMatrix);
+
             var frame = particle.frame;
 
-            var x = -(frame.halfWidth);
-            var y = -(frame.halfHeight);
+            var x = -frame.halfWidth;
+            var y = -frame.halfHeight;
             var xw = x + frame.width;
             var yh = y + frame.height;
-
-            particleMatrix.applyITRS(0, 0, particle.rotation, particle.scaleX, particle.scaleY);
-
-            particleMatrix.e = particle.x - scrollX;
-            particleMatrix.f = particle.y - scrollY;
-
-            camMatrix.multiply(particleMatrix, calcMatrix);
 
             var tx0 = calcMatrix.getX(x, y);
             var ty0 = calcMatrix.getY(x, y);

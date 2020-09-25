@@ -369,6 +369,7 @@ var Config = new Class({
         if (this.pixelArt)
         {
             this.antialias = false;
+            this.antialiasGL = false;
             this.roundPixels = true;
         }
 
@@ -457,7 +458,9 @@ var Config = new Class({
         /**
          * @const {integer} Phaser.Core.Config#loaderMaxParallelDownloads - Maximum parallel downloads allowed for resources (Default to 32).
          */
-        this.loaderMaxParallelDownloads = GetValue(config, 'loader.maxParallelDownloads', 32);
+        var defaultParallel = (Device.os.android) ? 6 : 32;
+
+        this.loaderMaxParallelDownloads = GetValue(config, 'loader.maxParallelDownloads', defaultParallel);
 
         /**
          * @const {(string|undefined)} Phaser.Core.Config#loaderCrossOrigin - 'anonymous', 'use-credentials', or `undefined`. If you're not making cross-origin requests, leave this as `undefined`. See {@link https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes}.
@@ -565,6 +568,11 @@ var Config = new Class({
          * @const {string} Phaser.Core.Config#missingImage - A base64 encoded PNG that will be used as the default texture when a texture is assigned that is missing or not loaded.
          */
         this.missingImage = GetValue(config, 'images.missing', pngPrefix + 'CAIAAAD8GO2jAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAJ9JREFUeNq01ssOwyAMRFG46v//Mt1ESmgh+DFmE2GPOBARKb2NVjo+17PXLD8a1+pl5+A+wSgFygymWYHBb0FtsKhJDdZlncG2IzJ4ayoMDv20wTmSMzClEgbWYNTAkQ0Z+OJ+A/eWnAaR9+oxCF4Os0H8htsMUp+pwcgBBiMNnAwF8GqIgL2hAzaGFFgZauDPKABmowZ4GL369/0rwACp2yA/ttmvsQAAAABJRU5ErkJggg==');
+
+        /**
+         * @const {string} Phaser.Core.Config#whiteImage - A base64 encoded PNG that will be used as the default texture when a texture is assigned that is white or not loaded.
+         */
+        this.whiteImage = GetValue(config, 'images.white', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAABdJREFUeNpi/P//PwMMMDEgAdwcgAADAJZuAwXJYZOzAAAAAElFTkSuQmCC');
 
         if (window)
         {

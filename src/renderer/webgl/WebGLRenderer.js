@@ -446,6 +446,17 @@ var WebGLRenderer = new Class({
         this.blankTexture = null;
 
         /**
+         * A pure white 4x4 texture, as used by the Graphics system where needed.
+         * This is set in the `boot` method.
+         *
+         * @name Phaser.Renderer.WebGL.WebGLRenderer#whiteTexture
+         * @type {WebGLTexture}
+         * @readonly
+         * @since 3.50.0
+         */
+        this.whiteTexture = null;
+
+        /**
          * A default Camera used in calls when no other camera has been provided.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#defaultCamera
@@ -613,6 +624,16 @@ var WebGLRenderer = new Class({
          * @since 3.50.0
          */
         this.textureFlush = 0;
+
+        /**
+         * The default scissor, set during `preRender` and modified during `resize`.
+         *
+         * @name Phaser.Renderer.WebGL.WebGLRenderer#defaultScissor
+         * @type {number[]}
+         * @private
+         * @since 3.50.0
+         */
+        this.defaultScissor = [ 0, 0, 0, 0 ];
 
         this.init(this.config);
     },
@@ -826,11 +847,10 @@ var WebGLRenderer = new Class({
 
         var multi = this.pipelines.get(PIPELINE_CONST.MULTI_PIPELINE);
 
-        var blank = game.textures.getFrame('__DEFAULT');
+        this.blankTexture = game.textures.getFrame('__DEFAULT');
+        this.whiteTexture = game.textures.getFrame('__WHITE');
 
-        multi.currentFrame = blank;
-
-        this.blankTexture = blank;
+        multi.currentFrame = this.whiteTexture;
 
         var gl = this.gl;
 
@@ -890,6 +910,9 @@ var WebGLRenderer = new Class({
         gl.scissor(0, (gl.drawingBufferHeight - height), width, height);
 
         this.defaultCamera.setSize(width, height);
+
+        this.defaultScissor[2] = width;
+        this.defaultScissor[3] = height;
 
         return this;
     },
@@ -1817,11 +1840,12 @@ var WebGLRenderer = new Class({
 
         if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS))
         {
-            throw new Error('Failed to compile Vertex Shader:\n' + gl.getShaderInfoLog(vs));
+            throw new Error('Vertex Shader failed:\n' + gl.getShaderInfoLog(vs));
         }
+
         if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS))
         {
-            throw new Error('Failed to compile Fragment Shader:\n' + gl.getShaderInfoLog(fs));
+            throw new Error('Fragment Shader failed:\n' + gl.getShaderInfoLog(fs));
         }
 
         gl.attachShader(program, vs);
@@ -1830,7 +1854,7 @@ var WebGLRenderer = new Class({
 
         if (!gl.getProgramParameter(program, gl.LINK_STATUS))
         {
-            throw new Error('Failed to link program:\n' + gl.getProgramInfoLog(program));
+            throw new Error('Link Program failed:\n' + gl.getProgramInfoLog(program));
         }
 
         return program;
@@ -2114,11 +2138,11 @@ var WebGLRenderer = new Class({
                     1, 1,
                     0, 0,
                     0, 0, camera.width, camera.height,
-                    getTint(camera._tintTL, camera._alphaTL),
-                    getTint(camera._tintTR, camera._alphaTR),
-                    getTint(camera._tintBL, camera._alphaBL),
-                    getTint(camera._tintBR, camera._alphaBR),
-                    (camera._isTinted && camera.tintFill),
+                    getTint(camera.tintTopLeft, camera._alphaTL),
+                    getTint(camera.tintTopRight, camera._alphaTR),
+                    getTint(camera.tintBottomLeft, camera._alphaBL),
+                    getTint(camera.tintBottomRight, camera._alphaBR),
+                    camera.tintFill,
                     0, 0,
                     this.defaultCamera,
                     null
@@ -2165,11 +2189,10 @@ var WebGLRenderer = new Class({
 
         this.pipelines.preRender();
 
-        //  TODO - Find a way to stop needing to create these arrays every frame
-        //  and equally not need a huge array buffer created to hold them
+        this.currentScissor = this.defaultScissor;
 
-        this.currentScissor = [ 0, 0, this.width, this.height ];
-        this.scissorStack = [ this.currentScissor ];
+        this.scissorStack.length = 0;
+        this.scissorStack.push(this.currentScissor);
 
         if (this.game.scene.customViewports)
         {
@@ -2200,10 +2223,9 @@ var WebGLRenderer = new Class({
      *
      * @param {Phaser.Scene} scene - The Scene to render.
      * @param {Phaser.GameObjects.GameObject} children - The Game Object's within the Scene to be rendered.
-     * @param {number} interpolationPercentage - The interpolation percentage to apply. Currently un-used.
      * @param {Phaser.Cameras.Scene2D.Camera} camera - The Scene Camera to render with.
      */
-    render: function (scene, children, interpolationPercentage, camera)
+    render: function (scene, children, camera)
     {
         if (this.contextLost) { return; }
 
@@ -2272,7 +2294,7 @@ var WebGLRenderer = new Class({
 
             this.nextTypeMatch = (i < childCount - 1) ? (list[i + 1].type === this.currentType) : false;
 
-            child.renderWebGL(this, child, interpolationPercentage, camera);
+            child.renderWebGL(this, child, camera);
 
             this.newType = false;
         }

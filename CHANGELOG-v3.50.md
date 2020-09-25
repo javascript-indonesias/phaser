@@ -28,6 +28,53 @@ Other pipeline changes are as follows:
 * All pipelines will now extract the `vertexData` property from the config, allowing you to set it externally.
 * All pipelines will now extract the `attributes` property from the config, allowing you to set it externally.
 * All pipelines will now extract the `topology` property from the config, allowing you to set it externally.
+* The `WebGLPipeline.shouldFlush` method now accepts an optional parameter `amount`. If given, it will return `true` if when the amount is added to the vertex count it will exceed the vertex capacity. The Multi Pipeline has been updated to now use this method instead of performing the comparison multiple times itself.
+
+### Pipeline Uniform Changes
+
+Piplines now have a new `uniforms` array that can be passed in with the config. All default pipelines now set these. The array contains the names, as strings, of all uniforms your pipeline shader uses. Once the pipeline shader has been successfully linked, it will use the array of names to look-up the `WebGLUniformLocation` of all uniforms specified. These are stored in the new `WebGLPipeline.uniforms` object. This takes place in the new `WebGLPipeline.setUniformLocations` method.
+
+When a pipeline is bound, you can now use the new methods (listed below) to set uniform values directly on the pipeline. Previously, calling a method such as `setFloat3` on a pipeline would pass that call over to `WebGLRenderer`. The renderer would first check to see if the pipeline program was current, and if not, make it so, before then looking up the uniform location and finally setting it. This is a lot of steps to take for pipelines that potentially need to change uniforms for every Game Object they render.
+
+Under the new methods, and using the new pre-cached uniform locations, these extra steps are skipped. The uniform value is set directly, no shader binding takes place and no location look-up happens. This dramatically reduces the number of WebGL ops being issued per frame. To clearly differentiate these pipline methods, we have renamed them. The new method names are as follows:
+
+* `WebGLPipeline.set1f` will set a 1f uniform based on the given name.
+* `WebGLPipeline.set2f` will set a 2f uniform based on the given name.
+* `WebGLPipeline.set3f` will set a 3f uniform based on the given name.
+* `WebGLPipeline.set4f` will set a 4f uniform based on the given name.
+* `WebGLPipeline.set1fv` will set a 1fv uniform based on the given name.
+* `WebGLPipeline.set2fv` will set a 2fv uniform based on the given name.
+* `WebGLPipeline.set3fv` will set a 3fv uniform based on the given name.
+* `WebGLPipeline.set4fv` will set a 4fv uniform based on the given name.
+* `WebGLPipeline.set1iv` will set a 1iv uniform based on the given name.
+* `WebGLPipeline.set2iv` will set a 2iv uniform based on the given name.
+* `WebGLPipeline.set3iv` will set a 3iv uniform based on the given name.
+* `WebGLPipeline.set4iv` will set a 4iv uniform based on the given name.
+* `WebGLPipeline.set1i` will set a 1i uniform based on the given name.
+* `WebGLPipeline.set2i` will set a 2i uniform based on the given name.
+* `WebGLPipeline.set3i` will set a 3i uniform based on the given name.
+* `WebGLPipeline.set4i` will set a 4i uniform based on the given name.
+* `WebGLPipeline.setMatrix2fv` will set a matrix 2fv uniform based on the given name.
+* `WebGLPipeline.setMatrix3fv` will set a matrix 3fv uniform based on the given name.
+* `WebGLPipeline.setMatrix4fv` will set a matrix 4fv uniform based on the given name.
+
+If your code uses any of the old method names, please update them using the list below:
+
+* `WebGLPipeline.setFloat1` has been removed. Please use `set1f` instead.
+* `WebGLPipeline.setFloat2` has been removed. Please use `set2f` instead.
+* `WebGLPipeline.setFloat3` has been removed. Please use `set3f` instead.
+* `WebGLPipeline.setFloat4` has been removed. Please use `set4f` instead.
+* `WebGLPipeline.setFloat1v` has been removed. Please use `set1fv` instead.
+* `WebGLPipeline.setFloat2v` has been removed. Please use `set2fv` instead.
+* `WebGLPipeline.setFloat3v` has been removed. Please use `set3fv` instead.
+* `WebGLPipeline.setFloat4v` has been removed. Please use `set4fv` instead.
+* `WebGLPipeline.setInt1` has been removed. Please use `set1i` instead.
+* `WebGLPipeline.setInt2` has been removed. Please use `set2i` instead.
+* `WebGLPipeline.setInt3` has been removed. Please use `set3i` instead.
+* `WebGLPipeline.setInt4` has been removed. Please use `set4i` instead.
+* `WebGLPipeline.setMatrix1` has been removed. Please use `setMatrix2fv` instead.
+* `WebGLPipeline.setMatrix2` has been removed. Please use `setMatrix3fv` instead.
+* `WebGLPipeline.setMatrix3` has been removed. Please use `setMatrix4fv` instead.
 
 ### Pipeline Manager
 
@@ -178,7 +225,7 @@ If you used any of them in your code, please update to the new function names be
 * `projOrtho` is now available as a stand-alone function `Phaser.Renderer.WebGL.MVP.ProjectOrtho`
 * `Phaser.Renderer.WebGL.MVP.SetIdentity` is a new function the others use, to save on space.
 
-### BitmapText New Features, Updates and API Changes
+### BitmapText - New Features, Updates and API Changes
 
 * `BitmapText.setCharacterTint` is a new method that allows you to set a tint color (either additive or fill) on a specific range of characters within a static Bitmap Text. You can specify the start and length offsets and per-corner tint colors.
 * `BitmapText.setWordTint` is a new method that allows you to set a tint color (either additive or fill) on all matching words within a static Bitmap Text. You can specify the word by string, or numeric offset, and the number of replacements to tint.
@@ -203,6 +250,7 @@ If you used any of them in your code, please update to the new function names be
 * Setting the `color` value in the `DynamicBitmapText.setDisplayCallback` would inverse the red and blue channels if the color was not properly encoded for WebGL. It is now encoded automatically, meaning you can pass normal hex values as the colors in the display callback. Fix #5225 (thanks @teebarjunk)
 * If you apply `setSize` to the Dynamic BitmapText the scissor is now calculated based on the parent transforms, not just the local ones, meaning you can crop Bitmap Text objects that exist within Containers. Fix #4653 (thanks @lgibson02)
 * `ParseXMLBitmapFont` has a new optional parameter `texture`. If defined, this Texture is populated with Frame data, one frame per glyph. This happens automatically when loading Bitmap Text data in Phaser.
+* You can now use `setMaxWidth` on `DynamicBitmapText`, which wasn't previously possible. Fix #4997 (thanks @AndreaBoeAbrahamsen)
 
 ### Update List Changes
 
@@ -245,7 +293,7 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * The Spine Plugin `destroy` method will now no longer remove the Game Objects from the Game Object Factory, or dispose of the Scene Renderer. This means when a Scene is destroyed, it will keep the Game Objects in the factory for other Scene's to use. Fix #5279 (thanks @Racoonacoon)
 * `SpinePlugin.gameDestroy` is a new method that is called if the Game instance emits a `destroy` event. It removes the Spine Game Objects from the factory and disposes of the Spine scene renderer.
 
-### Animation API New Features and Updates
+### Animation API - New Features and Updates
 
 If you use Animations in your game, please read the following important API changes in 3.50:
 
@@ -348,6 +396,112 @@ The Animation API has had a significant overhaul to improve playback handling. I
 * `GenerateFrameNumbers` can now accept the `start` and `end` parameters in reverse order, meaning you can now do `{ start: 10, end: 1 }` to create the animation in reverse.
 * `GenerateFrameNames` can now accept the `start` and `end` parameters in reverse order, meaning you can now do `{ start: 10, end: 1 }` to create the animation in reverse.
 
+### Mesh Game Object - New Features, Updates and API Changes
+
+The Mesh Game Object has been rewritten in v3.50 with a lot of changes to make it more useful and able to handle 3D objects:
+
+* `GameObject.Vertex` is a new micro class that encapsulates all of the data required for a single vertex, such as position, uv, color and alpha. This class is now created internally by the Mesh Game Object.
+* `GameObject.Face` is a new micro class that consists of references to the three `Vertex` instances that construct the single Face.
+* The Mesh constructor and `MeshFactory` signatures have changed to `scene, x, y, texture, frame, vertices, uvs, indicies, colors, alphas`. Note the way the Texture and Frame parameters now comes first. `indicies` is a new parameter added to the list. It allows you to provide indexed vertex data to create the Mesh from, where the `indicies` array holds the vertex index information. The final list of vertices is built from this index along with the provided vertices and uvs arrays. The `indicies` array is optional. If your data is not indexed, then simply pass `null` or an empty array for this parameter.
+* The `Mesh` Game Object now extends the `SingleAlpha` component and the alpha value is factored into the final alpha value per vertex during rendering. This means you can now set the whole alpha across the Mesh using the standard `setAlpha` methods. But, if you wish to, you can still control the alpha on a per-vertex basis as well.
+* The `Mesh` Game Object now has the Animation State Component. This allows you to create and play animations across the texture of a Mesh, something that previously wasn't possible. As a result, the Mesh now adds itself to the Update List when added to a Scene.
+* `Geom.ParseObj` is a new function that will parse a triangulated Wavefront OBJ file into model data that can be consumed by the Mesh Game Object.
+* `Loader.OBJFile` is a new File Loader type that can load triangulated Wavefront OBJ files, which are then parsed and stored in the OBJ Cache.
+* `Mesh.hideCCW` is a new boolean property that, when enabled, tells a Face to not render if it isn't counter-clockwise. You can use this to hide backward facing Faces.
+* `Mesh.addOBJ` is a new method that will add the model data from a loaded Wavefront OBJ file to a Mesh. You load it via the new `OBJFile` with a `this.load.obj` call, then you can use the key with the `addOBJ` method. This method also takes an optional scale and position parameters to control placement of the created model within the Mesh.
+* `Mesh.addModel` is a new method that will add the model data to a Mesh. You can prepare the model data yourself, pull it in from a server, or get it by calling `Geom.ParseObj`, or a similar custom function. This method also takes an optional scale and position parameters to control placement of the created model within the Mesh.
+* `Mesh.rotateX` is a new method that will rotate all vertices of the Mesh around the x axis, by the amount given. It then depth sorts the faces.
+* `Mesh.rotateY` is a new method that will rotate all vertices of the Mesh around the y axis, by the amount given. It then depth sorts the faces.
+* `Mesh.rotateZ` is a new method that will rotate all vertices of the Mesh around the z axis, by the amount given. It then depth sorts the faces.
+* `Mesh.depthSort` is a new method that will run a depth sort across all Faces in the Mesh by sorting them on their average depth.
+* `Mesh.addVertex` is a new method that allows you to add a new single Vertex into the Mesh.
+* `Mesh.addFace` is a new method that allows you to add a new Face into the Mesh. A Face must consist of 3 Vertex instances.
+* `Mesh.addVertices` is a new method that allows you to add vertices to a Mesh Game Object based on the given parameters. This allows you to modify a mesh post-creation, or populate it with data at a later stage.
+* `Mesh.getFaceCount` new is a new method that will return the total number of Faces in the Mesh.
+* `Mesh.getVertexCount` new is a new method that will return the total number of Vertices in the Mesh.
+* `Mesh.getFace` new is a new method that will return a Face instance from the Mesh based on the given index.
+* `Mesh.getFaceAt` new is a new method that will return an array of Face instances from the Mesh based on the given position. The position is checked against each Face, translated through the optional Camera and Mesh matrix. If more than one Face intersects, they will all be returned but the array will be depth sorted first, so the first element will be that closest to the camera.
+* `Mesh.vertices` is now an array of `GameObject.Vertex` instances, not a Float32Array.
+* `Mesh.faces` is a new array of `GameObject.Face` instances, which is populated during a call to methods like `addVertices` or `addModel`.
+* `Mesh.clearVertices` is a new method that will destroy all Faces and Vertices and clear the Mesh.
+* `Mesh.setDebug` is a new method that allows you to render a debug visualisation of the Mesh vertices to a Graphics Game Object. You can provide your own Graphics instance and optionally callback that is invoked during rendering. This allows you to easily visualise the vertices of your Mesh to help debug UV mapping.
+* The Mesh now renders by iterating through the Faces array, not the vertices. This allows you to use Array methods such as `BringToTop` to reposition a Face, thus changing the drawing order without having to repopulate all of the vertices. Or, for a 3D model, you can now depth sort the Faces.
+* The Mesh renderer will now check to see if the pipeline capacity has been exceeded for every Face added, allowing you to use Meshes with vertex counts that exceed the pipeline capacity without causing runtime errors.
+* You can now supply just a single numerical value as the `colors` parameter in the constructor, factory method and `addVertices` method. If a number, instead of an array, it will be used as the color for all vertices created.
+* You can now supply just a single numerical value as the `alphas` parameter in the constructor, factory method and `addVertices` method. If a number, instead of an array, it will be used as the alpha for all vertices created.
+* `Mesh.debugGraphic` is a new property that holds the debug Graphics instance reference.
+* `Mesh.debugCallback` is a new property that holds the debug render callback.
+* `Mesh.renderDebugVerts` is a new method that acts as the default render callback for `setDebug` if none is provided.
+* `Mesh.preDestroy` is a new method that will clean-up the Mesh arrays and debug references on destruction.
+* The `Mesh.uv` array has been removed. All UV data is now bound in the Vertex instances.
+* The `Mesh.colors` array has been removed. All color data is now bound in the Vertex instances.
+* The `Mesh.alphas` array has been removed. All color data is now bound in the Vertex instances.
+* The `Mesh.tintFill` property is now a `boolean` and defaults to `false`.
+
+### Input / Mouse Updates and API Changes
+
+* `ScaleManager.refresh` is now called when the `Game.READY` event fires. This fixes a bug where the Scale Manager would have the incorrect canvas bounds, because they were calculated before a previous canvas was removed from the DOM. Fix #4862 (thanks @dranitski)
+* The Game Config property `inputMouseCapture` has been removed, as this is now split into 3 new config options:
+* `inputMousePreventDefaultDown` is a new config option that allows you to control `preventDefault` calls specifically on mouse down events. Set it via `input.mouse.preventDefaultDown` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
+* `inputMousePreventDefaultUp` is a new config option that allows you to control `preventDefault` calls specifically on mouse up events. Set it via `input.mouse.preventDefaultUp` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
+* `inputMousePreventDefaultMove` is a new config option that allows you to control `preventDefault` calls specifically on mouse move events. Set it via `input.mouse.preventDefaultMove` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
+* The `MouseManager.capture` property has been removed, as this is now split into 3 new config options (see below)
+* `MouseManager.preventDefaultDown` is a new boolean property, set via the `inputMousePreventDefaultDown` config option that allows you to toggle capture of mouse down events at runtime.
+* `MouseManager.preventDefaultUp` is a new boolean property, set via the `inputMousePreventDefaultUp` config option that allows you to toggle capture of mouse up events at runtime.
+* `MouseManager.preventDefaultMove` is a new boolean property, set via the `inputMousePreventDefaultMove` config option that allows you to toggle capture of mouse move events at runtime.
+* In the `MouseManager` the up, down and move events are no longer set as being passive if captured. Over, Out, Wheel and the Window level Down and Up events are always flagged as being passive.
+* The `GamepadPlugin` will now call `refreshPads` as part of its start process. This allows you to use Gamepads across multiple Scenes, without having to wait for a connected event from each one of them. If you've already had a connected event in a previous Scene, you can now just read the pads directly via `this.input.gamepad.pad1` and similar. Fix #4890 (thanks @Sytten)
+* Shutting down the Gamepad plugin (such as when sleeping a Scene) no longer calls `GamepadPlugin.disconnectAll`, but destroying it does.
+* `Gamepad._created` is a new private internal property that keeps track of when the instance was created. This is compared to the navigator timestamp in the update loop to avoid event spamming. Fix #4890.
+* `Pointer.down` will now check if the browser is running under macOS and if the ctrl key was also pressed, if so, it will flag the down event as being a right-click instead of a left-click, as per macOS conventions. Fix #4245 (thanks @BigZaphod)
+* When destroying an interactive Game Object that had `useHandCursor` enabled, it would reset the CSS cursor to default, even if the cursor wasn't over that Game Object. It will now only reset the cursor if it's over the Game Object being destroyed. Fix #5321 (thanks @JstnPwll)
+* The `InputPlugin.shutdown` method will now reset the CSS cursor, in case it was set by any Game Objects in the Scene that have since been destroyed.
+
+### Tint Updates and Shader Changes
+
+Phaser has had the ability to apply an additive tint to a Game Object since the beginning, and gained 'filled tints', with and without texture alpha, in v3.11. While this was handy, it introduced a 3-way if-else condition to the shaders to handle the different modes. Plus, setting tint colors was also generating rgb order Float32 color values for each Game Object, making reading those colors back again difficult (as they'd return in BGR order).
+
+This has all changed in 3.50, as outlined below. Tint values are now used directly in the shader and don't pass through a color conversion function first. Lots of private properties have been removed and the shaders no longer have a 3-way if-else block. All of this means improved performance and a slight reduction in memory overhead.
+
+* `Tint.tintTopLeft` is now a normal property in RGB order, not a setter, and no longer passes through the `GetColorFromValue` function. This directly replaces the private property `_tintTL` which has now been removed.
+* `Tint.tintTopRight` is now a normal property in RGB order, not a setter, and no longer passes through the `GetColorFromValue` function. This directly replaces the private property `_tintTR` which has now been removed.
+* `Tint.tintBottomLeft` is now a normal property in RGB order, not a setter, and no longer passes through the `GetColorFromValue` function. This directly replaces the private property `_tintBL` which has now been removed.
+* `Tint.tintBottomRight` is now a normal property in RGB order, not a setter, and no longer passes through the `GetColorFromValue` function. This directly replaces the private property `_tintBR` which has now been removed.
+* The property `Tint._isTinted` has been removed as it's no longer required.
+* The `Single.frag`, `Light.frag` and `Multi.frag` shaders have all been updated so they now read the color value as `outTint.bgr` instead of `outTint.rgb`. This allows the colors to remain in RGB order within the Tint component.
+* The `Single.frag`, `Light.frag` and `Multi.frag` shaders have all been updated so they no longer have a 3-way check on the `outTintEffect` value.
+* The `Multi Pipeline`, `Bitmap Text`, `Render Texture`, `Text`, `TileSprite` and `Camera` now all read the tint values from the public properties instead of the private `_tintTL` etc ones. They also now set the `tintEffect` value directly from the `tintFill` property, removing another conditional check.
+* The function `GetColorFromValue` has been removed as it's no longer used internally.
+* The `Rope.tintFill` property is now a boolean, not an integer, and can no longer take `2` as a value for a complete fill. Instead, you should provide a solid color texture with no alpha.
+* As a result of the change to the shader, all uses of the WebGL Util function `getTintAppendFloatAlphaAndSwap` have been replaced with `getTintAppendFloatAlpha` instead.
+* As a result of the change to the shader, the Multi Pipeline now uses the `WebGLRenderer.whiteTexture` and `tintEffect` mode of 1 by default, instead of mode 2 (which has been removed) and a transparent texture. This ensures Graphics and Shapes objects still render correctly under the new smaller shader code.
+* `WebGLRenderer.whiteTexture` is a new property that is a reference to a pure white 4x4 texture that is created during Boot by the Texture Manager. The Multi Pipeline uses this internally for all Graphic, Shape and fill rendering.
+* The `TextureManager` now generates a new texture with the key `__WHITE` durings its boot process. This is a pure white 4x4 texture used by the Graphics pipelines.
+* `Config.images.white` is a new Game Config property that specifies the 4x4 white PNG texture used by Graphics rendering. You can override this via the config, but only do so if needed.
+
+### Removal of 'resolution' property from across the API
+
+For legacy reasons, Phaser 3 has never properly supported HighDPI devices. It will render happily to them of course, but wouldn't let you set a 'resolution' for the Canvas beyond 1. Earlier versions of 3.x had a resolution property in the Game Config, but it was never fully implemented (for example, it would break zooming cameras). When the Scale Manager was introduced in v3.16 we forced the resolution to be 1 to avoid it breaking anything else internally.
+
+For a long time, the 'resolution' property has been present - taunting developers and confusing new comers. In this release we have finally gone through and removed all references to it. The Game Config option is now gone, it's removed from the Scale Manager, Base Camera and everywhere else where it matters. As much as we would have liked to implement the feature, we've spent too long without it, and things have been built around the assumption it isn't present. The API just wouldn't cope with having it shoe-horned in at this stage. As frustrating as this is, it's even more annoying to just leave the property there confusing people and wasting CPU cycles. Phaser 4 has been built with HighDPI screens in mind from the very start, but it's too late for v3. The following changes are a result of this removal:
+
+* The `Phaser.Scale.Events#RESIZE` event no longer sends the `resolution` as a parameter.
+* The `BaseCamera.resolution` property has been removed.
+* The internal private `BaseCamera._cx`, `_cy`, `_cw` and `_ch` properties has been removed.
+* The `BaseCamera.preRender` method no longer receives or uses the `resolution` parameter.
+* The `Camera.preRender` method no longer receives or uses the `resolution` parameter.
+* The `CameraManager.onResize` method no longer receives or uses the `resolution` parameter.
+* The `Core.Config.resolution` property has been removed.
+* The `TextStyle.resolution` property is no longer read from the Game Config. You can still set it via the Text Style config to a value other than 1, but it will default to this now.
+* The `CanvasRenderer` no longer reads or uses the Game Config resolution property.
+* The `PipelineManager.resize` method along with `WebGLPipeline.resize` and anything else that extends them no longer receives or uses the `resolution` parameter.
+* The `WebGLRenderer.resize` and `onResize` methods no longer receives or uses the `resolution` parameter.
+* The `ScaleManager.resolution` property has been removed and all internal use of it.
+
+### Removed 'interpolationPercentage' parameter from all render functions
+
+Since v3.0.0 the Game Object `render` functions have received a parameter called `interpolationPercentage` that was never used. The renderers do not calculate this value and no Game Objects apply it, so for the sake of clairty, reducing code and removing complexity from the API it has been removed from every single function that either sent or expected the parameter. This touches every single Game Object and changes the parameter order as a result, so please be aware of this if you have your own _custom_ Game Objects that implement their own `render` methods. In terms of surface API changes, you shouldn't notice anything at all from this removal.
+
 ### New Features
 
 * `Geom.Intersects.GetLineToLine` is a new function that will return a Vector3 containing the point of intersection between 2 line segments, with the `z` property holding the distance value.
@@ -378,22 +532,16 @@ The Animation API has had a significant overhaul to improve playback handling. I
 * `GroupCreateConfig`, which is used when calling `Group.createMultiple` or `Group.createFromConfig`, can now accept the following new properties: `setOrigin: { x, y, stepX, stepY }` which are applied to the items created by the Group.
 * `Transform.copyPosition` is a new method that will copy the position from the given object to the Game Object (thanks @samme)
 * The `Text.MeasureText` function, which is used to calculate the ascent and descent of Text Game Objects whenever the style, or font size, is changed, has been updated to use the new `actualBoundingBoxAscent` functions present in modern browsers. This allows for significantly faster ascent calculations than previously. Older browsers, such as IE, will still fall back (thanks @rexrainbow)
-
-### Input / Mouse Updates and API Changes
-
-* `ScaleManager.refresh` is now called when the `Game.READY` event fires. This fixes a bug where the Scale Manager would have the incorrect canvas bounds, because they were calculated before a previous canvas was removed from the DOM. Fix #4862 (thanks @dranitski)
-* The Game Config property `inputMouseCapture` has been removed, as this is now split into 3 new config options:
-* `inputMousePreventDefaultDown` is a new config option that allows you to control `preventDefault` calls specifically on mouse down events. Set it via `input.mouse.preventDefaultDown` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
-* `inputMousePreventDefaultUp` is a new config option that allows you to control `preventDefault` calls specifically on mouse up events. Set it via `input.mouse.preventDefaultUp` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
-* `inputMousePreventDefaultMove` is a new config option that allows you to control `preventDefault` calls specifically on mouse move events. Set it via `input.mouse.preventDefaultMove` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
-* The `MouseManager.capture` property has been removed, as this is now split into 3 new config options (see below)
-* `MouseManager.preventDefaultDown` is a new boolean property, set via the `inputMousePreventDefaultDown` config option that allows you to toggle capture of mouse down events at runtime.
-* `MouseManager.preventDefaultUp` is a new boolean property, set via the `inputMousePreventDefaultUp` config option that allows you to toggle capture of mouse up events at runtime.
-* `MouseManager.preventDefaultMove` is a new boolean property, set via the `inputMousePreventDefaultMove` config option that allows you to toggle capture of mouse move events at runtime.
-* In the `MouseManager` the up, down and move events are no longer set as being passive if captured. Over, Out, Wheel and the Window level Down and Up events are always flagged as being passive.
-* The `GamepadPlugin` will now call `refreshPads` as part of its start process. This allows you to use Gamepads across multiple Scenes, without having to wait for a connected event from each one of them. If you've already had a connected event in a previous Scene, you can now just read the pads directly via `this.input.gamepad.pad1` and similar. Fix #4890 (thanks @Sytten)
-* Shutting down the Gamepad plugin (such as when sleeping a Scene) no longer calls `GamepadPlugin.disconnectAll`, but destroying it does.
-* `Gamepad._created` is a new private internal property that keeps track of when the instance was created. This is compared to the navigator timestamp in the update loop to avoid event spamming. Fix #4890.
+* `GameObjects.GetCalcMatrix` is a new function that is used to calculate the transformed Game Object matrix, based on the given Game Object, Camera and Parent. This function is now used by the following Game Objects: `BitmapText` (Static and Dynamic), `Graphics`, `Extern`, `Mesh`, `Rope`, `Shader`, `Arc`, `Curve`, `Ellipse`, `Grid`, `IsoBox`, `IsoTriangle`, `Line`, `Polygon`, `Rectangle`, `Star` and `Triangle`. This dramatically reduces the amount of duplicate code across the API.
+* `Utils.Array.Matrix.Translate` is a new function that will translate an Array Matrix by horizontally and vertically by the given amounts.
+* `Vertor3.addScale` is a new method that will add the given vector and multiply it in the process.
+* `Physics.Arcade.Body.setCollideWorldBounds` now has a new optional parameter `onWorldBounds` which allows you to enable the World Bounce property in the same call (thanks @samme)
+* When defining the ease used with a Particle Emitter you can now set `easeParams` in the config object, allowing you to pass custom ease parameters through to an ease function (thanks @vforsh)
+* `ArcadePhysics.Body.setMaxVelocityX` is a new method that allows you to set the maximum horizontal velocity of a Body (thanks @samme)
+* `ArcadePhysics.Body.setMaxVelocityY` is a new method that allows you to set the maximum vertical velocity of a Body (thanks @samme)
+* The `PhysicsGroup` config now has two new optional properties `maxVelocityX` and `maxVelocityY` which allows you to set the maximum velocity on bodies added to the Group (thanks @samme)
+* `BitmapMask.createMask` is a new method that will internally create the WebGL textures and framebuffers required for the mask. This is now used by the constructor and if the context is lost. It now also clears any previous textures/fbos that may have been created first, helping prevent memory leaks.
+* `BitmapMask.clearMask` will delete any WebGL textures or framebuffers the mask is using. This is now called when the mask is destroyed, or a new mask is created upon it.
 
 ### Updates and API Changes
 
@@ -437,6 +585,13 @@ The Animation API has had a significant overhaul to improve playback handling. I
 * You can now set the `ArcadeWorld.fixedStep` property via the `ArcadeWorldConfig` object (thanks @samme)
 * `Utils.Array.NumerArray` can now accept the `start` and `end` parameters in reverse order, i.e. `10, 1` will generate a number array running from 10 to 1. Internally it has also been optimized to skip string based returns.
 * `DataManager.Events.DESTROY` is a new event that the Data Manager will _listen_ for from its parent and then call its own `destroy` method when received.
+* The `Quaternion` class constructor will now default the values to `0,0,0,1` if they're not provided, making it an identity quaternion, rather than the `0,0,0,0` it was before.
+* You can now set the `ParticleEmitter.reserve` value via the emitter configuration object (thanks @vforsh)
+* Setting the `pixelArt` config option will now set `antialiasGL` to `false`, as well as `antialias`. Fix #5309 (thanks @Vegita2)
+* The `Shape` class now includes the `ComputedSize` component properties and methods directly in the class, rather than applying as a mixin. `setSize` is now flagged as being `private`, because it shouldn't be used on Shape classes, which was leading to confusion as it appeared in the public-facing API. Fix #4811 (thanks @aolsx)
+* The `Loader.maxParallelDownloads` value is now set to 6 if running on Android, or 32 on any other OS. This avoids `net::ERR_FAILED` issues specifically on Android. You can still override this in the Game Config if you wish. Fix #4957 (thanks @RollinSafary)
+* `WebGLRenderer.defaultScissor` is a new property that holds the default scissor dimensions for the renderer. This is modified during `resize` and avoids continuous array generation in the `preRender` loop.
+* When running an Arcade Physics `overlap` test against a `StaticBody`, it will no longer set the `blocked` states of the dynamic body. If you are doing a collision test, they will still be set, but they're skipped for overlap-only tests. Fix #4435 (thanks @samme)
 
 ### Bug Fixes
 
@@ -456,6 +611,15 @@ The Animation API has had a significant overhaul to improve playback handling. I
 * The Scale Managers `GetScreenOrientation` function will now check for `window.orientation` first, because iOS mobile browsers have an incomplete implementation of the Screen API, forcing us to use the window value as a priority. This means the Scale Manager will now emit `orientationchange` events correctly on iOS. Fix #4361 #4914 (thanks @pfdtravalmatic @jackfreak @cuihu)
 * `Time.Clock.addEvent` can now take an instance of a `TimerEvent` as its parameter. Fix #5294 (thanks @samme @EmilSV)
 * `GameConfig.audio` now defaults to an empty object, which simplifies access to the config in later checks (thanks @samme)
+* The `Loader.path` was being added to the File URL even if the URL was absolute. This is now checked for and the path is not applied unless the URL is relative (thanks @firesoft)
+* `Group.getMatching` would always return an empty array. It now returns matching children (thanks @samme)
+* The `ParticleManagerWebGLRenderer` now calculates its transform matrix differently, splitting out the parent matrix and factoring in follow offsets separately. This fixes numerous issues with particle emitters being incorrectly offset when added to Containers. Fix #5319 #5195 #4739 #4691 (thanks @vforsh @condeagustin @IvanDem @Formic)
+* The `ParticleManagerCanvasRenderer` now calculates its transform matrix differently, splitting out the parent matrix and factoring in the follow offsets separately. It also uses `setToContext` internally. This fixes numerous issues with particle emitters being incorrectly offset when added to Containers, or having the Camera zoomed, running under Canvas. Fix #4908 #4531 #4131 (thanks @smjnab @SirLink @jhooper04)
+* The `Graphics` WebGL Renderer will now default to `pathOpen = true`. This fixes issues under WebGL where, for example, adding an arc and calling `strokePath`, without first calling `beginPath` will no longer cause rendering artefacts when WebGL tries to close the path with a single tri.
+* `Graphics.strokeRoundedRect` now issues `moveTo` commands as part of the drawing sequence, preventing issues under WebGL where on older Android devices it would project additional vertices into the display. Fix #3955 (thanks @alexeymolchan)
+* Creating a Bitmap Mask from a texture atlas that was then used to mask another Game Object also using that same texture atlas would throw the error `GL_INVALID_OPERATION : glDrawArrays: Source and destination textures of the draw are the same.`. It now renders as expected. Fix #4675 (thanks @JacobCaron)
+* When using the same asset for a Game Object to be used as a mask, it would make other Game Objects using the same asset, that appeared above the mask in the display list, to not render. Fix #4767 (thanks @smjnab)
+* When taking a `snapshot` in WebGL it would often have an extra line of empty pixels at the top of the resulting image, due to a rounding error in the `WebGLSnapshot` function. Fix #4956 (thanks @gammafp @telinc1)
 
 ### Namespace Updates
 
@@ -482,30 +646,8 @@ The Animation API has had a significant overhaul to improve playback handling. I
 * The `Phaser.Tilemaps.Parsers.Tiled` function has now been exposed on the Phaser namespace (thanks @samme)
 * Every single `Tilemap.Component` function has now been made public. This means you can call the Component functions directly, should you need to, outside of the Tilemap system.
 
-### Removal of 'Resolution' property from across the API
-
-For legacy reasons, Phaser 3 has never properly supported HighDPI devices. It will render happily to them of course, but wouldn't let you set a 'resolution' for the Canvas beyond 1. Earlier versions of 3.x had a resolution property in the Game Config, but it was never fully implemented (for example, it would break zooming cameras). When the Scale Manager was introduced in v3.16 we forced the resolution to be 1 to avoid it breaking anything else internally.
-
-For a long time, the 'resolution' property has been present - taunting developers and confusing new comers. In this release we have finally gone through and removed all references to it. The Game Config option is now gone, it's removed from the Scale Manager, Base Camera and everywhere else where it matters. As much as we would have liked to implement the feature, we've spent too long without and things have been built around the assumption it isn't present that just wouldn't cope with having it shoe-horned in at this stage. As frustrating as this is, it's even more annoying to just leave the property there confusing people and wasting CPU cycles. Phaser 4 has been built with HighDPI screens in mind from the very start, but it's just too late for v3. The following changes are a result of this removal:
-
-* The `Phaser.Scale.Events#RESIZE` event no longer sends the `resolution` as a parameter.
-* The `BaseCamera.resolution` property has been removed.
-* The internal private `BaseCamera._cx`, `_cy`, `_cw` and `_ch` properties has been removed.
-* The `BaseCamera.preRender` method no longer receives or uses the `resolution` parameter.
-* The `Camera.preRender` method no longer receives or uses the `resolution` parameter.
-* The `CameraManager.onResize` method no longer receives or uses the `resolution` parameter.
-* The `Core.Config.resolution` property has been removed.
-* The `TextStyle.resolution` property is no longer read from the Game Config. You can still set it via the Text Style config to a value other than 1, but it will default to this now.
-* The `CanvasRenderer` no longer reads or uses the Game Config resolution property.
-* The `PipelineManager.resize` method along with `WebGLPipeline.resize` and anything else that extends them no longer receives or uses the `resolution` parameter.
-* The `WebGLRenderer.resize` and `onResize` methods no longer receives or uses the `resolution` parameter.
-* The `ScaleManager.resolution` property has been removed and all internal use of it.
-
-
-
-
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
 
-@samme @16patsle @scott20145 @khasanovbi @mk360 @volkans80 @jaabberwocky @maikthomas @atursams @LearningCode2023 @DylanC @BenjaminDRichards @rexrainbow @Riderrr @spwilson2 @EmilSV @PhaserEditor2D 
+@samme @16patsle @scott20145 @khasanovbi @mk360 @volkans80 @jaabberwocky @maikthomas @atursams @LearningCode2023 @DylanC @BenjaminDRichards @rexrainbow @Riderrr @spwilson2 @EmilSV @PhaserEditor2D @Gangryong @vinerz
