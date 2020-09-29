@@ -1238,6 +1238,7 @@ var Body = new Class({
 
     /**
      * Sets the offset of the Body's position from its Game Object's position.
+     * The Body's `position` isn't changed until the next `preUpdate`.
      *
      * @method Phaser.Physics.Arcade.Body#setOffset
      * @since 3.0.0
@@ -1252,7 +1253,6 @@ var Body = new Class({
         if (y === undefined) { y = x; }
 
         this.offset.set(x, y);
-        this.updateCenter();
 
         return this;
     },
@@ -1356,14 +1356,14 @@ var Body = new Class({
     },
 
     /**
-     * Resets this Body to the given coordinates. Also positions its parent Game Object to the same coordinates.
+     * Sets this Body's parent Game Object to the given coordinates and resets this Body at the new coordinates.
      * If the Body had any velocity or acceleration it is lost as a result of calling this.
      *
      * @method Phaser.Physics.Arcade.Body#reset
      * @since 3.0.0
      *
-     * @param {number} x - The horizontal position to place the Game Object and Body.
-     * @param {number} y - The vertical position to place the Game Object and Body.
+     * @param {number} x - The horizontal position to place the Game Object.
+     * @param {number} y - The vertical position to place the Game Object.
      */
     reset: function (x, y)
     {
@@ -2316,7 +2316,75 @@ var Body = new Class({
     },
 
     /**
-     * The Body's horizontal position (left edge).
+     * This is an internal handler, called by the `ProcessX` function as part
+     * of the collision step. You should almost never call this directly.
+     *
+     * @method Phaser.Physics.Arcade.Body#processX
+     * @since 3.50.0
+     *
+     * @param {number} x - The amount to add to the Body position.
+     * @param {number} [vx] - The amount to add to the Body velocity.
+     * @param {boolean} [left] - Set the blocked.left value?
+     * @param {boolean} [right] - Set the blocked.right value?
+     */
+    processX: function (x, vx, left, right)
+    {
+        this.x += x;
+
+        if (vx !== null)
+        {
+            this.velocity.x = vx;
+        }
+
+        var blocked = this.blocked;
+
+        if (left)
+        {
+            blocked.left = true;
+        }
+
+        if (right)
+        {
+            blocked.right = true;
+        }
+    },
+
+    /**
+     * This is an internal handler, called by the `ProcessY` function as part
+     * of the collision step. You should almost never call this directly.
+     *
+     * @method Phaser.Physics.Arcade.Body#processY
+     * @since 3.50.0
+     *
+     * @param {number} y - The amount to add to the Body position.
+     * @param {number} [vy] - The amount to add to the Body velocity.
+     * @param {boolean} [up] - Set the blocked.up value?
+     * @param {boolean} [down] - Set the blocked.down value?
+     */
+    processY: function (y, vy, up, down)
+    {
+        this.y += y;
+
+        if (vy !== null)
+        {
+            this.velocity.y = vy;
+        }
+
+        var blocked = this.blocked;
+
+        if (up)
+        {
+            blocked.up = true;
+        }
+
+        if (down)
+        {
+            blocked.down = true;
+        }
+    },
+
+    /**
+     * The Bodys horizontal position (left edge).
      *
      * @name Phaser.Physics.Arcade.Body#x
      * @type {number}
@@ -2337,7 +2405,7 @@ var Body = new Class({
     },
 
     /**
-     * The Body's vertical position (top edge).
+     * The Bodys vertical position (top edge).
      *
      * @name Phaser.Physics.Arcade.Body#y
      * @type {number}
