@@ -5,8 +5,9 @@
  */
 
 var GetTileAt = require('./GetTileAt');
-var WorldToTileX = require('./WorldToTileX');
-var WorldToTileY = require('./WorldToTileY');
+var Vector2 = require('../../math/Vector2');
+
+var point = new Vector2();
 
 /**
  * Gets a tile at the given world coordinates from the given layer.
@@ -25,10 +26,9 @@ var WorldToTileY = require('./WorldToTileY');
  */
 var GetTileAtWorldXY = function (worldX, worldY, nonNull, camera, layer)
 {
-    var tileX = WorldToTileX(worldX, true, camera, layer);
-    var tileY = WorldToTileY(worldY, true, camera, layer);
+    layer.tilemapLayer.worldToTileXY(worldX, worldY, true, point, camera);
 
-    return GetTileAt(tileX, tileY, nonNull, layer);
+    return GetTileAt(point.x, point.y, nonNull, layer);
 };
 
 module.exports = GetTileAtWorldXY;

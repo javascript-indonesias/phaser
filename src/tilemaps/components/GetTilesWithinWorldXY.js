@@ -5,8 +5,10 @@
  */
 
 var GetTilesWithin = require('./GetTilesWithin');
-var WorldToTileX = require('./WorldToTileX');
-var WorldToTileY = require('./WorldToTileY');
+var Vector2 = require('../../math/Vector2');
+
+var pointStart = new Vector2();
+var pointEnd = new Vector2();
 
 /**
  * Gets the tiles in the given rectangular area (in world coordinates) of the layer.
@@ -29,13 +31,19 @@ var WorldToTileY = require('./WorldToTileY');
  */
 var GetTilesWithinWorldXY = function (worldX, worldY, width, height, filteringOptions, camera, layer)
 {
-    // Top left corner of the rect, rounded down to include partial tiles
-    var xStart = WorldToTileX(worldX, true, camera, layer);
-    var yStart = WorldToTileY(worldY, true, camera, layer);
+    var worldToTileXY = layer.tilemapLayer.tilemap._convert.WorldToTileXY;
 
-    // Bottom right corner of the rect, rounded up to include partial tiles
-    var xEnd = Math.ceil(WorldToTileX(worldX + width, false, camera, layer));
-    var yEnd = Math.ceil(WorldToTileY(worldY + height, false, camera, layer));
+    //  Top left corner of the rect, rounded down to include partial tiles
+    worldToTileXY(worldX, worldY, true, pointStart, camera, layer);
+
+    var xStart = pointStart.x;
+    var yStart = pointStart.y;
+
+    //  Bottom right corner of the rect, rounded up to include partial tiles
+    worldToTileXY(worldX + width, worldY + height, false, pointEnd, camera, layer);
+
+    var xEnd = Math.ceil(pointEnd.x);
+    var yEnd = Math.ceil(pointEnd.y);
 
     return GetTilesWithin(xStart, yStart, xEnd - xStart, yEnd - yStart, filteringOptions, layer);
 };

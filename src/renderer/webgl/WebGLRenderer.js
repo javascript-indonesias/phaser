@@ -382,17 +382,40 @@ var WebGLRenderer = new Class({
         this.gl = null;
 
         /**
-         * Array of strings that indicate which WebGL extensions are supported by the browser
+         * Array of strings that indicate which WebGL extensions are supported by the browser.
+         * This is populated in the `boot` method.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#supportedExtensions
-         * @type {object}
+         * @type {string[]}
          * @default null
          * @since 3.0.0
          */
         this.supportedExtensions = null;
 
         /**
-         * Extensions loaded into the current context
+         * If the browser supports the `ANGLE_instanced_arrays` extension, this property will hold
+         * a reference to the glExtension for it.
+         *
+         * @name Phaser.Renderer.WebGL.WebGLRenderer#instancedArraysExtension
+         * @type {ANGLE_instanced_arrays}
+         * @default null
+         * @since 3.50.0
+         */
+        this.instancedArraysExtension = null;
+
+        /**
+         * If the browser supports the `OES_vertex_array_object` extension, this property will hold
+         * a reference to the glExtension for it.
+         *
+         * @name Phaser.Renderer.WebGL.WebGLRenderer#vaoExtension
+         * @type {OES_vertex_array_object}
+         * @default null
+         * @since 3.50.0
+         */
+        this.vaoExtension = null;
+
+        /**
+         * The WebGL Extensions loaded into the current context.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#extensions
          * @type {object}
@@ -402,7 +425,7 @@ var WebGLRenderer = new Class({
         this.extensions = {};
 
         /**
-         * Stores the current WebGL component formats for further use
+         * Stores the current WebGL component formats for further use.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#glFormats
          * @type {array}
@@ -415,7 +438,7 @@ var WebGLRenderer = new Class({
          * Stores the supported WebGL texture compression formats.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#compression
-         * @type {array}
+         * @type {object}
          * @since 3.8.0
          */
         this.compression = {
@@ -768,6 +791,14 @@ var WebGLRenderer = new Class({
         this.compression.S3TC = gl.getExtension(extString + 's3tc') || gl.getExtension(wkExtString + 's3tc');
 
         this.supportedExtensions = exts;
+
+        var angleString = 'ANGLE_instanced_arrays';
+
+        this.instancedArraysExtension = (exts.indexOf(angleString) > -1) ? gl.getExtension(angleString) : null;
+
+        var vaoString = 'OES_vertex_array_object';
+
+        this.vaoExtension = (exts.indexOf(vaoString) > -1) ? gl.getExtension(vaoString) : null;
 
         //  Setup initial WebGL state
         gl.disable(gl.DEPTH_TEST);
@@ -1998,10 +2029,10 @@ var WebGLRenderer = new Class({
      */
     preRenderCamera: function (camera)
     {
-        var cx = camera._cx;
-        var cy = camera._cy;
-        var cw = camera._cw;
-        var ch = camera._ch;
+        var cx = camera.x;
+        var cy = camera.y;
+        var cw = camera.width;
+        var ch = camera.height;
 
         var color = camera.backgroundColor;
 
@@ -2211,7 +2242,7 @@ var WebGLRenderer = new Class({
     /**
      * The core render step for a Scene Camera.
      *
-     * Iterates through the given Game Object's array and renders them with the given Camera.
+     * Iterates through the given array of Game Objects and renders them with the given Camera.
      *
      * This is called by the `CameraManager.render` method. The Camera Manager instance belongs to a Scene, and is invoked
      * by the Scene Systems.render method.
@@ -2222,15 +2253,14 @@ var WebGLRenderer = new Class({
      * @since 3.0.0
      *
      * @param {Phaser.Scene} scene - The Scene to render.
-     * @param {Phaser.GameObjects.GameObject} children - The Game Object's within the Scene to be rendered.
+     * @param {Phaser.GameObjects.GameObject[]} children - An array of filtered Game Objects that can be rendered by the given Camera.
      * @param {Phaser.Cameras.Scene2D.Camera} camera - The Scene Camera to render with.
      */
     render: function (scene, children, camera)
     {
         if (this.contextLost) { return; }
 
-        var list = children.list;
-        var childCount = list.length;
+        var childCount = children.length;
 
         this.pipelines.render(scene, camera);
 
@@ -2257,12 +2287,7 @@ var WebGLRenderer = new Class({
         {
             this.finalType = (i === childCount - 1);
 
-            var child = list[i];
-
-            if (!child.willRender(camera))
-            {
-                continue;
-            }
+            var child = children[i];
 
             if (child.blendMode !== this.currentBlendMode)
             {
@@ -2292,7 +2317,14 @@ var WebGLRenderer = new Class({
                 this.currentType = type;
             }
 
-            this.nextTypeMatch = (i < childCount - 1) ? (list[i + 1].type === this.currentType) : false;
+            if (!this.finalType)
+            {
+                this.nextTypeMatch = (children[i + 1].type === this.currentType);
+            }
+            else
+            {
+                this.nextTypeMatch = false;
+            }
 
             child.renderWebGL(this, child, camera);
 

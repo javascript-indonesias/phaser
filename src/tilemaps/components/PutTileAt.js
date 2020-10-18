@@ -28,8 +28,12 @@ var SetTileCollision = require('./SetTileCollision');
  */
 var PutTileAt = function (tile, tileX, tileY, recalculateFaces, layer)
 {
-    if (!IsInLayerBounds(tileX, tileY, layer)) { return null; }
     if (recalculateFaces === undefined) { recalculateFaces = true; }
+
+    if (!IsInLayerBounds(tileX, tileY, layer))
+    {
+        return null;
+    }
 
     var oldTile = layer.data[tileY][tileX];
     var oldTileCollides = oldTile && oldTile.collides;
@@ -38,7 +42,7 @@ var PutTileAt = function (tile, tileX, tileY, recalculateFaces, layer)
     {
         if (layer.data[tileY][tileX] === null)
         {
-            layer.data[tileY][tileX] = new Tile(layer, tile.index, tileX, tileY, tile.width, tile.height);
+            layer.data[tileY][tileX] = new Tile(layer, tile.index, tileX, tileY, layer.tileWidth, layer.tileHeight);
         }
 
         layer.data[tileY][tileX].copy(tile);

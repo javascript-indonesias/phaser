@@ -1838,40 +1838,6 @@ module.exports = {
 
 /***/ }),
 
-/***/ "../../../src/display/color/GetColorFromValue.js":
-/*!*****************************************************************!*\
-  !*** D:/wamp/www/phaser/src/display/color/GetColorFromValue.js ***!
-  \*****************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-/**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2020 Photon Storm Ltd.
- * @license      {@link https://opensource.org/licenses/MIT|MIT License}
- */
-
-/**
- * Given a hex color value, such as 0xff00ff (for purple), it will return a
- * numeric representation of it (i.e. 16711935) for use in WebGL tinting.
- *
- * @function Phaser.Display.Color.GetColorFromValue
- * @since 3.50.0
- *
- * @param {number} red - The hex color value, such as 0xff0000.
- *
- * @return {number} The combined color value.
- */
-var GetColorFromValue = function (value)
-{
-    return (value >> 16) + (value & 0xff00) + ((value & 0xff) << 16);
-};
-
-module.exports = GetColorFromValue;
-
-
-/***/ }),
-
 /***/ "../../../src/display/mask/BitmapMask.js":
 /*!*********************************************************!*\
   !*** D:/wamp/www/phaser/src/display/mask/BitmapMask.js ***!
@@ -1904,6 +1870,9 @@ var GameEvents = __webpack_require__(/*! ../../core/events */ "../../../src/core
  * that a pixel in the mask with an alpha of 0 will hide the corresponding pixel in all masked Game Objects
  *  A pixel with an alpha of 1 in the masked Game Object will receive the same alpha as the
  * corresponding pixel in the mask.
+ *
+ * Note: You cannot combine Bitmap Masks and Blend Modes on the same Game Object. You can, however,
+ * combine Geometry Masks and Blend Modes together.
  *
  * The Bitmap Mask's location matches the location of its Game Object, not the location of the
  * masked objects. Moving or transforming the underlying Game Object will change the mask
@@ -2027,36 +1996,73 @@ var BitmapMask = new Class({
          */
         this.isStencil = false;
 
-        if (renderer && renderer.gl)
+        this.createMask();
+
+        scene.sys.game.events.on(GameEvents.CONTEXT_RESTORED, this.createMask, this);
+    },
+
+    /**
+     * Creates the WebGL Texture2D objects and Framebuffers required for this
+     * mask. If this mask has already been created, then `clearMask` is called first.
+     *
+     * @method Phaser.Display.Masks.BitmapMask#createMask
+     * @since 3.50.0
+     */
+    createMask: function ()
+    {
+        var renderer = this.renderer;
+
+        if (!renderer.gl)
         {
-            var width = renderer.width;
-            var height = renderer.height;
-            var pot = ((width & (width - 1)) === 0 && (height & (height - 1)) === 0);
-            var gl = renderer.gl;
-            var wrap = pot ? gl.REPEAT : gl.CLAMP_TO_EDGE;
-            var filter = gl.LINEAR;
-
-            this.mainTexture = renderer.createTexture2D(0, filter, filter, wrap, wrap, gl.RGBA, null, width, height);
-            this.maskTexture = renderer.createTexture2D(0, filter, filter, wrap, wrap, gl.RGBA, null, width, height);
-            this.mainFramebuffer = renderer.createFramebuffer(width, height, this.mainTexture, true);
-            this.maskFramebuffer = renderer.createFramebuffer(width, height, this.maskTexture, true);
-
-            scene.sys.game.events.on(GameEvents.CONTEXT_RESTORED, function (renderer)
-            {
-                var width = renderer.width;
-                var height = renderer.height;
-                var pot = ((width & (width - 1)) === 0 && (height & (height - 1)) === 0);
-                var gl = renderer.gl;
-                var wrap = pot ? gl.REPEAT : gl.CLAMP_TO_EDGE;
-                var filter = gl.LINEAR;
-
-                this.mainTexture = renderer.createTexture2D(0, filter, filter, wrap, wrap, gl.RGBA, null, width, height);
-                this.maskTexture = renderer.createTexture2D(0, filter, filter, wrap, wrap, gl.RGBA, null, width, height);
-                this.mainFramebuffer = renderer.createFramebuffer(width, height, this.mainTexture, true);
-                this.maskFramebuffer = renderer.createFramebuffer(width, height, this.maskTexture, true);
-
-            }, this);
+            return;
         }
+
+        if (this.mainTexture)
+        {
+            this.clearMask();
+        }
+
+        var width = renderer.width;
+        var height = renderer.height;
+        var pot = ((width & (width - 1)) === 0 && (height & (height - 1)) === 0);
+        var gl = renderer.gl;
+        var wrap = pot ? gl.REPEAT : gl.CLAMP_TO_EDGE;
+        var filter = gl.LINEAR;
+
+        this.mainTexture = renderer.createTexture2D(0, filter, filter, wrap, wrap, gl.RGBA, null, width, height);
+        this.maskTexture = renderer.createTexture2D(0, filter, filter, wrap, wrap, gl.RGBA, null, width, height);
+        this.mainFramebuffer = renderer.createFramebuffer(width, height, this.mainTexture, true);
+        this.maskFramebuffer = renderer.createFramebuffer(width, height, this.maskTexture, true);
+    },
+
+    /**
+     * Deletes the `mainTexture` and `maskTexture` WebGL Textures and deletes
+     * the `mainFramebuffer` and `maskFramebuffer` too, nulling all references.
+     *
+     * This is called when this mask is destroyed, or if you try to creat a new
+     * mask from this object when one is already set.
+     *
+     * @method Phaser.Display.Masks.BitmapMask#clearMask
+     * @since 3.50.0
+     */
+    clearMask: function ()
+    {
+        var renderer = this.renderer;
+
+        if (!renderer.gl || !this.mainTexture)
+        {
+            return;
+        }
+
+        renderer.deleteTexture(this.mainTexture);
+        renderer.deleteTexture(this.maskTexture);
+        renderer.deleteFramebuffer(this.mainFramebuffer);
+        renderer.deleteFramebuffer(this.maskFramebuffer);
+
+        this.mainTexture = null;
+        this.maskTexture = null;
+        this.mainFramebuffer = null;
+        this.maskFramebuffer = null;
     },
 
     /**
@@ -2143,22 +2149,9 @@ var BitmapMask = new Class({
      */
     destroy: function ()
     {
+        this.clearMask();
+
         this.bitmapMask = null;
-
-        var renderer = this.renderer;
-
-        if (renderer && renderer.gl)
-        {
-            renderer.deleteTexture(this.mainTexture);
-            renderer.deleteTexture(this.maskTexture);
-            renderer.deleteFramebuffer(this.mainFramebuffer);
-            renderer.deleteFramebuffer(this.maskFramebuffer);
-        }
-
-        this.mainTexture = null;
-        this.maskTexture = null;
-        this.mainFramebuffer = null;
-        this.maskFramebuffer = null;
         this.prevFramebuffer = null;
         this.renderer = null;
     }
@@ -2264,7 +2257,7 @@ var GeometryMask = new Class({
      * @since 3.0.0
      *
      * @param {Phaser.GameObjects.Graphics} graphicsGeometry - The Graphics object which will be used for the Geometry Mask.
-     * 
+     *
      * @return {this} This Geometry Mask
      */
     setShape: function (graphicsGeometry)
@@ -2282,7 +2275,7 @@ var GeometryMask = new Class({
      * @since 3.17.0
      *
      * @param {boolean} [value=true] - Invert the alpha of this mask?
-     * 
+     *
      * @return {this} This Geometry Mask
      */
     setInvertAlpha: function (value)
@@ -2361,7 +2354,7 @@ var GeometryMask = new Class({
         }
 
         //  Write stencil buffer
-        geometryMask.renderWebGL(renderer, geometryMask, 0, camera);
+        geometryMask.renderWebGL(renderer, geometryMask, camera);
 
         renderer.flush();
 
@@ -2405,32 +2398,32 @@ var GeometryMask = new Class({
 
         renderer.maskCount--;
 
+        //  Force flush before disabling stencil test
+        renderer.flush();
+
+        var current = renderer.currentMask;
+
         if (renderer.maskStack.length === 0)
         {
             //  If this is the only mask in the stack, flush and disable
-            renderer.flush();
-
-            renderer.currentMask.mask = null;
+            current.mask = null;
 
             gl.disable(gl.STENCIL_TEST);
         }
         else
         {
-            //  Force flush before disabling stencil test
-            renderer.flush();
-
             var prev = renderer.maskStack[renderer.maskStack.length - 1];
 
             prev.mask.applyStencil(renderer, prev.camera, false);
 
             if (renderer.currentCameraMask.mask !== prev.mask)
             {
-                renderer.currentMask.mask = prev.mask;
-                renderer.currentMask.camera = prev.camera;
+                current.mask = prev.mask;
+                current.camera = prev.camera;
             }
             else
             {
-                renderer.currentMask.mask = null;
+                current.mask = null;
             }
         }
     },
@@ -2451,7 +2444,7 @@ var GeometryMask = new Class({
 
         renderer.currentContext.save();
 
-        geometryMask.renderCanvas(renderer, geometryMask, 0, camera, null, null, true);
+        geometryMask.renderCanvas(renderer, geometryMask, camera, null, null, true);
 
         renderer.currentContext.clip();
     },
@@ -2668,12 +2661,15 @@ var GameObject = new Class({
         EventEmitter.call(this);
 
         /**
-         * The Scene to which this Game Object belongs.
+         * A reference to the Scene to which this Game Object belongs.
+         *
          * Game Objects can only belong to one Scene.
+         *
+         * You should consider this property as being read-only. You cannot move a
+         * Game Object to another Scene by simply changing it.
          *
          * @name Phaser.GameObjects.GameObject#scene
          * @type {Phaser.Scene}
-         * @protected
          * @since 3.0.0
          */
         this.scene = scene;
@@ -3362,6 +3358,82 @@ var GameObject = new Class({
 GameObject.RENDER_MASK = 15;
 
 module.exports = GameObject;
+
+
+/***/ }),
+
+/***/ "../../../src/gameobjects/GetCalcMatrix.js":
+/*!***********************************************************!*\
+  !*** D:/wamp/www/phaser/src/gameobjects/GetCalcMatrix.js ***!
+  \***********************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var TransformMatrix = __webpack_require__(/*! ./components/TransformMatrix */ "../../../src/gameobjects/components/TransformMatrix.js");
+
+var tempMatrix1 = new TransformMatrix();
+var tempMatrix2 = new TransformMatrix();
+var tempMatrix3 = new TransformMatrix();
+
+var result = { camera: tempMatrix1, sprite: tempMatrix2, calc: tempMatrix3 };
+
+/**
+ * Calculates the Transform Matrix of the given Game Object and Camera, factoring in
+ * the parent matrix if provided.
+ *
+ * Note that the object this results contains _references_ to the Transform Matrices,
+ * not new instances of them. Therefore, you should use their values immediately, or
+ * copy them to your own matrix, as they will be replaced as soon as another Game
+ * Object is rendered.
+ *
+ * @function Phaser.GameObjects.GetCalcMatrix
+ * @memberof Phaser.GameObjects
+ * @since 3.50.0
+ *
+ * @param {Phaser.GameObjects.GameObject} src - The Game Object to calculate the transform matrix for.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The camera being used to render the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} [parentMatrix] - The transform matrix of the parent container, if any.
+ *
+ * @return {Phaser.Types.GameObjects.GetCalcMatrixResults} The results object containing the updated transform matrices.
+ */
+var GetCalcMatrix = function (src, camera, parentMatrix)
+{
+    var camMatrix = tempMatrix1;
+    var spriteMatrix = tempMatrix2;
+    var calcMatrix = tempMatrix3;
+
+    spriteMatrix.applyITRS(src.x, src.y, src.rotation, src.scaleX, src.scaleY);
+
+    camMatrix.copyFrom(camera.matrix);
+
+    if (parentMatrix)
+    {
+        //  Multiply the camera by the parent matrix
+        camMatrix.multiplyWithOffset(parentMatrix, -camera.scrollX * src.scrollFactorX, -camera.scrollY * src.scrollFactorY);
+
+        //  Undo the camera scroll
+        spriteMatrix.e = src.x;
+        spriteMatrix.f = src.y;
+    }
+    else
+    {
+        spriteMatrix.e -= camera.scrollX * src.scrollFactorX;
+        spriteMatrix.f -= camera.scrollY * src.scrollFactorY;
+    }
+
+    //  Multiply by the Sprite matrix, store result in calcMatrix
+    camMatrix.multiply(spriteMatrix, calcMatrix);
+
+    return result;
+};
+
+module.exports = GetCalcMatrix;
 
 
 /***/ }),
@@ -4864,10 +4936,10 @@ var Mask = {
      * Note: Bitmap Masks only work on WebGL. Geometry Masks work on both WebGL and Canvas.
      *
      * If a mask is already set on this Game Object it will be immediately replaced.
-     * 
+     *
      * Masks are positioned in global space and are not relative to the Game Object to which they
      * are applied. The reason for this is that multiple Game Objects can all share the same mask.
-     * 
+     *
      * Masks have no impact on physics or input detection. They are purely a rendering component
      * that allows you to limit what is visible during the render pass.
      *
@@ -4913,6 +4985,8 @@ var Mask = {
      * Creates and returns a Bitmap Mask. This mask can be used by any Game Object,
      * including this one.
      *
+     * Note: Bitmap Masks only work on WebGL. Geometry Masks work on both WebGL and Canvas.
+     *
      * To create the mask you need to pass in a reference to a renderable Game Object.
      * A renderable Game Object is one that uses a texture to render with, such as an
      * Image, Sprite, Render Texture or BitmapText.
@@ -4923,7 +4997,7 @@ var Mask = {
      *
      * @method Phaser.GameObjects.Components.Mask#createBitmapMask
      * @since 3.6.2
-     * 
+     *
      * @param {Phaser.GameObjects.GameObject} [renderable] - A renderable Game Object that uses a texture, such as a Sprite.
      *
      * @return {Phaser.Display.Masks.BitmapMask} This Bitmap Mask that was created.
@@ -4947,12 +5021,12 @@ var Mask = {
      *
      * If you do not provide a graphics object, and this Game Object is an instance
      * of a Graphics object, then it will use itself to create the mask.
-     * 
+     *
      * This means you can call this method to create a Geometry Mask from any Graphics Game Object.
      *
      * @method Phaser.GameObjects.Components.Mask#createGeometryMask
      * @since 3.6.2
-     * 
+     *
      * @param {Phaser.GameObjects.Graphics} [graphics] - A Graphics Game Object. The geometry within it will be used as the mask.
      *
      * @return {Phaser.Display.Masks.GeometryMask} This Geometry Mask that was created.
@@ -6411,15 +6485,13 @@ module.exports = TextureCrop;
   !*** D:/wamp/www/phaser/src/gameobjects/components/Tint.js ***!
   \*************************************************************/
 /*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports) {
 
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
-
-var GetColorFromValue = __webpack_require__(/*! ../../display/color/GetColorFromValue */ "../../../src/display/color/GetColorFromValue.js");
 
 /**
  * Provides methods used for setting the tint of a Game Object.
@@ -6433,62 +6505,58 @@ var GetColorFromValue = __webpack_require__(/*! ../../display/color/GetColorFrom
 var Tint = {
 
     /**
-     * Private internal value. Holds the top-left tint value.
+     * The tint value being applied to the top-left vertice of the Game Object.
+     * This value is interpolated from the corner to the center of the Game Object.
+     * The value should be set as a hex number, i.e. 0xff0000 for red, or 0xff00ff for purple.
      *
-     * @name Phaser.GameObjects.Components.Tint#_tintTL
+     * @name Phaser.GameObjects.Components.Tint#tintTopLeft
      * @type {number}
-     * @private
-     * @default 16777215
+     * @default 0xffffff
      * @since 3.0.0
      */
-    _tintTL: 16777215,
+    tintTopLeft: 0xffffff,
 
     /**
-     * Private internal value. Holds the top-right tint value.
+     * The tint value being applied to the top-right vertice of the Game Object.
+     * This value is interpolated from the corner to the center of the Game Object.
+     * The value should be set as a hex number, i.e. 0xff0000 for red, or 0xff00ff for purple.
      *
-     * @name Phaser.GameObjects.Components.Tint#_tintTR
+     * @name Phaser.GameObjects.Components.Tint#tintTopRight
      * @type {number}
-     * @private
-     * @default 16777215
+     * @default 0xffffff
      * @since 3.0.0
      */
-    _tintTR: 16777215,
+    tintTopRight: 0xffffff,
 
     /**
-     * Private internal value. Holds the bottom-left tint value.
+     * The tint value being applied to the bottom-left vertice of the Game Object.
+     * This value is interpolated from the corner to the center of the Game Object.
+     * The value should be set as a hex number, i.e. 0xff0000 for red, or 0xff00ff for purple.
      *
-     * @name Phaser.GameObjects.Components.Tint#_tintBL
+     * @name Phaser.GameObjects.Components.Tint#tintBottomLeft
      * @type {number}
-     * @private
-     * @default 16777215
+     * @default 0xffffff
      * @since 3.0.0
      */
-    _tintBL: 16777215,
+    tintBottomLeft: 0xffffff,
 
     /**
-     * Private internal value. Holds the bottom-right tint value.
+     * The tint value being applied to the bottom-right vertice of the Game Object.
+     * This value is interpolated from the corner to the center of the Game Object.
+     * The value should be set as a hex number, i.e. 0xff0000 for red, or 0xff00ff for purple.
      *
-     * @name Phaser.GameObjects.Components.Tint#_tintBR
+     * @name Phaser.GameObjects.Components.Tint#tintBottomRight
      * @type {number}
-     * @private
-     * @default 16777215
+     * @default 0xffffff
      * @since 3.0.0
      */
-    _tintBR: 16777215,
+    tintBottomRight: 0xffffff,
 
     /**
-     * Private internal value. Holds if the Game Object is tinted or not.
+     * The tint fill mode.
      *
-     * @name Phaser.GameObjects.Components.Tint#_isTinted
-     * @type {boolean}
-     * @private
-     * @default false
-     * @since 3.11.0
-     */
-    _isTinted: false,
-
-    /**
-     * Fill or additive?
+     * `false` = An additive tint (the default), where vertices colors are blended with the texture.
+     * `true` = A fill tint, where the vertices colors replace the texture, but respects texture alpha.
      *
      * @name Phaser.GameObjects.Components.Tint#tintFill
      * @type {boolean}
@@ -6512,8 +6580,6 @@ var Tint = {
     clearTint: function ()
     {
         this.setTint(0xffffff);
-
-        this._isTinted = false;
 
         return this;
     },
@@ -6556,12 +6622,10 @@ var Tint = {
             bottomRight = topLeft;
         }
 
-        this._tintTL = GetColorFromValue(topLeft);
-        this._tintTR = GetColorFromValue(topRight);
-        this._tintBL = GetColorFromValue(bottomLeft);
-        this._tintBR = GetColorFromValue(bottomRight);
-
-        this._isTinted = true;
+        this.tintTopLeft = topLeft;
+        this.tintTopRight = topRight;
+        this.tintBottomLeft = bottomLeft;
+        this.tintBottomRight = bottomRight;
 
         this.tintFill = false;
 
@@ -6606,102 +6670,6 @@ var Tint = {
     },
 
     /**
-     * The tint value being applied to the top-left of the Game Object.
-     * This value is interpolated from the corner to the center of the Game Object.
-     *
-     * @name Phaser.GameObjects.Components.Tint#tintTopLeft
-     * @type {integer}
-     * @webglOnly
-     * @since 3.0.0
-     */
-    tintTopLeft: {
-
-        get: function ()
-        {
-            return this._tintTL;
-        },
-
-        set: function (value)
-        {
-            this._tintTL = GetColorFromValue(value);
-            this._isTinted = true;
-        }
-
-    },
-
-    /**
-     * The tint value being applied to the top-right of the Game Object.
-     * This value is interpolated from the corner to the center of the Game Object.
-     *
-     * @name Phaser.GameObjects.Components.Tint#tintTopRight
-     * @type {integer}
-     * @webglOnly
-     * @since 3.0.0
-     */
-    tintTopRight: {
-
-        get: function ()
-        {
-            return this._tintTR;
-        },
-
-        set: function (value)
-        {
-            this._tintTR = GetColorFromValue(value);
-            this._isTinted = true;
-        }
-
-    },
-
-    /**
-     * The tint value being applied to the bottom-left of the Game Object.
-     * This value is interpolated from the corner to the center of the Game Object.
-     *
-     * @name Phaser.GameObjects.Components.Tint#tintBottomLeft
-     * @type {integer}
-     * @webglOnly
-     * @since 3.0.0
-     */
-    tintBottomLeft: {
-
-        get: function ()
-        {
-            return this._tintBL;
-        },
-
-        set: function (value)
-        {
-            this._tintBL = GetColorFromValue(value);
-            this._isTinted = true;
-        }
-
-    },
-
-    /**
-     * The tint value being applied to the bottom-right of the Game Object.
-     * This value is interpolated from the corner to the center of the Game Object.
-     *
-     * @name Phaser.GameObjects.Components.Tint#tintBottomRight
-     * @type {integer}
-     * @webglOnly
-     * @since 3.0.0
-     */
-    tintBottomRight: {
-
-        get: function ()
-        {
-            return this._tintBR;
-        },
-
-        set: function (value)
-        {
-            this._tintBR = GetColorFromValue(value);
-            this._isTinted = true;
-        }
-
-    },
-
-    /**
      * The tint value being applied to the whole of the Game Object.
      * This property is a setter-only. Use the properties `tintTopLeft` etc to read the current tint value.
      *
@@ -6719,7 +6687,10 @@ var Tint = {
     },
 
     /**
-     * Does this Game Object have a tint applied to it or not?
+     * Does this Game Object have a tint applied?
+     *
+     * It checks to see if the 4 tint properties are set to the value 0xffffff
+     * and that the `tintFill` property is `false`. This indicates that a Game Object isn't tinted.
      *
      * @name Phaser.GameObjects.Components.Tint#isTinted
      * @type {boolean}
@@ -6731,7 +6702,15 @@ var Tint = {
 
         get: function ()
         {
-            return this._isTinted;
+            var white = 0xffffff;
+
+            return (
+                this.tintFill ||
+                this.tintTopLeft !== white ||
+                this.tintTopRight !== white ||
+                this.tintBottomLeft !== white ||
+                this.tintBottomRight !== white
+            );
         }
 
     }
@@ -7093,6 +7072,26 @@ var Transform = {
         this.y = y;
         this.z = z;
         this.w = w;
+
+        return this;
+    },
+
+    /**
+     * Copies an object's coordinates to this Game Object's position.
+     *
+     * @method Phaser.GameObjects.Components.Transform#copyPosition
+     * @since 3.50.0
+     *
+     * @param {(Phaser.Types.Math.Vector2Like|Phaser.Types.Math.Vector3Like|Phaser.Types.Math.Vector4Like)} source - An object with numeric 'x', 'y', 'z', or 'w' properties. Undefined values are not copied.
+     *
+     * @return {this} This Game Object instance.
+     */
+    copyPosition: function (source)
+    {
+        if (source.x !== undefined) { this.x = source.x; }
+        if (source.y !== undefined) { this.y = source.y; }
+        if (source.z !== undefined) { this.z = source.z; }
+        if (source.w !== undefined) { this.w = source.w; }
 
         return this;
     },
@@ -8590,7 +8589,6 @@ var Class = __webpack_require__(/*! ../../utils/Class */ "../../../src/utils/Cla
 var Components = __webpack_require__(/*! ../components */ "../../../src/gameobjects/components/index.js");
 var Events = __webpack_require__(/*! ../events */ "../../../src/gameobjects/events/index.js");
 var GameObject = __webpack_require__(/*! ../GameObject */ "../../../src/gameobjects/GameObject.js");
-var GameObjectEvents = __webpack_require__(/*! ../events */ "../../../src/gameobjects/events/index.js");
 var Rectangle = __webpack_require__(/*! ../../geom/rectangle/Rectangle */ "../../../src/geom/rectangle/Rectangle.js");
 var Render = __webpack_require__(/*! ./ContainerRender */ "../../../src/gameobjects/container/ContainerRender.js");
 var Union = __webpack_require__(/*! ../../geom/rectangle/Union */ "../../../src/geom/rectangle/Union.js");
@@ -8623,7 +8621,7 @@ var Vector2 = __webpack_require__(/*! ../../math/Vector2 */ "../../../src/math/V
  *
  * Containers can be enabled for input. Because they do not have a texture you need to provide a shape for them
  * to use as their hit area. Container children can also be enabled for input, independent of the Container.
- * 
+ *
  * If input enabling a _child_ you should not set both the `origin` and a **negative** scale factor on the child,
  * or the input area will become misaligned.
  *
@@ -9039,7 +9037,7 @@ var Container = new Class({
         //  Is only on the Display List via this Container
         if (!this.scene.sys.displayList.exists(gameObject))
         {
-            gameObject.emit(GameObjectEvents.ADDED_TO_SCENE, gameObject, this.scene);
+            gameObject.emit(Events.ADDED_TO_SCENE, gameObject, this.scene);
         }
     },
 
@@ -9064,7 +9062,7 @@ var Container = new Class({
         //  Is only on the Display List via this Container
         if (!this.scene.sys.displayList.exists(gameObject))
         {
-            gameObject.emit(GameObjectEvents.REMOVED_FROM_SCENE, gameObject, this.scene);
+            gameObject.emit(Events.REMOVED_FROM_SCENE, gameObject, this.scene);
         }
     },
 
@@ -9968,11 +9966,10 @@ module.exports = Container;
  *
  * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - A reference to the current active Canvas renderer.
  * @param {Phaser.GameObjects.Container} container - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var ContainerCanvasRenderer = function (renderer, container, interpolationPercentage, camera, parentMatrix)
+var ContainerCanvasRenderer = function (renderer, container, camera, parentMatrix)
 {
     var children = container.list;
 
@@ -10037,7 +10034,7 @@ var ContainerCanvasRenderer = function (renderer, container, interpolationPercen
         child.setAlpha(childAlpha * alpha);
 
         //  Render
-        child.renderCanvas(renderer, child, interpolationPercentage, camera, transformMatrix);
+        child.renderCanvas(renderer, child, camera, transformMatrix);
 
         //  Restore original values
         child.setAlpha(childAlpha);
@@ -10117,11 +10114,10 @@ module.exports = {
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
  * @param {Phaser.GameObjects.Container} container - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var ContainerWebGLRenderer = function (renderer, container, interpolationPercentage, camera, parentMatrix)
+var ContainerWebGLRenderer = function (renderer, container, camera, parentMatrix)
 {
     var children = container.list;
 
@@ -10131,7 +10127,7 @@ var ContainerWebGLRenderer = function (renderer, container, interpolationPercent
     }
 
     var transformMatrix = container.localTransform;
-    
+
     if (parentMatrix)
     {
         transformMatrix.loadIdentity();
@@ -10224,7 +10220,7 @@ var ContainerWebGLRenderer = function (renderer, container, interpolationPercent
         child.setAlpha(childAlphaTopLeft * alpha, childAlphaTopRight * alpha, childAlphaBottomLeft * alpha, childAlphaBottomRight * alpha);
 
         //  Render
-        child.renderWebGL(renderer, child, interpolationPercentage, camera, transformMatrix);
+        child.renderWebGL(renderer, child, camera, transformMatrix);
 
         //  Restore original values
 
@@ -12329,7 +12325,18 @@ var File = new Class({
 
         if (!this.type || !this.key)
         {
-            throw new Error('Error calling \'Loader.' + this.type + '\' invalid key provided.');
+            throw new Error('Invalid Loader.' + this.type + ' key');
+        }
+
+        var url = GetFastValue(fileConfig, 'url');
+
+        if (url === undefined)
+        {
+            url = loader.path + loadKey + '.' + GetFastValue(fileConfig, 'extension', '');
+        }
+        else if (typeof url === 'string' && !url.match(/^(?:blob:|data:|http:\/\/|https:\/\/|\/\/)/))
+        {
+            url = loader.path + url;
         }
 
         /**
@@ -12343,16 +12350,7 @@ var File = new Class({
          * @type {object|string}
          * @since 3.0.0
          */
-        this.url = GetFastValue(fileConfig, 'url');
-
-        if (this.url === undefined)
-        {
-            this.url = loader.path + loadKey + '.' + GetFastValue(fileConfig, 'extension', '');
-        }
-        else if (typeof this.url === 'string' && this.url.indexOf('blob:') !== 0 && this.url.indexOf('data:') !== 0)
-        {
-            this.url = loader.path + this.url;
-        }
+        this.url = url;
 
         /**
          * The final URL this file will load from, including baseURL and path.
@@ -12988,7 +12986,7 @@ var Class = __webpack_require__(/*! ../utils/Class */ "../../../src/utils/Class.
  * @classdesc
  * A MultiFile is a special kind of parent that contains two, or more, Files as children and looks after
  * the loading and processing of them all. It is commonly extended and used as a base class for file types such as AtlasJSON or BitmapFont.
- * 
+ *
  * You shouldn't create an instance of a MultiFile directly, but should extend it with your own class, setting a custom type and processing methods.
  *
  * @class MultiFile
@@ -13007,6 +13005,17 @@ var MultiFile = new Class({
 
     function MultiFile (loader, type, key, files)
     {
+        var finalFiles = [];
+
+        //  Clean out any potential 'null' or 'undefined' file entries
+        files.forEach(function (file)
+        {
+            if (file)
+            {
+                finalFiles.push(file);
+            }
+        });
+
         /**
          * A reference to the Loader that is going to load this file.
          *
@@ -13051,7 +13060,7 @@ var MultiFile = new Class({
          * @type {Phaser.Loader.File[]}
          * @since 3.7.0
          */
-        this.files = files;
+        this.files = finalFiles;
 
         /**
          * The completion status of this MultiFile.
@@ -13071,7 +13080,7 @@ var MultiFile = new Class({
          * @since 3.7.0
          */
 
-        this.pending = files.length;
+        this.pending = finalFiles.length;
 
         /**
          * The number of files that failed to load.
@@ -13123,9 +13132,9 @@ var MultiFile = new Class({
         this.prefix = loader.prefix;
 
         //  Link the files
-        for (var i = 0; i < files.length; i++)
+        for (var i = 0; i < finalFiles.length; i++)
         {
-            files[i].multiFile = this;
+            finalFiles[i].multiFile = this;
         }
     },
 
@@ -14472,7 +14481,9 @@ var TextFile = new Class({
 
     function TextFile (loader, key, url, xhrSettings)
     {
+        var type = 'text';
         var extension = 'txt';
+        var cache = loader.cacheManager.text;
 
         if (IsPlainObject(key))
         {
@@ -14482,11 +14493,13 @@ var TextFile = new Class({
             url = GetFastValue(config, 'url');
             xhrSettings = GetFastValue(config, 'xhrSettings');
             extension = GetFastValue(config, 'extension', extension);
+            type = GetFastValue(config, 'type', type);
+            cache = GetFastValue(config, 'cache', cache);
         }
 
         var fileConfig = {
-            type: 'text',
-            cache: loader.cacheManager.text,
+            type: type,
+            cache: cache,
             extension: extension,
             responseType: 'text',
             key: key,
@@ -14899,6 +14912,294 @@ var Difference = function (a, b)
 };
 
 module.exports = Difference;
+
+
+/***/ }),
+
+/***/ "../../../src/math/Euler.js":
+/*!********************************************!*\
+  !*** D:/wamp/www/phaser/src/math/Euler.js ***!
+  \********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var Clamp = __webpack_require__(/*! ./Clamp */ "../../../src/math/Clamp.js");
+var Class = __webpack_require__(/*! ../utils/Class */ "../../../src/utils/Class.js");
+var Matrix4 = __webpack_require__(/*! ./Matrix4 */ "../../../src/math/Matrix4.js");
+var NOOP = __webpack_require__(/*! ../utils/NOOP */ "../../../src/utils/NOOP.js");
+
+var tempMatrix = new Matrix4();
+
+/**
+ * @classdesc
+ *
+ * @class Euler
+ * @memberof Phaser.Math
+ * @constructor
+ * @since 3.50.0
+ *
+ * @param {number} [x] - The x component.
+ * @param {number} [y] - The y component.
+ * @param {number} [z] - The z component.
+ */
+var Euler = new Class({
+
+    initialize:
+
+    function Euler (x, y, z, order)
+    {
+        if (x === undefined) { x = 0; }
+        if (y === undefined) { y = 0; }
+        if (z === undefined) { z = 0; }
+        if (order === undefined) { order = Euler.DefaultOrder; }
+
+        this._x = x;
+        this._y = y;
+        this._z = z;
+        this._order = order;
+
+        this.onChangeCallback = NOOP;
+    },
+
+    x: {
+        get: function ()
+        {
+            return this._x;
+        },
+
+        set: function (value)
+        {
+            this._x = value;
+
+            this.onChangeCallback(this);
+        }
+    },
+
+    y: {
+        get: function ()
+        {
+            return this._y;
+        },
+
+        set: function (value)
+        {
+            this._y = value;
+
+            this.onChangeCallback(this);
+        }
+    },
+
+    z: {
+        get: function ()
+        {
+            return this._z;
+        },
+
+        set: function (value)
+        {
+            this._z = value;
+
+            this.onChangeCallback(this);
+        }
+    },
+
+    order: {
+        get: function ()
+        {
+            return this._order;
+        },
+
+        set: function (value)
+        {
+            this._order = value;
+
+            this.onChangeCallback(this);
+        }
+    },
+
+    set: function (x, y, z, order)
+    {
+        if (order === undefined) { order = this._order; }
+
+        this._x = x;
+        this._y = y;
+        this._z = z;
+        this._order = order;
+
+        this.onChangeCallback(this);
+
+        return this;
+    },
+
+    copy: function (euler)
+    {
+        return this.set(euler.x, euler.y, euler.z, euler.order);
+    },
+
+    setFromQuaternion: function (quaternion, order, update)
+    {
+        if (order === undefined) { order = this._order; }
+        if (update === undefined) { update = false; }
+
+        tempMatrix.fromQuat(quaternion);
+
+        return this.setFromRotationMatrix(tempMatrix, order, update);
+    },
+
+    setFromRotationMatrix: function (matrix, order, update)
+    {
+        if (order === undefined) { order = this._order; }
+        if (update === undefined) { update = false; }
+
+        var elements = matrix.val;
+
+        //  Upper 3x3 of matrix is un-scaled rotation matrix
+        var m11 = elements[0];
+        var m12 = elements[4];
+        var m13 = elements[8];
+        var m21 = elements[1];
+        var m22 = elements[5];
+        var m23 = elements[9];
+        var m31 = elements[2];
+        var m32 = elements[6];
+        var m33 = elements[10];
+
+        var x = 0;
+        var y = 0;
+        var z = 0;
+        var epsilon = 0.99999;
+
+        switch (order)
+        {
+            case 'XYZ':
+            {
+                y = Math.asin(Clamp(m13, -1, 1));
+
+                if (Math.abs(m13) < epsilon)
+                {
+                    x = Math.atan2(-m23, m33);
+                    z = Math.atan2(-m12, m11);
+                }
+                else
+                {
+                    x = Math.atan2(m32, m22);
+                }
+
+                break;
+            }
+
+            case 'YXZ':
+            {
+                x = Math.asin(-Clamp(m23, -1, 1));
+
+                if (Math.abs(m23) < epsilon)
+                {
+                    y = Math.atan2(m13, m33);
+                    z = Math.atan2(m21, m22);
+                }
+                else
+                {
+                    y = Math.atan2(-m31, m11);
+                }
+
+                break;
+            }
+
+            case 'ZXY':
+            {
+                x = Math.asin(Clamp(m32, -1, 1));
+
+                if (Math.abs(m32) < epsilon)
+                {
+                    y = Math.atan2(-m31, m33);
+                    z = Math.atan2(-m12, m22);
+                }
+                else
+                {
+                    z = Math.atan2(m21, m11);
+                }
+
+                break;
+            }
+
+            case 'ZYX':
+            {
+                y = Math.asin(-Clamp(m31, -1, 1));
+
+                if (Math.abs(m31) < epsilon)
+                {
+                    x = Math.atan2(m32, m33);
+                    z = Math.atan2(m21, m11);
+                }
+                else
+                {
+                    z = Math.atan2(-m12, m22);
+                }
+
+                break;
+            }
+
+            case 'YZX':
+            {
+                z = Math.asin(Clamp(m21, -1, 1));
+
+                if (Math.abs(m21) < epsilon)
+                {
+                    x = Math.atan2(-m23, m22);
+                    y = Math.atan2(-m31, m11);
+                }
+                else
+                {
+                    y = Math.atan2(m13, m33);
+                }
+
+                break;
+            }
+
+            case 'XZY':
+            {
+                z = Math.asin(-Clamp(m12, -1, 1));
+
+                if (Math.abs(m12) < epsilon)
+                {
+                    x = Math.atan2(m32, m22);
+                    y = Math.atan2(m13, m11);
+                }
+                else
+                {
+                    x = Math.atan2(-m23, m33);
+                }
+
+                break;
+            }
+        }
+
+        this._x = x;
+        this._y = y;
+        this._z = z;
+        this._order = order;
+
+        if (update)
+        {
+            this.onChangeCallback(this);
+        }
+
+        return this;
+    }
+
+});
+
+Euler.RotationOrders = [ 'XYZ', 'YXZ', 'ZXY', 'ZYX', 'YZX', 'XZY' ];
+
+Euler.DefaultOrder = 'XYZ';
+
+module.exports = Euler;
 
 
 /***/ }),
@@ -15817,16 +16118,20 @@ module.exports = Matrix3;
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
-//  Adapted from [gl-matrix](https://github.com/toji/gl-matrix) by toji
-//  and [vecmath](https://github.com/mattdesl/vecmath) by mattdesl
-
 var Class = __webpack_require__(/*! ../utils/Class */ "../../../src/utils/Class.js");
+var Vector3 = __webpack_require__(/*! ./Vector3 */ "../../../src/math/Vector3.js");
 
+/**
+ * @ignore
+ */
 var EPSILON = 0.000001;
 
 /**
  * @classdesc
  * A four-dimensional matrix.
+ *
+ * Adapted from [gl-matrix](https://github.com/toji/gl-matrix) by toji
+ * and [vecmath](https://github.com/mattdesl/vecmath) by mattdesl
  *
  * @class Matrix4
  * @memberof Phaser.Math
@@ -15875,8 +16180,6 @@ var Matrix4 = new Class({
         return new Matrix4(this);
     },
 
-    //  TODO - Should work with basic values
-
     /**
      * This method is an alias for `Matrix4.copy`.
      *
@@ -15885,11 +16188,60 @@ var Matrix4 = new Class({
      *
      * @param {Phaser.Math.Matrix4} src - The Matrix to set the values of this Matrix's from.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     set: function (src)
     {
         return this.copy(src);
+    },
+
+    /**
+     * Sets all values of this Matrix4.
+     *
+     * @method Phaser.Math.Matrix4#setValues
+     * @since 3.50.0
+     *
+     * @param {number} m00 - The m00 value.
+     * @param {number} m01 - The m01 value.
+     * @param {number} m02 - The m02 value.
+     * @param {number} m03 - The m03 value.
+     * @param {number} m10 - The m10 value.
+     * @param {number} m11 - The m11 value.
+     * @param {number} m12 - The m12 value.
+     * @param {number} m13 - The m13 value.
+     * @param {number} m20 - The m20 value.
+     * @param {number} m21 - The m21 value.
+     * @param {number} m22 - The m22 value.
+     * @param {number} m23 - The m23 value.
+     * @param {number} m30 - The m30 value.
+     * @param {number} m31 - The m31 value.
+     * @param {number} m32 - The m32 value.
+     * @param {number} m33 - The m33 value.
+     *
+     * @return {this} This Matrix4 instance.
+     */
+    setValues: function (m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
+    {
+        var out = this.val;
+
+        out[0] = m00;
+        out[1] = m01;
+        out[2] = m02;
+        out[3] = m03;
+        out[4] = m10;
+        out[5] = m11;
+        out[6] = m12;
+        out[7] = m13;
+        out[8] = m20;
+        out[9] = m21;
+        out[10] = m22;
+        out[11] = m23;
+        out[12] = m30;
+        out[13] = m31;
+        out[14] = m32;
+        out[15] = m33;
+
+        return this;
     },
 
     /**
@@ -15900,31 +16252,13 @@ var Matrix4 = new Class({
      *
      * @param {Phaser.Math.Matrix4} src - The Matrix to copy the values from.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     copy: function (src)
     {
-        var out = this.val;
         var a = src.val;
 
-        out[0] = a[0];
-        out[1] = a[1];
-        out[2] = a[2];
-        out[3] = a[3];
-        out[4] = a[4];
-        out[5] = a[5];
-        out[6] = a[6];
-        out[7] = a[7];
-        out[8] = a[8];
-        out[9] = a[9];
-        out[10] = a[10];
-        out[11] = a[11];
-        out[12] = a[12];
-        out[13] = a[13];
-        out[14] = a[14];
-        out[15] = a[15];
-
-        return this;
+        return this.setValues(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]);
     },
 
     /**
@@ -15933,32 +16267,13 @@ var Matrix4 = new Class({
      * @method Phaser.Math.Matrix4#fromArray
      * @since 3.0.0
      *
-     * @param {array} a - The array to copy the values from.
+     * @param {number[]} a - The array to copy the values from. Must have at least 16 elements.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     fromArray: function (a)
     {
-        var out = this.val;
-
-        out[0] = a[0];
-        out[1] = a[1];
-        out[2] = a[2];
-        out[3] = a[3];
-        out[4] = a[4];
-        out[5] = a[5];
-        out[6] = a[6];
-        out[7] = a[7];
-        out[8] = a[8];
-        out[9] = a[9];
-        out[10] = a[10];
-        out[11] = a[11];
-        out[12] = a[12];
-        out[13] = a[13];
-        out[14] = a[14];
-        out[15] = a[15];
-
-        return this;
+        return this.setValues(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]);
     },
 
     /**
@@ -15973,26 +16288,52 @@ var Matrix4 = new Class({
      */
     zero: function ()
     {
-        var out = this.val;
+        return this.setValues(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    },
 
-        out[0] = 0;
-        out[1] = 0;
-        out[2] = 0;
-        out[3] = 0;
-        out[4] = 0;
-        out[5] = 0;
-        out[6] = 0;
-        out[7] = 0;
-        out[8] = 0;
-        out[9] = 0;
-        out[10] = 0;
-        out[11] = 0;
-        out[12] = 0;
-        out[13] = 0;
-        out[14] = 0;
-        out[15] = 0;
+    /**
+     * Generates a transform matrix based on the given position, scale and rotation.
+     *
+     * @method Phaser.Math.Matrix4#transform
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Vector3} position - The position vector.
+     * @param {Phaser.Math.Vector3} scale - The scale vector.
+     * @param {Phaser.Math.Quaternion} rotation - The rotation quaternion.
+     *
+     * @return {this} This Matrix4.
+     */
+    transform: function (position, scale, rotation)
+    {
+        var rotMatrix = _tempMat1.fromQuat(rotation);
 
-        return this;
+        var rm = rotMatrix.val;
+
+        var sx = scale.x;
+        var sy = scale.y;
+        var sz = scale.z;
+
+        return this.setValues(
+            rm[0] * sx,
+            rm[1] * sx,
+            rm[2] * sx,
+            0,
+
+            rm[4] * sy,
+            rm[5] * sy,
+            rm[6] * sy,
+            0,
+
+            rm[8] * sz,
+            rm[9] * sz,
+            rm[10] * sz,
+            0,
+
+            position.x,
+            position.y,
+            position.z,
+            1
+        );
     },
 
     /**
@@ -16005,7 +16346,7 @@ var Matrix4 = new Class({
      * @param {number} y - The y value.
      * @param {number} z - The z value.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     xyz: function (x, y, z)
     {
@@ -16030,7 +16371,7 @@ var Matrix4 = new Class({
      * @param {number} y - The y scaling value.
      * @param {number} z - The z scaling value.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     scaling: function (x, y, z)
     {
@@ -16052,30 +16393,11 @@ var Matrix4 = new Class({
      * @method Phaser.Math.Matrix4#identity
      * @since 3.0.0
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     identity: function ()
     {
-        var out = this.val;
-
-        out[0] = 1;
-        out[1] = 0;
-        out[2] = 0;
-        out[3] = 0;
-        out[4] = 0;
-        out[5] = 1;
-        out[6] = 0;
-        out[7] = 0;
-        out[8] = 0;
-        out[9] = 0;
-        out[10] = 1;
-        out[11] = 0;
-        out[12] = 0;
-        out[13] = 0;
-        out[14] = 0;
-        out[15] = 1;
-
-        return this;
+        return this.setValues(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
     },
 
     /**
@@ -16084,7 +16406,7 @@ var Matrix4 = new Class({
      * @method Phaser.Math.Matrix4#transpose
      * @since 3.0.0
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     transpose: function ()
     {
@@ -16114,12 +16436,29 @@ var Matrix4 = new Class({
     },
 
     /**
+     * Copies the given Matrix4 into this Matrix and then inverses it.
+     *
+     * @method Phaser.Math.Matrix4#getInverse
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} m - The Matrix4 to invert into this Matrix4.
+     *
+     * @return {this} This Matrix4.
+     */
+    getInverse: function (m)
+    {
+        this.copy(m);
+
+        return this.invert();
+    },
+
+    /**
      * Invert this Matrix.
      *
      * @method Phaser.Math.Matrix4#invert
      * @since 3.0.0
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     invert: function ()
     {
@@ -16160,34 +16499,34 @@ var Matrix4 = new Class({
         var b10 = a21 * a33 - a23 * a31;
         var b11 = a22 * a33 - a23 * a32;
 
-        // Calculate the determinant
+        //  Calculate the determinant
         var det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
 
         if (!det)
         {
-            return null;
+            return this;
         }
 
         det = 1 / det;
 
-        a[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
-        a[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
-        a[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
-        a[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
-        a[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
-        a[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
-        a[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
-        a[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
-        a[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
-        a[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
-        a[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
-        a[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
-        a[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
-        a[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
-        a[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
-        a[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
-
-        return this;
+        return this.setValues(
+            (a11 * b11 - a12 * b10 + a13 * b09) * det,
+            (a02 * b10 - a01 * b11 - a03 * b09) * det,
+            (a31 * b05 - a32 * b04 + a33 * b03) * det,
+            (a22 * b04 - a21 * b05 - a23 * b03) * det,
+            (a12 * b08 - a10 * b11 - a13 * b07) * det,
+            (a00 * b11 - a02 * b08 + a03 * b07) * det,
+            (a32 * b02 - a30 * b05 - a33 * b01) * det,
+            (a20 * b05 - a22 * b02 + a23 * b01) * det,
+            (a10 * b10 - a11 * b08 + a13 * b06) * det,
+            (a01 * b08 - a00 * b10 - a03 * b06) * det,
+            (a30 * b04 - a31 * b02 + a33 * b00) * det,
+            (a21 * b02 - a20 * b04 - a23 * b00) * det,
+            (a11 * b07 - a10 * b09 - a12 * b06) * det,
+            (a00 * b09 - a01 * b07 + a02 * b06) * det,
+            (a31 * b01 - a30 * b03 - a32 * b00) * det,
+            (a20 * b03 - a21 * b01 + a22 * b00) * det
+        );
     },
 
     /**
@@ -16196,7 +16535,7 @@ var Matrix4 = new Class({
      * @method Phaser.Math.Matrix4#adjoint
      * @since 3.0.0
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     adjoint: function ()
     {
@@ -16222,24 +16561,24 @@ var Matrix4 = new Class({
         var a32 = a[14];
         var a33 = a[15];
 
-        a[0] = (a11 * (a22 * a33 - a23 * a32) - a21 * (a12 * a33 - a13 * a32) + a31 * (a12 * a23 - a13 * a22));
-        a[1] = -(a01 * (a22 * a33 - a23 * a32) - a21 * (a02 * a33 - a03 * a32) + a31 * (a02 * a23 - a03 * a22));
-        a[2] = (a01 * (a12 * a33 - a13 * a32) - a11 * (a02 * a33 - a03 * a32) + a31 * (a02 * a13 - a03 * a12));
-        a[3] = -(a01 * (a12 * a23 - a13 * a22) - a11 * (a02 * a23 - a03 * a22) + a21 * (a02 * a13 - a03 * a12));
-        a[4] = -(a10 * (a22 * a33 - a23 * a32) - a20 * (a12 * a33 - a13 * a32) + a30 * (a12 * a23 - a13 * a22));
-        a[5] = (a00 * (a22 * a33 - a23 * a32) - a20 * (a02 * a33 - a03 * a32) + a30 * (a02 * a23 - a03 * a22));
-        a[6] = -(a00 * (a12 * a33 - a13 * a32) - a10 * (a02 * a33 - a03 * a32) + a30 * (a02 * a13 - a03 * a12));
-        a[7] = (a00 * (a12 * a23 - a13 * a22) - a10 * (a02 * a23 - a03 * a22) + a20 * (a02 * a13 - a03 * a12));
-        a[8] = (a10 * (a21 * a33 - a23 * a31) - a20 * (a11 * a33 - a13 * a31) + a30 * (a11 * a23 - a13 * a21));
-        a[9] = -(a00 * (a21 * a33 - a23 * a31) - a20 * (a01 * a33 - a03 * a31) + a30 * (a01 * a23 - a03 * a21));
-        a[10] = (a00 * (a11 * a33 - a13 * a31) - a10 * (a01 * a33 - a03 * a31) + a30 * (a01 * a13 - a03 * a11));
-        a[11] = -(a00 * (a11 * a23 - a13 * a21) - a10 * (a01 * a23 - a03 * a21) + a20 * (a01 * a13 - a03 * a11));
-        a[12] = -(a10 * (a21 * a32 - a22 * a31) - a20 * (a11 * a32 - a12 * a31) + a30 * (a11 * a22 - a12 * a21));
-        a[13] = (a00 * (a21 * a32 - a22 * a31) - a20 * (a01 * a32 - a02 * a31) + a30 * (a01 * a22 - a02 * a21));
-        a[14] = -(a00 * (a11 * a32 - a12 * a31) - a10 * (a01 * a32 - a02 * a31) + a30 * (a01 * a12 - a02 * a11));
-        a[15] = (a00 * (a11 * a22 - a12 * a21) - a10 * (a01 * a22 - a02 * a21) + a20 * (a01 * a12 - a02 * a11));
-
-        return this;
+        return this.setValues(
+            (a11 * (a22 * a33 - a23 * a32) - a21 * (a12 * a33 - a13 * a32) + a31 * (a12 * a23 - a13 * a22)),
+            -(a01 * (a22 * a33 - a23 * a32) - a21 * (a02 * a33 - a03 * a32) + a31 * (a02 * a23 - a03 * a22)),
+            (a01 * (a12 * a33 - a13 * a32) - a11 * (a02 * a33 - a03 * a32) + a31 * (a02 * a13 - a03 * a12)),
+            -(a01 * (a12 * a23 - a13 * a22) - a11 * (a02 * a23 - a03 * a22) + a21 * (a02 * a13 - a03 * a12)),
+            -(a10 * (a22 * a33 - a23 * a32) - a20 * (a12 * a33 - a13 * a32) + a30 * (a12 * a23 - a13 * a22)),
+            (a00 * (a22 * a33 - a23 * a32) - a20 * (a02 * a33 - a03 * a32) + a30 * (a02 * a23 - a03 * a22)),
+            -(a00 * (a12 * a33 - a13 * a32) - a10 * (a02 * a33 - a03 * a32) + a30 * (a02 * a13 - a03 * a12)),
+            (a00 * (a12 * a23 - a13 * a22) - a10 * (a02 * a23 - a03 * a22) + a20 * (a02 * a13 - a03 * a12)),
+            (a10 * (a21 * a33 - a23 * a31) - a20 * (a11 * a33 - a13 * a31) + a30 * (a11 * a23 - a13 * a21)),
+            -(a00 * (a21 * a33 - a23 * a31) - a20 * (a01 * a33 - a03 * a31) + a30 * (a01 * a23 - a03 * a21)),
+            (a00 * (a11 * a33 - a13 * a31) - a10 * (a01 * a33 - a03 * a31) + a30 * (a01 * a13 - a03 * a11)),
+            -(a00 * (a11 * a23 - a13 * a21) - a10 * (a01 * a23 - a03 * a21) + a20 * (a01 * a13 - a03 * a11)),
+            -(a10 * (a21 * a32 - a22 * a31) - a20 * (a11 * a32 - a12 * a31) + a30 * (a11 * a22 - a12 * a21)),
+            (a00 * (a21 * a32 - a22 * a31) - a20 * (a01 * a32 - a02 * a31) + a30 * (a01 * a22 - a02 * a21)),
+            -(a00 * (a11 * a32 - a12 * a31) - a10 * (a01 * a32 - a02 * a31) + a30 * (a01 * a12 - a02 * a11)),
+            (a00 * (a11 * a22 - a12 * a21) - a10 * (a01 * a22 - a02 * a21) + a20 * (a01 * a12 - a02 * a11))
+        );
     },
 
     /**
@@ -16299,7 +16638,7 @@ var Matrix4 = new Class({
      *
      * @param {Phaser.Math.Matrix4} src - The Matrix to multiply this Matrix by.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     multiply: function (src)
     {
@@ -16379,35 +16718,121 @@ var Matrix4 = new Class({
      *
      * @param {Phaser.Math.Matrix4} src - The source Matrix4 that this Matrix4 is multiplied by.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     multiplyLocal: function (src)
     {
-        var a = [];
-        var m1 = this.val;
-        var m2 = src.val;
+        var a = this.val;
+        var b = src.val;
 
-        a[0] = m1[0] * m2[0] + m1[1] * m2[4] + m1[2] * m2[8] + m1[3] * m2[12];
-        a[1] = m1[0] * m2[1] + m1[1] * m2[5] + m1[2] * m2[9] + m1[3] * m2[13];
-        a[2] = m1[0] * m2[2] + m1[1] * m2[6] + m1[2] * m2[10] + m1[3] * m2[14];
-        a[3] = m1[0] * m2[3] + m1[1] * m2[7] + m1[2] * m2[11] + m1[3] * m2[15];
+        return this.setValues(
+            a[0] * b[0] + a[1] * b[4] + a[2] * b[8] + a[3] * b[12],
+            a[0] * b[1] + a[1] * b[5] + a[2] * b[9] + a[3] * b[13],
+            a[0] * b[2] + a[1] * b[6] + a[2] * b[10] + a[3] * b[14],
+            a[0] * b[3] + a[1] * b[7] + a[2] * b[11] + a[3] * b[15],
 
-        a[4] = m1[4] * m2[0] + m1[5] * m2[4] + m1[6] * m2[8] + m1[7] * m2[12];
-        a[5] = m1[4] * m2[1] + m1[5] * m2[5] + m1[6] * m2[9] + m1[7] * m2[13];
-        a[6] = m1[4] * m2[2] + m1[5] * m2[6] + m1[6] * m2[10] + m1[7] * m2[14];
-        a[7] = m1[4] * m2[3] + m1[5] * m2[7] + m1[6] * m2[11] + m1[7] * m2[15];
+            a[4] * b[0] + a[5] * b[4] + a[6] * b[8] + a[7] * b[12],
+            a[4] * b[1] + a[5] * b[5] + a[6] * b[9] + a[7] * b[13],
+            a[4] * b[2] + a[5] * b[6] + a[6] * b[10] + a[7] * b[14],
+            a[4] * b[3] + a[5] * b[7] + a[6] * b[11] + a[7] * b[15],
 
-        a[8] = m1[8] * m2[0] + m1[9] * m2[4] + m1[10] * m2[8] + m1[11] * m2[12];
-        a[9] = m1[8] * m2[1] + m1[9] * m2[5] + m1[10] * m2[9] + m1[11] * m2[13];
-        a[10] = m1[8] * m2[2] + m1[9] * m2[6] + m1[10] * m2[10] + m1[11] * m2[14];
-        a[11] = m1[8] * m2[3] + m1[9] * m2[7] + m1[10] * m2[11] + m1[11] * m2[15];
+            a[8] * b[0] + a[9] * b[4] + a[10] * b[8] + a[11] * b[12],
+            a[8] * b[1] + a[9] * b[5] + a[10] * b[9] + a[11] * b[13],
+            a[8] * b[2] + a[9] * b[6] + a[10] * b[10] + a[11] * b[14],
+            a[8] * b[3] + a[9] * b[7] + a[10] * b[11] + a[11] * b[15],
 
-        a[12] = m1[12] * m2[0] + m1[13] * m2[4] + m1[14] * m2[8] + m1[15] * m2[12];
-        a[13] = m1[12] * m2[1] + m1[13] * m2[5] + m1[14] * m2[9] + m1[15] * m2[13];
-        a[14] = m1[12] * m2[2] + m1[13] * m2[6] + m1[14] * m2[10] + m1[15] * m2[14];
-        a[15] = m1[12] * m2[3] + m1[13] * m2[7] + m1[14] * m2[11] + m1[15] * m2[15];
+            a[12] * b[0] + a[13] * b[4] + a[14] * b[8] + a[15] * b[12],
+            a[12] * b[1] + a[13] * b[5] + a[14] * b[9] + a[15] * b[13],
+            a[12] * b[2] + a[13] * b[6] + a[14] * b[10] + a[15] * b[14],
+            a[12] * b[3] + a[13] * b[7] + a[14] * b[11] + a[15] * b[15]
+        );
+    },
 
-        return this.fromArray(a);
+    /**
+     * Multiplies the given Matrix4 object with this Matrix.
+     *
+     * This is the same as calling `multiplyMatrices(m, this)`.
+     *
+     * @method Phaser.Math.Matrix4#premultiply
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} m - The Matrix4 to multiply with this one.
+     *
+     * @return {this} This Matrix4.
+     */
+    premultiply: function (m)
+    {
+        return this.multiplyMatrices(m, this);
+    },
+
+    /**
+     * Multiplies the two given Matrix4 objects and stores the results in this Matrix.
+     *
+     * @method Phaser.Math.Matrix4#multiplyMatrices
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} a - The first Matrix4 to multiply.
+     * @param {Phaser.Math.Matrix4} b - The second Matrix4 to multiply.
+     *
+     * @return {this} This Matrix4.
+     */
+    multiplyMatrices: function (a, b)
+    {
+        var am = a.val;
+        var bm = b.val;
+
+        var a11 = am[0];
+        var a12 = am[4];
+        var a13 = am[8];
+        var a14 = am[12];
+        var a21 = am[1];
+        var a22 = am[5];
+        var a23 = am[9];
+        var a24 = am[13];
+        var a31 = am[2];
+        var a32 = am[6];
+        var a33 = am[10];
+        var a34 = am[14];
+        var a41 = am[3];
+        var a42 = am[7];
+        var a43 = am[11];
+        var a44 = am[15];
+
+        var b11 = bm[0];
+        var b12 = bm[4];
+        var b13 = bm[8];
+        var b14 = bm[12];
+        var b21 = bm[1];
+        var b22 = bm[5];
+        var b23 = bm[9];
+        var b24 = bm[13];
+        var b31 = bm[2];
+        var b32 = bm[6];
+        var b33 = bm[10];
+        var b34 = bm[14];
+        var b41 = bm[3];
+        var b42 = bm[7];
+        var b43 = bm[11];
+        var b44 = bm[15];
+
+        return this.setValues(
+            a11 * b11 + a12 * b21 + a13 * b31 + a14 * b41,
+            a21 * b11 + a22 * b21 + a23 * b31 + a24 * b41,
+            a31 * b11 + a32 * b21 + a33 * b31 + a34 * b41,
+            a41 * b11 + a42 * b21 + a43 * b31 + a44 * b41,
+            a11 * b12 + a12 * b22 + a13 * b32 + a14 * b42,
+            a21 * b12 + a22 * b22 + a23 * b32 + a24 * b42,
+            a31 * b12 + a32 * b22 + a33 * b32 + a34 * b42,
+            a41 * b12 + a42 * b22 + a43 * b32 + a44 * b42,
+            a11 * b13 + a12 * b23 + a13 * b33 + a14 * b43,
+            a21 * b13 + a22 * b23 + a23 * b33 + a24 * b43,
+            a31 * b13 + a32 * b23 + a33 * b33 + a34 * b43,
+            a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43,
+            a11 * b14 + a12 * b24 + a13 * b34 + a14 * b44,
+            a21 * b14 + a22 * b24 + a23 * b34 + a24 * b44,
+            a31 * b14 + a32 * b24 + a33 * b34 + a34 * b44,
+            a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44
+        );
     },
 
     /**
@@ -16418,21 +16843,11 @@ var Matrix4 = new Class({
      *
      * @param {(Phaser.Math.Vector3|Phaser.Math.Vector4)} v - The Vector to translate this Matrix with.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     translate: function (v)
     {
-        var x = v.x;
-        var y = v.y;
-        var z = v.z;
-        var a = this.val;
-
-        a[12] = a[0] * x + a[4] * y + a[8] * z + a[12];
-        a[13] = a[1] * x + a[5] * y + a[9] * z + a[13];
-        a[14] = a[2] * x + a[6] * y + a[10] * z + a[14];
-        a[15] = a[3] * x + a[7] * y + a[11] * z + a[15];
-
-        return this;
+        return this.translateXYZ(v.x, v.y, v.z);
     },
 
     /**
@@ -16445,7 +16860,7 @@ var Matrix4 = new Class({
      * @param {number} y - The y component.
      * @param {number} z - The z component.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     translateXYZ: function (x, y, z)
     {
@@ -16469,31 +16884,11 @@ var Matrix4 = new Class({
      *
      * @param {(Phaser.Math.Vector3|Phaser.Math.Vector4)} v - The Vector to scale this Matrix with.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     scale: function (v)
     {
-        var x = v.x;
-        var y = v.y;
-        var z = v.z;
-        var a = this.val;
-
-        a[0] = a[0] * x;
-        a[1] = a[1] * x;
-        a[2] = a[2] * x;
-        a[3] = a[3] * x;
-
-        a[4] = a[4] * y;
-        a[5] = a[5] * y;
-        a[6] = a[6] * y;
-        a[7] = a[7] * y;
-
-        a[8] = a[8] * z;
-        a[9] = a[9] * z;
-        a[10] = a[10] * z;
-        a[11] = a[11] * z;
-
-        return this;
+        return this.scaleXYZ(v.x, v.y, v.z);
     },
 
     /**
@@ -16506,7 +16901,7 @@ var Matrix4 = new Class({
      * @param {number} y - The y component.
      * @param {number} z - The z component.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     scaleXYZ: function (x, y, z)
     {
@@ -16539,7 +16934,7 @@ var Matrix4 = new Class({
      * @param {(Phaser.Math.Vector3|Phaser.Math.Vector4)} axis - The rotation axis.
      * @param {number} angle - The rotation angle in radians.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     makeRotationAxis: function (axis, angle)
     {
@@ -16554,14 +16949,12 @@ var Matrix4 = new Class({
         var tx = t * x;
         var ty = t * y;
 
-        this.fromArray([
+        return this.setValues(
             tx * x + c, tx * y - s * z, tx * z + s * y, 0,
             tx * y + s * z, ty * y + c, ty * z - s * x, 0,
             tx * z - s * y, ty * z + s * x, t * z * z + c, 0,
             0, 0, 0, 1
-        ]);
-
-        return this;
+        );
     },
 
     /**
@@ -16573,7 +16966,7 @@ var Matrix4 = new Class({
      * @param {number} rad - The angle in radians to rotate by.
      * @param {Phaser.Math.Vector3} axis - The axis to rotate upon.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     rotate: function (rad, axis)
     {
@@ -16585,7 +16978,7 @@ var Matrix4 = new Class({
 
         if (Math.abs(len) < EPSILON)
         {
-            return null;
+            return this;
         }
 
         len = 1 / len;
@@ -16612,7 +17005,12 @@ var Matrix4 = new Class({
         var a22 = a[10];
         var a23 = a[11];
 
-        // Construct the elements of the rotation matrix
+        var a30 = a[12];
+        var a31 = a[13];
+        var a32 = a[14];
+        var a33 = a[15];
+
+        //  Construct the elements of the rotation matrix
         var b00 = x * x * t + c;
         var b01 = y * x * t + z * s;
         var b02 = z * x * t - y * s;
@@ -16625,21 +17023,22 @@ var Matrix4 = new Class({
         var b21 = y * z * t - x * s;
         var b22 = z * z * t + c;
 
-        // Perform rotation-specific matrix multiplication
-        a[0] = a00 * b00 + a10 * b01 + a20 * b02;
-        a[1] = a01 * b00 + a11 * b01 + a21 * b02;
-        a[2] = a02 * b00 + a12 * b01 + a22 * b02;
-        a[3] = a03 * b00 + a13 * b01 + a23 * b02;
-        a[4] = a00 * b10 + a10 * b11 + a20 * b12;
-        a[5] = a01 * b10 + a11 * b11 + a21 * b12;
-        a[6] = a02 * b10 + a12 * b11 + a22 * b12;
-        a[7] = a03 * b10 + a13 * b11 + a23 * b12;
-        a[8] = a00 * b20 + a10 * b21 + a20 * b22;
-        a[9] = a01 * b20 + a11 * b21 + a21 * b22;
-        a[10] = a02 * b20 + a12 * b21 + a22 * b22;
-        a[11] = a03 * b20 + a13 * b21 + a23 * b22;
-
-        return this;
+        //  Perform rotation-specific matrix multiplication
+        return this.setValues(
+            a00 * b00 + a10 * b01 + a20 * b02,
+            a01 * b00 + a11 * b01 + a21 * b02,
+            a02 * b00 + a12 * b01 + a22 * b02,
+            a03 * b00 + a13 * b01 + a23 * b02,
+            a00 * b10 + a10 * b11 + a20 * b12,
+            a01 * b10 + a11 * b11 + a21 * b12,
+            a02 * b10 + a12 * b11 + a22 * b12,
+            a03 * b10 + a13 * b11 + a23 * b12,
+            a00 * b20 + a10 * b21 + a20 * b22,
+            a01 * b20 + a11 * b21 + a21 * b22,
+            a02 * b20 + a12 * b21 + a22 * b22,
+            a03 * b20 + a13 * b21 + a23 * b22,
+            a30, a31, a32, a33
+        );
     },
 
     /**
@@ -16650,7 +17049,7 @@ var Matrix4 = new Class({
      *
      * @param {number} rad - The angle in radians to rotate by.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     rotateX: function (rad)
     {
@@ -16668,7 +17067,7 @@ var Matrix4 = new Class({
         var a22 = a[10];
         var a23 = a[11];
 
-        // Perform axis-specific matrix multiplication
+        //  Perform axis-specific matrix multiplication
         a[4] = a10 * c + a20 * s;
         a[5] = a11 * c + a21 * s;
         a[6] = a12 * c + a22 * s;
@@ -16689,7 +17088,7 @@ var Matrix4 = new Class({
      *
      * @param {number} rad - The angle to rotate by, in radians.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     rotateY: function (rad)
     {
@@ -16707,7 +17106,7 @@ var Matrix4 = new Class({
         var a22 = a[10];
         var a23 = a[11];
 
-        // Perform axis-specific matrix multiplication
+        //  Perform axis-specific matrix multiplication
         a[0] = a00 * c - a20 * s;
         a[1] = a01 * c - a21 * s;
         a[2] = a02 * c - a22 * s;
@@ -16728,7 +17127,7 @@ var Matrix4 = new Class({
      *
      * @param {number} rad - The angle to rotate by, in radians.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     rotateZ: function (rad)
     {
@@ -16746,7 +17145,7 @@ var Matrix4 = new Class({
         var a12 = a[6];
         var a13 = a[7];
 
-        // Perform axis-specific matrix multiplication
+        //  Perform axis-specific matrix multiplication
         a[0] = a00 * c + a10 * s;
         a[1] = a01 * c + a11 * s;
         a[2] = a02 * c + a12 * s;
@@ -16768,13 +17167,11 @@ var Matrix4 = new Class({
      * @param {Phaser.Math.Quaternion} q - The Quaternion to set rotation from.
      * @param {Phaser.Math.Vector3} v - The Vector to set translation from.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     fromRotationTranslation: function (q, v)
     {
-        // Quaternion math
-        var out = this.val;
-
+        //  Quaternion math
         var x = q.x;
         var y = q.y;
         var z = q.z;
@@ -16796,27 +17193,27 @@ var Matrix4 = new Class({
         var wy = w * y2;
         var wz = w * z2;
 
-        out[0] = 1 - (yy + zz);
-        out[1] = xy + wz;
-        out[2] = xz - wy;
-        out[3] = 0;
+        return this.setValues(
+            1 - (yy + zz),
+            xy + wz,
+            xz - wy,
+            0,
 
-        out[4] = xy - wz;
-        out[5] = 1 - (xx + zz);
-        out[6] = yz + wx;
-        out[7] = 0;
+            xy - wz,
+            1 - (xx + zz),
+            yz + wx,
+            0,
 
-        out[8] = xz + wy;
-        out[9] = yz - wx;
-        out[10] = 1 - (xx + yy);
-        out[11] = 0;
+            xz + wy,
+            yz - wx,
+            1 - (xx + yy),
+            0,
 
-        out[12] = v.x;
-        out[13] = v.y;
-        out[14] = v.z;
-        out[15] = 1;
-
-        return this;
+            v.x,
+            v.y,
+            v.z,
+            1
+        );
     },
 
     /**
@@ -16827,12 +17224,10 @@ var Matrix4 = new Class({
      *
      * @param {Phaser.Math.Quaternion} q - The Quaternion to set the values of this Matrix from.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     fromQuat: function (q)
     {
-        var out = this.val;
-
         var x = q.x;
         var y = q.y;
         var z = q.z;
@@ -16854,27 +17249,27 @@ var Matrix4 = new Class({
         var wy = w * y2;
         var wz = w * z2;
 
-        out[0] = 1 - (yy + zz);
-        out[1] = xy + wz;
-        out[2] = xz - wy;
-        out[3] = 0;
+        return this.setValues(
+            1 - (yy + zz),
+            xy + wz,
+            xz - wy,
+            0,
 
-        out[4] = xy - wz;
-        out[5] = 1 - (xx + zz);
-        out[6] = yz + wx;
-        out[7] = 0;
+            xy - wz,
+            1 - (xx + zz),
+            yz + wx,
+            0,
 
-        out[8] = xz + wy;
-        out[9] = yz - wx;
-        out[10] = 1 - (xx + yy);
-        out[11] = 0;
+            xz + wy,
+            yz - wx,
+            1 - (xx + yy),
+            0,
 
-        out[12] = 0;
-        out[13] = 0;
-        out[14] = 0;
-        out[15] = 1;
-
-        return this;
+            0,
+            0,
+            0,
+            1
+        );
     },
 
     /**
@@ -16890,37 +17285,35 @@ var Matrix4 = new Class({
      * @param {number} near - The near bound of the frustum.
      * @param {number} far - The far bound of the frustum.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     frustum: function (left, right, bottom, top, near, far)
     {
-        var out = this.val;
-
         var rl = 1 / (right - left);
         var tb = 1 / (top - bottom);
         var nf = 1 / (near - far);
 
-        out[0] = (near * 2) * rl;
-        out[1] = 0;
-        out[2] = 0;
-        out[3] = 0;
+        return this.setValues(
+            (near * 2) * rl,
+            0,
+            0,
+            0,
 
-        out[4] = 0;
-        out[5] = (near * 2) * tb;
-        out[6] = 0;
-        out[7] = 0;
+            0,
+            (near * 2) * tb,
+            0,
+            0,
 
-        out[8] = (right + left) * rl;
-        out[9] = (top + bottom) * tb;
-        out[10] = (far + near) * nf;
-        out[11] = -1;
+            (right + left) * rl,
+            (top + bottom) * tb,
+            (far + near) * nf,
+            -1,
 
-        out[12] = 0;
-        out[13] = 0;
-        out[14] = (far * near * 2) * nf;
-        out[15] = 0;
-
-        return this;
+            0,
+            0,
+            (far * near * 2) * nf,
+            0
+        );
     },
 
     /**
@@ -16934,35 +17327,34 @@ var Matrix4 = new Class({
      * @param {number} near - Near bound of the frustum.
      * @param {number} far - Far bound of the frustum.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     perspective: function (fovy, aspect, near, far)
     {
-        var out = this.val;
         var f = 1.0 / Math.tan(fovy / 2);
         var nf = 1 / (near - far);
 
-        out[0] = f / aspect;
-        out[1] = 0;
-        out[2] = 0;
-        out[3] = 0;
+        return this.setValues(
+            f / aspect,
+            0,
+            0,
+            0,
 
-        out[4] = 0;
-        out[5] = f;
-        out[6] = 0;
-        out[7] = 0;
+            0,
+            f,
+            0,
+            0,
 
-        out[8] = 0;
-        out[9] = 0;
-        out[10] = (far + near) * nf;
-        out[11] = -1;
+            0,
+            0,
+            (far + near) * nf,
+            -1,
 
-        out[12] = 0;
-        out[13] = 0;
-        out[14] = (2 * far * near) * nf;
-        out[15] = 0;
-
-        return this;
+            0,
+            0,
+            (2 * far * near) * nf,
+            0
+        );
     },
 
     /**
@@ -16976,33 +17368,31 @@ var Matrix4 = new Class({
      * @param {number} near - Near bound of the frustum.
      * @param {number} far - Far bound of the frustum.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     perspectiveLH: function (width, height, near, far)
     {
-        var out = this.val;
+        return this.setValues(
+            (2 * near) / width,
+            0,
+            0,
+            0,
 
-        out[0] = (2 * near) / width;
-        out[1] = 0;
-        out[2] = 0;
-        out[3] = 0;
+            0,
+            (2 * near) / height,
+            0,
+            0,
 
-        out[4] = 0;
-        out[5] = (2 * near) / height;
-        out[6] = 0;
-        out[7] = 0;
+            0,
+            0,
+            -far / (near - far),
+            1,
 
-        out[8] = 0;
-        out[9] = 0;
-        out[10] = -far / (near - far);
-        out[11] = 1;
-
-        out[12] = 0;
-        out[13] = 0;
-        out[14] = (near * far) / (near - far);
-        out[15] = 0;
-
-        return this;
+            0,
+            0,
+            (near * far) / (near - far),
+            0
+        );
     },
 
     /**
@@ -17018,11 +17408,10 @@ var Matrix4 = new Class({
      * @param {number} near - The near bound of the frustum.
      * @param {number} far - The far bound of the frustum.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     ortho: function (left, right, bottom, top, near, far)
     {
-        var out = this.val;
         var lr = left - right;
         var bt = bottom - top;
         var nf = near - far;
@@ -17032,25 +17421,85 @@ var Matrix4 = new Class({
         bt = (bt === 0) ? bt : 1 / bt;
         nf = (nf === 0) ? nf : 1 / nf;
 
-        out[0] = -2 * lr;
-        out[1] = 0;
-        out[2] = 0;
-        out[3] = 0;
+        return this.setValues(
+            -2 * lr,
+            0,
+            0,
+            0,
 
-        out[4] = 0;
-        out[5] = -2 * bt;
-        out[6] = 0;
-        out[7] = 0;
+            0,
+            -2 * bt,
+            0,
+            0,
 
-        out[8] = 0;
-        out[9] = 0;
-        out[10] = 2 * nf;
-        out[11] = 0;
+            0,
+            0,
+            2 * nf,
+            0,
 
-        out[12] = (left + right) * lr;
-        out[13] = (top + bottom) * bt;
-        out[14] = (far + near) * nf;
-        out[15] = 1;
+            (left + right) * lr,
+            (top + bottom) * bt,
+            (far + near) * nf,
+            1
+        );
+    },
+
+    /**
+     * Generate a right-handed look-at matrix with the given eye position, target and up axis.
+     *
+     * @method Phaser.Math.Matrix4#lookAtRH
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Vector3} eye - Position of the viewer.
+     * @param {Phaser.Math.Vector3} target - Point the viewer is looking at.
+     * @param {Phaser.Math.Vector3} up - vec3 pointing up.
+     *
+     * @return {this} This Matrix4.
+     */
+    lookAtRH: function (eye, target, up)
+    {
+        var m = this.val;
+
+        _z.subVectors(eye, target);
+
+        if (_z.getLengthSquared() === 0)
+        {
+            // eye and target are in the same position
+            _z.z = 1;
+        }
+
+        _z.normalize();
+        _x.crossVectors(up, _z);
+
+        if (_x.getLengthSquared() === 0)
+        {
+            // up and z are parallel
+
+            if (Math.abs(up.z) === 1)
+            {
+                _z.x += 0.0001;
+            }
+            else
+            {
+                _z.z += 0.0001;
+            }
+
+            _z.normalize();
+            _x.crossVectors(up, _z);
+        }
+
+        _x.normalize();
+        _y.crossVectors(_z, _x);
+
+        m[0] = _x.x;
+        m[1] = _x.y;
+        m[2] = _x.z;
+        m[4] = _y.x;
+        m[5] = _y.y;
+        m[6] = _y.z;
+        m[8] = _z.x;
+        m[9] = _z.y;
+        m[10] = _z.z;
 
         return this;
     },
@@ -17065,12 +17514,10 @@ var Matrix4 = new Class({
      * @param {Phaser.Math.Vector3} center - Point the viewer is looking at
      * @param {Phaser.Math.Vector3} up - vec3 pointing up.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     lookAt: function (eye, center, up)
     {
-        var out = this.val;
-
         var eyex = eye.x;
         var eyey = eye.y;
         var eyez = eye.z;
@@ -17140,27 +17587,27 @@ var Matrix4 = new Class({
             y2 *= len;
         }
 
-        out[0] = x0;
-        out[1] = y0;
-        out[2] = z0;
-        out[3] = 0;
+        return this.setValues(
+            x0,
+            y0,
+            z0,
+            0,
 
-        out[4] = x1;
-        out[5] = y1;
-        out[6] = z1;
-        out[7] = 0;
+            x1,
+            y1,
+            z1,
+            0,
 
-        out[8] = x2;
-        out[9] = y2;
-        out[10] = z2;
-        out[11] = 0;
+            x2,
+            y2,
+            z2,
+            0,
 
-        out[12] = -(x0 * eyex + x1 * eyey + x2 * eyez);
-        out[13] = -(y0 * eyex + y1 * eyey + y2 * eyez);
-        out[14] = -(z0 * eyex + z1 * eyey + z2 * eyez);
-        out[15] = 1;
-
-        return this;
+            -(x0 * eyex + x1 * eyey + x2 * eyez),
+            -(y0 * eyex + y1 * eyey + y2 * eyez),
+            -(z0 * eyex + z1 * eyey + z2 * eyez),
+            1
+        );
     },
 
     /**
@@ -17173,7 +17620,7 @@ var Matrix4 = new Class({
      * @param {number} pitch - The pitch value.
      * @param {number} roll - The roll value.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     yawPitchRoll: function (yaw, pitch, roll)
     {
@@ -17236,7 +17683,7 @@ var Matrix4 = new Class({
      * @param {Phaser.Math.Matrix4} [viewMatrix] - The view matrix.
      * @param {Phaser.Math.Matrix4} [projectionMatrix] - The projection matrix.
      *
-     * @return {Phaser.Math.Matrix4} This Matrix4.
+     * @return {this} This Matrix4.
      */
     setWorldMatrix: function (rotation, position, scale, viewMatrix, projectionMatrix)
     {
@@ -17248,23 +17695,208 @@ var Matrix4 = new Class({
         this.multiplyLocal(_tempMat1);
         this.multiplyLocal(_tempMat2);
 
-        if (viewMatrix !== undefined)
+        if (viewMatrix)
         {
             this.multiplyLocal(viewMatrix);
         }
 
-        if (projectionMatrix !== undefined)
+        if (projectionMatrix)
         {
             this.multiplyLocal(projectionMatrix);
         }
 
         return this;
+    },
+
+    /**
+     * Multiplies this Matrix4 by the given `src` Matrix4 and stores the results in the `out` Matrix4.
+     *
+     * @method Phaser.Math.Matrix4#multiplyToMat4
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} src - The Matrix4 to multiply with this one.
+     * @param {Phaser.Math.Matrix4} out - The receiving Matrix.
+     *
+     * @return {Phaser.Math.Matrix4} This `out` Matrix4.
+     */
+    multiplyToMat4: function (src, out)
+    {
+        var a = this.val;
+        var b = src.val;
+
+        var a00 = a[0];
+        var a01 = a[1];
+        var a02 = a[2];
+        var a03 = a[3];
+        var a10 = a[4];
+        var a11 = a[5];
+        var a12 = a[6];
+        var a13 = a[7];
+        var a20 = a[8];
+        var a21 = a[9];
+        var a22 = a[10];
+        var a23 = a[11];
+        var a30 = a[12];
+        var a31 = a[13];
+        var a32 = a[14];
+        var a33 = a[15];
+
+        var b00 = b[0];
+        var b01 = b[1];
+        var b02 = b[2];
+        var b03 = b[3];
+        var b10 = b[4];
+        var b11 = b[5];
+        var b12 = b[6];
+        var b13 = b[7];
+        var b20 = b[8];
+        var b21 = b[9];
+        var b22 = b[10];
+        var b23 = b[11];
+        var b30 = b[12];
+        var b31 = b[13];
+        var b32 = b[14];
+        var b33 = b[15];
+
+        return out.setValues(
+            b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30,
+            b01 * a01 + b01 * a11 + b02 * a21 + b03 * a31,
+            b02 * a02 + b01 * a12 + b02 * a22 + b03 * a32,
+            b03 * a03 + b01 * a13 + b02 * a23 + b03 * a33,
+
+            b10 * a00 + b11 * a10 + b12 * a20 + b13 * a30,
+            b10 * a01 + b11 * a11 + b12 * a21 + b13 * a31,
+            b10 * a02 + b11 * a12 + b12 * a22 + b13 * a32,
+            b10 * a03 + b11 * a13 + b12 * a23 + b13 * a33,
+
+            b20 * a00 + b21 * a10 + b22 * a20 + b23 * a30,
+            b20 * a01 + b21 * a11 + b22 * a21 + b23 * a31,
+            b20 * a02 + b21 * a12 + b22 * a22 + b23 * a32,
+            b20 * a03 + b21 * a13 + b22 * a23 + b23 * a33,
+
+            b30 * a00 + b31 * a10 + b32 * a20 + b33 * a30,
+            b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31,
+            b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32,
+            b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33
+        );
+    },
+
+    /**
+     * Takes the rotation and position vectors and builds this Matrix4 from them.
+     *
+     * @method Phaser.Math.Matrix4#fromRotationXYTranslation
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Vector3} rotation - The rotation vector.
+     * @param {Phaser.Math.Vector3} position - The position vector.
+     * @param {boolean} translateFirst - Should the operation translate then rotate (`true`), or rotate then translate? (`false`)
+     *
+     * @return {this} This Matrix4.
+     */
+    fromRotationXYTranslation: function (rotation, position, translateFirst)
+    {
+        var x = position.x;
+        var y = position.y;
+        var z = position.z;
+
+        var sx = Math.sin(rotation.x);
+        var cx = Math.cos(rotation.x);
+
+        var sy = Math.sin(rotation.y);
+        var cy = Math.cos(rotation.y);
+
+        var a30 = x;
+        var a31 = y;
+        var a32 = z;
+
+        //  Rotate X
+
+        var b21 = -sx;
+
+        //  Rotate Y
+
+        var c01 = 0 - b21 * sy;
+
+        var c02 = 0 - cx * sy;
+
+        var c21 = b21 * cy;
+
+        var c22 = cx * cy;
+
+        //  Translate
+        if (!translateFirst)
+        {
+            // a30 = cy * x + 0 * y + sy * z;
+            a30 = cy * x + sy * z;
+            a31 = c01 * x + cx * y + c21 * z;
+            a32 = c02 * x + sx * y + c22 * z;
+        }
+
+        return this.setValues(
+            cy,
+            c01,
+            c02,
+            0,
+            0,
+            cx,
+            sx,
+            0,
+            sy,
+            c21,
+            c22,
+            0,
+            a30,
+            a31,
+            a32,
+            1
+        );
+    },
+
+    /**
+     * Returns the maximum axis scale from this Matrix4.
+     *
+     * @method Phaser.Math.Matrix4#getMaxScaleOnAxis
+     * @since 3.50.0
+     *
+     * @return {number} The maximum axis scale.
+     */
+    getMaxScaleOnAxis: function ()
+    {
+        var m = this.val;
+
+        var scaleXSq = m[0] * m[0] + m[1] * m[1] + m[2] * m[2];
+        var scaleYSq = m[4] * m[4] + m[5] * m[5] + m[6] * m[6];
+        var scaleZSq = m[8] * m[8] + m[9] * m[9] + m[10] * m[10];
+
+        return Math.sqrt(Math.max(scaleXSq, scaleYSq, scaleZSq));
     }
 
 });
 
+/**
+ * @ignore
+ */
 var _tempMat1 = new Matrix4();
+
+/**
+ * @ignore
+ */
 var _tempMat2 = new Matrix4();
+
+/**
+ * @ignore
+ */
+var _x = new Vector3();
+
+/**
+ * @ignore
+ */
+var _y = new Vector3();
+
+/**
+ * @ignore
+ */
+var _z = new Vector3();
 
 module.exports = Matrix4;
 
@@ -17422,8 +18054,9 @@ module.exports = Percent;
 //  and [vecmath](https://github.com/mattdesl/vecmath) by mattdesl
 
 var Class = __webpack_require__(/*! ../utils/Class */ "../../../src/utils/Class.js");
-var Vector3 = __webpack_require__(/*! ./Vector3 */ "../../../src/math/Vector3.js");
 var Matrix3 = __webpack_require__(/*! ./Matrix3 */ "../../../src/math/Matrix3.js");
+var NOOP = __webpack_require__(/*! ../utils/NOOP */ "../../../src/utils/NOOP.js");
+var Vector3 = __webpack_require__(/*! ./Vector3 */ "../../../src/math/Vector3.js");
 
 var EPSILON = 0.000001;
 
@@ -17446,10 +18079,10 @@ var tmpMat3 = new Matrix3();
  * @constructor
  * @since 3.0.0
  *
- * @param {number} [x] - The x component.
- * @param {number} [y] - The y component.
- * @param {number} [z] - The z component.
- * @param {number} [w] - The w component.
+ * @param {number} [x=0] - The x component.
+ * @param {number} [y=0] - The y component.
+ * @param {number} [z=0] - The z component.
+ * @param {number} [w=1] - The w component.
  */
 var Quaternion = new Class({
 
@@ -17460,52 +18093,141 @@ var Quaternion = new Class({
         /**
          * The x component of this Quaternion.
          *
-         * @name Phaser.Math.Quaternion#x
+         * @name Phaser.Math.Quaternion#_x
          * @type {number}
          * @default 0
-         * @since 3.0.0
+         * @private
+         * @since 3.50.0
          */
 
         /**
          * The y component of this Quaternion.
          *
-         * @name Phaser.Math.Quaternion#y
+         * @name Phaser.Math.Quaternion#_y
          * @type {number}
          * @default 0
-         * @since 3.0.0
+         * @private
+         * @since 3.50.0
          */
 
         /**
          * The z component of this Quaternion.
          *
-         * @name Phaser.Math.Quaternion#z
+         * @name Phaser.Math.Quaternion#_z
          * @type {number}
          * @default 0
-         * @since 3.0.0
+         * @private
+         * @since 3.50.0
          */
 
         /**
          * The w component of this Quaternion.
          *
-         * @name Phaser.Math.Quaternion#w
+         * @name Phaser.Math.Quaternion#_w
          * @type {number}
          * @default 0
-         * @since 3.0.0
+         * @private
+         * @since 3.50.0
          */
 
-        if (typeof x === 'object')
+        /**
+         * This callback is invoked, if set, each time a value in this quaternion is changed.
+         * The callback is passed one argument, a reference to this quaternion.
+         *
+         * @name Phaser.Math.Quaternion#onChangeCallback
+         * @type {function}
+         * @since 3.50.0
+         */
+        this.onChangeCallback = NOOP;
+
+        this.set(x, y, z, w);
+    },
+
+    /**
+     * The x component of this Quaternion.
+     *
+     * @name Phaser.Math.Quaternion#x
+     * @type {number}
+     * @default 0
+     * @since 3.0.0
+     */
+    x: {
+        get: function ()
         {
-            this.x = x.x || 0;
-            this.y = x.y || 0;
-            this.z = x.z || 0;
-            this.w = x.w || 0;
+            return this._x;
+        },
+
+        set: function (value)
+        {
+            this._x = value;
+
+            this.onChangeCallback(this);
         }
-        else
+    },
+
+    /**
+     * The y component of this Quaternion.
+     *
+     * @name Phaser.Math.Quaternion#y
+     * @type {number}
+     * @default 0
+     * @since 3.0.0
+     */
+    y: {
+        get: function ()
         {
-            this.x = x || 0;
-            this.y = y || 0;
-            this.z = z || 0;
-            this.w = w || 0;
+            return this._y;
+        },
+
+        set: function (value)
+        {
+            this._y = value;
+
+            this.onChangeCallback(this);
+        }
+    },
+
+    /**
+     * The z component of this Quaternion.
+     *
+     * @name Phaser.Math.Quaternion#z
+     * @type {number}
+     * @default 0
+     * @since 3.0.0
+     */
+    z: {
+        get: function ()
+        {
+            return this._z;
+        },
+
+        set: function (value)
+        {
+            this._z = value;
+
+            this.onChangeCallback(this);
+        }
+    },
+
+    /**
+     * The w component of this Quaternion.
+     *
+     * @name Phaser.Math.Quaternion#w
+     * @type {number}
+     * @default 0
+     * @since 3.0.0
+     */
+    w: {
+        get: function ()
+        {
+            return this._w;
+        },
+
+        set: function (value)
+        {
+            this._w = value;
+
+            this.onChangeCallback(this);
         }
     },
 
@@ -17521,16 +18243,11 @@ var Quaternion = new Class({
      */
     copy: function (src)
     {
-        this.x = src.x;
-        this.y = src.y;
-        this.z = src.z;
-        this.w = src.w;
-
-        return this;
+        return this.set(src);
     },
 
     /**
-     * Set the components of this Quaternion.
+     * Set the components of this Quaternion and optionally call the `onChangeCallback`.
      *
      * @method Phaser.Math.Quaternion#set
      * @since 3.0.0
@@ -17539,24 +18256,32 @@ var Quaternion = new Class({
      * @param {number} [y=0] - The y component.
      * @param {number} [z=0] - The z component.
      * @param {number} [w=0] - The w component.
+     * @param {boolean} [update=true] - Call the `onChangeCallback`?
      *
      * @return {Phaser.Math.Quaternion} This Quaternion.
      */
-    set: function (x, y, z, w)
+    set: function (x, y, z, w, update)
     {
+        if (update === undefined) { update = true; }
+
         if (typeof x === 'object')
         {
-            this.x = x.x || 0;
-            this.y = x.y || 0;
-            this.z = x.z || 0;
-            this.w = x.w || 0;
+            this._x = x.x || 0;
+            this._y = x.y || 0;
+            this._z = x.z || 0;
+            this._w = x.w || 0;
         }
         else
         {
-            this.x = x || 0;
-            this.y = y || 0;
-            this.z = z || 0;
-            this.w = w || 0;
+            this._x = x || 0;
+            this._y = y || 0;
+            this._z = z || 0;
+            this._w = w || 0;
+        }
+
+        if (update)
+        {
+            this.onChangeCallback(this);
         }
 
         return this;
@@ -17574,10 +18299,12 @@ var Quaternion = new Class({
      */
     add: function (v)
     {
-        this.x += v.x;
-        this.y += v.y;
-        this.z += v.z;
-        this.w += v.w;
+        this._x += v.x;
+        this._y += v.y;
+        this._z += v.z;
+        this._w += v.w;
+
+        this.onChangeCallback(this);
 
         return this;
     },
@@ -17594,10 +18321,12 @@ var Quaternion = new Class({
      */
     subtract: function (v)
     {
-        this.x -= v.x;
-        this.y -= v.y;
-        this.z -= v.z;
-        this.w -= v.w;
+        this._x -= v.x;
+        this._y -= v.y;
+        this._z -= v.z;
+        this._w -= v.w;
+
+        this.onChangeCallback(this);
 
         return this;
     },
@@ -17614,10 +18343,12 @@ var Quaternion = new Class({
      */
     scale: function (scale)
     {
-        this.x *= scale;
-        this.y *= scale;
-        this.z *= scale;
-        this.w *= scale;
+        this._x *= scale;
+        this._y *= scale;
+        this._z *= scale;
+        this._w *= scale;
+
+        this.onChangeCallback(this);
 
         return this;
     },
@@ -17678,11 +18409,13 @@ var Quaternion = new Class({
         {
             len = 1 / Math.sqrt(len);
 
-            this.x = x * len;
-            this.y = y * len;
-            this.z = z * len;
-            this.w = w * len;
+            this._x = x * len;
+            this._y = y * len;
+            this._z = z * len;
+            this._w = w * len;
         }
+
+        this.onChangeCallback(this);
 
         return this;
     },
@@ -17722,12 +18455,12 @@ var Quaternion = new Class({
         var az = this.z;
         var aw = this.w;
 
-        this.x = ax + t * (v.x - ax);
-        this.y = ay + t * (v.y - ay);
-        this.z = az + t * (v.z - az);
-        this.w = aw + t * (v.w - aw);
-
-        return this;
+        return this.set(
+            ax + t * (v.x - ax),
+            ay + t * (v.y - ay),
+            az + t * (v.z - az),
+            aw + t * (v.w - aw)
+        );
     },
 
     /**
@@ -17759,21 +18492,16 @@ var Quaternion = new Class({
         }
         else if (dot > 0.999999)
         {
-            this.x = 0;
-            this.y = 0;
-            this.z = 0;
-            this.w = 1;
-
-            return this;
+            return this.set(0, 0, 0, 1);
         }
         else
         {
             tmpvec.copy(a).cross(b);
 
-            this.x = tmpvec.x;
-            this.y = tmpvec.y;
-            this.z = tmpvec.z;
-            this.w = 1 + dot;
+            this._x = tmpvec.x;
+            this._y = tmpvec.y;
+            this._z = tmpvec.z;
+            this._w = 1 + dot;
 
             return this.normalize();
         }
@@ -17820,12 +18548,7 @@ var Quaternion = new Class({
      */
     identity: function ()
     {
-        this.x = 0;
-        this.y = 0;
-        this.z = 0;
-        this.w = 1;
-
-        return this;
+        return this.set(0, 0, 0, 1);
     },
 
     /**
@@ -17845,12 +18568,12 @@ var Quaternion = new Class({
 
         var s = Math.sin(rad);
 
-        this.x = s * axis.x;
-        this.y = s * axis.y;
-        this.z = s * axis.z;
-        this.w = Math.cos(rad);
-
-        return this;
+        return this.set(
+            s * axis.x,
+            s * axis.y,
+            s * axis.z,
+            Math.cos(rad)
+        );
     },
 
     /**
@@ -17875,12 +18598,12 @@ var Quaternion = new Class({
         var bz = b.z;
         var bw = b.w;
 
-        this.x = ax * bw + aw * bx + ay * bz - az * by;
-        this.y = ay * bw + aw * by + az * bx - ax * bz;
-        this.z = az * bw + aw * bz + ax * by - ay * bx;
-        this.w = aw * bw - ax * bx - ay * by - az * bz;
-
-        return this;
+        return this.set(
+            ax * bw + aw * bx + ay * bz - az * by,
+            ay * bw + aw * by + az * bx - ax * bz,
+            az * bw + aw * bz + ax * by - ay * bx,
+            aw * bw - ax * bx - ay * by - az * bz
+        );
     },
 
     /**
@@ -17938,12 +18661,12 @@ var Quaternion = new Class({
         }
 
         // calculate final values
-        this.x = scale0 * ax + scale1 * bx;
-        this.y = scale0 * ay + scale1 * by;
-        this.z = scale0 * az + scale1 * bz;
-        this.w = scale0 * aw + scale1 * bw;
-
-        return this;
+        return this.set(
+            scale0 * ax + scale1 * bx,
+            scale0 * ay + scale1 * by,
+            scale0 * az + scale1 * bz,
+            scale0 * aw + scale1 * bw
+        );
     },
 
     /**
@@ -17964,14 +18687,12 @@ var Quaternion = new Class({
         var dot = a0 * a0 + a1 * a1 + a2 * a2 + a3 * a3;
         var invDot = (dot) ? 1 / dot : 0;
 
-        // TODO: Would be faster to return [0,0,0,0] immediately if dot == 0
-
-        this.x = -a0 * invDot;
-        this.y = -a1 * invDot;
-        this.z = -a2 * invDot;
-        this.w = a3 * invDot;
-
-        return this;
+        return this.set(
+            -a0 * invDot,
+            -a1 * invDot,
+            -a2 * invDot,
+            a3 * invDot
+        );
     },
 
     /**
@@ -17986,9 +18707,11 @@ var Quaternion = new Class({
      */
     conjugate: function ()
     {
-        this.x = -this.x;
-        this.y = -this.y;
-        this.z = -this.z;
+        this._x = -this.x;
+        this._y = -this.y;
+        this._z = -this.z;
+
+        this.onChangeCallback(this);
 
         return this;
     },
@@ -18015,12 +18738,12 @@ var Quaternion = new Class({
         var bx = Math.sin(rad);
         var bw = Math.cos(rad);
 
-        this.x = ax * bw + aw * bx;
-        this.y = ay * bw + az * bx;
-        this.z = az * bw - ay * bx;
-        this.w = aw * bw - ax * bx;
-
-        return this;
+        return this.set(
+            ax * bw + aw * bx,
+            ay * bw + az * bx,
+            az * bw - ay * bx,
+            aw * bw - ax * bx
+        );
     },
 
     /**
@@ -18045,12 +18768,12 @@ var Quaternion = new Class({
         var by = Math.sin(rad);
         var bw = Math.cos(rad);
 
-        this.x = ax * bw - az * by;
-        this.y = ay * bw + aw * by;
-        this.z = az * bw + ax * by;
-        this.w = aw * bw - ay * by;
-
-        return this;
+        return this.set(
+            ax * bw - az * by,
+            ay * bw + aw * by,
+            az * bw + ax * by,
+            aw * bw - ay * by
+        );
     },
 
     /**
@@ -18075,12 +18798,12 @@ var Quaternion = new Class({
         var bz = Math.sin(rad);
         var bw = Math.cos(rad);
 
-        this.x = ax * bw + ay * bz;
-        this.y = ay * bw - ax * bz;
-        this.z = az * bw + aw * bz;
-        this.w = aw * bw - az * bz;
-
-        return this;
+        return this.set(
+            ax * bw + ay * bz,
+            ay * bw - ax * bz,
+            az * bw + aw * bz,
+            aw * bw - az * bz
+        );
     },
 
     /**
@@ -18100,6 +18823,190 @@ var Quaternion = new Class({
         var z = this.z;
 
         this.w = -Math.sqrt(1.0 - x * x - y * y - z * z);
+
+        return this;
+    },
+
+    /**
+     * Set this Quaternion from the given Euler, based on Euler order.
+     *
+     * @method Phaser.Math.Quaternion#setFromEuler
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Euler} euler - The Euler to convert from.
+     * @param {boolean} [update=true] - Run the `onChangeCallback`?
+     *
+     * @return {Phaser.Math.Quaternion} This Quaternion.
+     */
+    setFromEuler: function (euler, update)
+    {
+        var x = euler.x / 2;
+        var y = euler.y / 2;
+        var z = euler.z / 2;
+
+        var c1 = Math.cos(x);
+        var c2 = Math.cos(y);
+        var c3 = Math.cos(z);
+
+        var s1 = Math.sin(x);
+        var s2 = Math.sin(y);
+        var s3 = Math.sin(z);
+
+        switch (euler.order)
+        {
+            case 'XYZ':
+            {
+                this.set(
+                    s1 * c2 * c3 + c1 * s2 * s3,
+                    c1 * s2 * c3 - s1 * c2 * s3,
+                    c1 * c2 * s3 + s1 * s2 * c3,
+                    c1 * c2 * c3 - s1 * s2 * s3,
+                    update
+                );
+
+                break;
+            }
+
+            case 'YXZ':
+            {
+                this.set(
+                    s1 * c2 * c3 + c1 * s2 * s3,
+                    c1 * s2 * c3 - s1 * c2 * s3,
+                    c1 * c2 * s3 - s1 * s2 * c3,
+                    c1 * c2 * c3 + s1 * s2 * s3,
+                    update
+                );
+
+                break;
+            }
+
+            case 'ZXY':
+            {
+                this.set(
+                    s1 * c2 * c3 - c1 * s2 * s3,
+                    c1 * s2 * c3 + s1 * c2 * s3,
+                    c1 * c2 * s3 + s1 * s2 * c3,
+                    c1 * c2 * c3 - s1 * s2 * s3,
+                    update
+                );
+
+                break;
+            }
+
+            case 'ZYX':
+            {
+                this.set(
+                    s1 * c2 * c3 - c1 * s2 * s3,
+                    c1 * s2 * c3 + s1 * c2 * s3,
+                    c1 * c2 * s3 - s1 * s2 * c3,
+                    c1 * c2 * c3 + s1 * s2 * s3,
+                    update
+                );
+
+                break;
+            }
+
+            case 'YZX':
+            {
+                this.set(
+                    s1 * c2 * c3 + c1 * s2 * s3,
+                    c1 * s2 * c3 + s1 * c2 * s3,
+                    c1 * c2 * s3 - s1 * s2 * c3,
+                    c1 * c2 * c3 - s1 * s2 * s3,
+                    update
+                );
+
+                break;
+            }
+
+            case 'XZY':
+            {
+                this.set(
+                    s1 * c2 * c3 - c1 * s2 * s3,
+                    c1 * s2 * c3 - s1 * c2 * s3,
+                    c1 * c2 * s3 + s1 * s2 * c3,
+                    c1 * c2 * c3 + s1 * s2 * s3,
+                    update
+                );
+
+                break;
+            }
+        }
+
+        return this;
+    },
+
+    /**
+     * Sets the rotation of this Quaternion from the given Matrix4.
+     *
+     * @method Phaser.Math.Quaternion#setFromRotationMatrix
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} mat4 - The Matrix4 to set the rotation from.
+     *
+     * @return {Phaser.Math.Quaternion} This Quaternion.
+     */
+    setFromRotationMatrix: function (mat4)
+    {
+        var m = mat4.val;
+
+        var m11 = m[0];
+        var m12 = m[4];
+        var m13 = m[8];
+        var m21 = m[1];
+        var m22 = m[5];
+        var m23 = m[9];
+        var m31 = m[2];
+        var m32 = m[6];
+        var m33 = m[10];
+
+        var trace = m11 + m22 + m33;
+        var s;
+
+        if (trace > 0)
+        {
+            s = 0.5 / Math.sqrt(trace + 1.0);
+
+            this.set(
+                (m32 - m23) * s,
+                (m13 - m31) * s,
+                (m21 - m12) * s,
+                0.25 / s
+            );
+        }
+        else if (m11 > m22 && m11 > m33)
+        {
+            s = 2.0 * Math.sqrt(1.0 + m11 - m22 - m33);
+
+            this.set(
+                0.25 * s,
+                (m12 + m21) / s,
+                (m13 + m31) / s,
+                (m32 - m23) / s
+            );
+        }
+        else if (m22 > m33)
+        {
+            s = 2.0 * Math.sqrt(1.0 + m22 - m11 - m33);
+
+            this.set(
+                (m12 + m21) / s,
+                0.25 * s,
+                (m23 + m32) / s,
+                (m13 - m31) / s
+            );
+        }
+        else
+        {
+            s = 2.0 * Math.sqrt(1.0 + m33 - m11 - m22);
+
+            this.set(
+                (m13 + m31) / s,
+                (m23 + m32) / s,
+                0.25 * s,
+                (m21 - m12) / s
+            );
+        }
 
         return this;
     },
@@ -18135,9 +19042,9 @@ var Quaternion = new Class({
 
             fRoot = 0.5 / fRoot; // 1/(4w)
 
-            this.x = (m[7] - m[5]) * fRoot;
-            this.y = (m[2] - m[6]) * fRoot;
-            this.z = (m[3] - m[1]) * fRoot;
+            this._x = (m[7] - m[5]) * fRoot;
+            this._y = (m[2] - m[6]) * fRoot;
+            this._z = (m[3] - m[1]) * fRoot;
         }
         else
         {
@@ -18166,11 +19073,13 @@ var Quaternion = new Class({
             tmp[j] = (m[j * 3 + i] + m[i * 3 + j]) * fRoot;
             tmp[k] = (m[k * 3 + i] + m[i * 3 + k]) * fRoot;
 
-            this.x = tmp[0];
-            this.y = tmp[1];
-            this.z = tmp[2];
-            this.w = (m[k * 3 + j] - m[j * 3 + k]) * fRoot;
+            this._x = tmp[0];
+            this._y = tmp[1];
+            this._z = tmp[2];
+            this._w = (m[k * 3 + j] - m[j * 3 + k]) * fRoot;
         }
+
+        this.onChangeCallback(this);
 
         return this;
     }
@@ -19830,6 +20739,44 @@ var Vector3 = new Class({
     },
 
     /**
+     * Sets the components of this Vector to be the `Math.min` result from the given vector.
+     *
+     * @method Phaser.Math.Vector3#min
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Vector3} v - The Vector3 to check the minimum values against.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    min: function (v)
+    {
+        this.x = Math.min(this.x, v.x);
+        this.y = Math.min(this.y, v.y);
+        this.z = Math.min(this.z, v.z);
+
+        return this;
+    },
+
+    /**
+     * Sets the components of this Vector to be the `Math.max` result from the given vector.
+     *
+     * @method Phaser.Math.Vector3#max
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Vector3} v - The Vector3 to check the maximum values against.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    max: function (v)
+    {
+        this.x = Math.max(this.x, v.x);
+        this.y = Math.max(this.y, v.y);
+        this.z = Math.max(this.z, v.z);
+
+        return this;
+    },
+
+    /**
      * Make a clone of this Vector3.
      *
      * @method Phaser.Math.Vector3#clone
@@ -19840,6 +20787,26 @@ var Vector3 = new Class({
     clone: function ()
     {
         return new Vector3(this.x, this.y, this.z);
+    },
+
+    /**
+     * Adds the two given Vector3s and sets the results into this Vector3.
+     *
+     * @method Phaser.Math.Vector3#addVectors
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Vector3} a - The first Vector to add.
+     * @param {Phaser.Math.Vector3} b - The second Vector to add.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    addVectors: function (a, b)
+    {
+        this.x = a.x + b.x;
+        this.y = a.y + b.y;
+        this.z = a.z + b.z;
+
+        return this;
     },
 
     /**
@@ -19936,6 +20903,63 @@ var Vector3 = new Class({
     },
 
     /**
+     * Sets the components of this Vector3 from the position of the given Matrix4.
+     *
+     * @method Phaser.Math.Vector3#setFromMatrixPosition
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} mat4 - The Matrix4 to get the position from.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    setFromMatrixPosition: function (m)
+    {
+        return this.fromArray(m.val, 12);
+    },
+
+    /**
+     * Sets the components of this Vector3 from the Matrix4 column specified.
+     *
+     * @method Phaser.Math.Vector3#setFromMatrixColumn
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} mat4 - The Matrix4 to get the column from.
+     * @param {number} index - The column index.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    setFromMatrixColumn: function (mat4, index)
+    {
+        return this.fromArray(mat4.val, index * 4);
+    },
+
+    /**
+     * Sets the components of this Vector3 from the given array, based on the offset.
+     *
+     * Vector3.x = array[offset]
+     * Vector3.y = array[offset + 1]
+     * Vector3.z = array[offset + 2]
+     *
+     * @method Phaser.Math.Vector3#fromArray
+     * @since 3.50.0
+     *
+     * @param {number[]} array - The array of values to get this Vector from.
+     * @param {number} [offset=0] - The offset index into the array.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    fromArray: function (array, offset)
+    {
+        if (offset === undefined) { offset = 0; }
+
+        this.x = array[offset];
+        this.y = array[offset + 1];
+        this.z = array[offset + 2];
+
+        return this;
+    },
+
+    /**
      * Add a given Vector to this Vector. Addition is component-wise.
      *
      * @method Phaser.Math.Vector3#add
@@ -19950,6 +20974,45 @@ var Vector3 = new Class({
         this.x += v.x;
         this.y += v.y;
         this.z += v.z || 0;
+
+        return this;
+    },
+
+    /**
+     * Add the given value to each component of this Vector.
+     *
+     * @method Phaser.Math.Vector3#addScalar
+     * @since 3.50.0
+     *
+     * @param {number} s - The amount to add to this Vector.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    addScalar: function (s)
+    {
+        this.x += s;
+        this.y += s;
+        this.z += s;
+
+        return this;
+    },
+
+    /**
+     * Add and scale a given Vector to this Vector. Addition is component-wise.
+     *
+     * @method Phaser.Math.Vector3#addScale
+     * @since 3.50.0
+     *
+     * @param {(Phaser.Math.Vector2|Phaser.Math.Vector3)} v - The Vector to add to this Vector.
+     * @param {number} scale - The amount to scale `v` by.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    addScale: function (v, scale)
+    {
+        this.x += v.x * scale;
+        this.y += v.y * scale;
+        this.z += v.z * scale || 0;
 
         return this;
     },
@@ -20231,6 +21294,56 @@ var Vector3 = new Class({
     },
 
     /**
+     * Takes a Matrix3 and applies it to this Vector3.
+     *
+     * @method Phaser.Math.Vector3#applyMatrix3
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix3} mat3 - The Matrix3 to apply to this Vector3.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    applyMatrix3: function (mat3)
+    {
+        var x = this.x;
+        var y = this.y;
+        var z = this.z;
+        var m = mat3.val;
+
+        this.x = m[0] * x + m[3] * y + m[6] * z;
+        this.y = m[1] * x + m[4] * y + m[7] * z;
+        this.z = m[2] * x + m[5] * y + m[8] * z;
+
+        return this;
+    },
+
+    /**
+     * Takes a Matrix4 and applies it to this Vector3.
+     *
+     * @method Phaser.Math.Vector3#applyMatrix4
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} mat4 - The Matrix4 to apply to this Vector3.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    applyMatrix4: function (mat4)
+    {
+        var x = this.x;
+        var y = this.y;
+        var z = this.z;
+        var m = mat4.val;
+
+        var w = 1 / (m[3] * x + m[7] * y + m[11] * z + m[15]);
+
+        this.x = (m[0] * x + m[4] * y + m[8] * z + m[12]) * w;
+        this.y = (m[1] * x + m[5] * y + m[9] * z + m[13]) * w;
+        this.z = (m[2] * x + m[6] * y + m[10] * z + m[14]) * w;
+
+        return this;
+    },
+
+    /**
      * Transform this Vector with the given Matrix.
      *
      * @method Phaser.Math.Vector3#transformMat3
@@ -20255,7 +21368,7 @@ var Vector3 = new Class({
     },
 
     /**
-     * Transform this Vector with the given Matrix.
+     * Transform this Vector with the given Matrix4.
      *
      * @method Phaser.Math.Vector3#transformMat4
      * @since 3.0.0
@@ -20387,6 +21500,38 @@ var Vector3 = new Class({
     },
 
     /**
+     * Multiplies this Vector3 by the given view and projection matrices.
+     *
+     * @method Phaser.Math.Vector3#projectViewMatrix
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} viewMatrix - A View Matrix.
+     * @param {Phaser.Math.Matrix4} projectionMatrix - A Projection Matrix.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    projectViewMatrix: function (viewMatrix, projectionMatrix)
+    {
+        return this.applyMatrix4(viewMatrix).applyMatrix4(projectionMatrix);
+    },
+
+    /**
+     * Multiplies this Vector3 by the given inversed projection matrix and world matrix.
+     *
+     * @method Phaser.Math.Vector3#unprojectViewMatrix
+     * @since 3.50.0
+     *
+     * @param {Phaser.Math.Matrix4} projectionMatrix - An inversed Projection Matrix.
+     * @param {Phaser.Math.Matrix4} worldMatrix - A World View Matrix.
+     *
+     * @return {Phaser.Math.Vector3} This Vector3.
+     */
+    unprojectViewMatrix: function (projectionMatrix, worldMatrix)
+    {
+        return this.applyMatrix4(projectionMatrix).applyMatrix4(worldMatrix);
+    },
+
+    /**
      * Unproject this point from 2D space to 3D space.
      * The point should have its x and y properties set to
      * 2D screen space, and the z either at 0 (near plane)
@@ -20443,7 +21588,7 @@ var Vector3 = new Class({
 
 /**
  * A static zero Vector3 for use by reference.
- * 
+ *
  * This constant is meant for comparison operations and should not be modified directly.
  *
  * @constant
@@ -20455,7 +21600,7 @@ Vector3.ZERO = new Vector3();
 
 /**
  * A static right Vector3 for use by reference.
- * 
+ *
  * This constant is meant for comparison operations and should not be modified directly.
  *
  * @constant
@@ -20467,7 +21612,7 @@ Vector3.RIGHT = new Vector3(1, 0, 0);
 
 /**
  * A static left Vector3 for use by reference.
- * 
+ *
  * This constant is meant for comparison operations and should not be modified directly.
  *
  * @constant
@@ -20479,7 +21624,7 @@ Vector3.LEFT = new Vector3(-1, 0, 0);
 
 /**
  * A static up Vector3 for use by reference.
- * 
+ *
  * This constant is meant for comparison operations and should not be modified directly.
  *
  * @constant
@@ -20491,7 +21636,7 @@ Vector3.UP = new Vector3(0, -1, 0);
 
 /**
  * A static down Vector3 for use by reference.
- * 
+ *
  * This constant is meant for comparison operations and should not be modified directly.
  *
  * @constant
@@ -20503,7 +21648,7 @@ Vector3.DOWN = new Vector3(0, 1, 0);
 
 /**
  * A static forward Vector3 for use by reference.
- * 
+ *
  * This constant is meant for comparison operations and should not be modified directly.
  *
  * @constant
@@ -20515,7 +21660,7 @@ Vector3.FORWARD = new Vector3(0, 0, 1);
 
 /**
  * A static back Vector3 for use by reference.
- * 
+ *
  * This constant is meant for comparison operations and should not be modified directly.
  *
  * @constant
@@ -20527,7 +21672,7 @@ Vector3.BACK = new Vector3(0, 0, -1);
 
 /**
  * A static one Vector3 for use by reference.
- * 
+ *
  * This constant is meant for comparison operations and should not be modified directly.
  *
  * @constant
@@ -24081,6 +25226,7 @@ var PhaserMath = {
     Clamp: __webpack_require__(/*! ./Clamp */ "../../../src/math/Clamp.js"),
     DegToRad: __webpack_require__(/*! ./DegToRad */ "../../../src/math/DegToRad.js"),
     Difference: __webpack_require__(/*! ./Difference */ "../../../src/math/Difference.js"),
+    Euler: __webpack_require__(/*! ./Euler */ "../../../src/math/Euler.js"),
     Factorial: __webpack_require__(/*! ./Factorial */ "../../../src/math/Factorial.js"),
     FloatBetween: __webpack_require__(/*! ./FloatBetween */ "../../../src/math/FloatBetween.js"),
     FloorTo: __webpack_require__(/*! ./FloorTo */ "../../../src/math/FloorTo.js"),
@@ -26056,7 +27202,7 @@ module.exports = PIPELINE_CONST;
 
 /**
  * The Scale Manager Resize Event.
- * 
+ *
  * This event is dispatched whenever the Scale Manager detects a resize event from the browser.
  * It sends three parameters to the callback, each of them being Size components. You can read
  * the `width`, `height`, `aspectRatio` and other properties of these components to help with
@@ -26064,11 +27210,10 @@ module.exports = PIPELINE_CONST;
  *
  * @event Phaser.Scale.Events#RESIZE
  * @since 3.16.1
- * 
+ *
  * @param {Phaser.Structs.Size} gameSize - A reference to the Game Size component. This is the un-scaled size of your game canvas.
- * @param {Phaser.Structs.Size} baseSize - A reference to the Base Size component. This is the game size multiplied by resolution.
+ * @param {Phaser.Structs.Size} baseSize - A reference to the Base Size component. This is the game size.
  * @param {Phaser.Structs.Size} displaySize - A reference to the Display Size component. This is the scaled canvas size, after applying zoom and scale mode.
- * @param {number} resolution - The current resolution. Defaults to 1 at the moment.
  * @param {number} previousWidth - If the `gameSize` has changed, this value contains its previous width, otherwise it contains the current width.
  * @param {number} previousHeight - If the `gameSize` has changed, this value contains its previous height, otherwise it contains the current height.
  */
@@ -29720,22 +30865,23 @@ module.exports = {
 /**
  * Checks if an array can be used as a matrix.
  *
- * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows) have the same length. There must be at least two rows:
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
  *
  * ```
- *    [
- *        [ 1, 1, 1, 1, 1, 1 ],
- *        [ 2, 0, 0, 0, 0, 4 ],
- *        [ 2, 0, 1, 2, 0, 4 ],
- *        [ 2, 0, 3, 4, 0, 4 ],
- *        [ 2, 0, 0, 0, 0, 4 ],
- *        [ 3, 3, 3, 3, 3, 3 ]
- *    ]
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
  * ```
  *
  * @function Phaser.Utils.Array.Matrix.CheckMatrix
  * @since 3.0.0
- * 
+ *
  * @generic T
  * @genericUse {T[][]} - [matrix]
  *
@@ -29788,6 +30934,20 @@ var CheckMatrix = __webpack_require__(/*! ./CheckMatrix */ "../../../src/utils/a
 
 /**
  * Generates a string (which you can pass to console.log) from the given Array Matrix.
+ *
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
+ *
+ * ```
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
+ * ```
  *
  * @function Phaser.Utils.Array.Matrix.MatrixToString
  * @since 3.0.0
@@ -29872,6 +31032,20 @@ module.exports = MatrixToString;
 /**
  * Reverses the columns in the given Array Matrix.
  *
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
+ *
+ * ```
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
+ * ```
+ *
  * @function Phaser.Utils.Array.Matrix.ReverseColumns
  * @since 3.0.0
  *
@@ -29907,6 +31081,20 @@ module.exports = ReverseColumns;
 
 /**
  * Reverses the rows in the given Array Matrix.
+ *
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
+ *
+ * ```
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
+ * ```
  *
  * @function Phaser.Utils.Array.Matrix.ReverseRows
  * @since 3.0.0
@@ -29951,6 +31139,20 @@ var RotateMatrix = __webpack_require__(/*! ./RotateMatrix */ "../../../src/utils
 /**
  * Rotates the array matrix 180 degrees.
  *
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
+ *
+ * ```
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
+ * ```
+ *
  * @function Phaser.Utils.Array.Matrix.Rotate180
  * @since 3.0.0
  *
@@ -29988,6 +31190,20 @@ var RotateMatrix = __webpack_require__(/*! ./RotateMatrix */ "../../../src/utils
 
 /**
  * Rotates the array matrix to the left (or 90 degrees)
+ *
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
+ *
+ * ```
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
+ * ```
  *
  * @function Phaser.Utils.Array.Matrix.RotateLeft
  * @since 3.0.0
@@ -30032,6 +31248,20 @@ var TransposeMatrix = __webpack_require__(/*! ./TransposeMatrix */ "../../../src
  * or a string command: `rotateLeft`, `rotateRight` or `rotate180`.
  *
  * Based on the routine from {@link http://jsfiddle.net/MrPolywhirl/NH42z/}.
+ *
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
+ *
+ * ```
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
+ * ```
  *
  * @function Phaser.Utils.Array.Matrix.RotateMatrix
  * @since 3.0.0
@@ -30104,6 +31334,20 @@ var RotateMatrix = __webpack_require__(/*! ./RotateMatrix */ "../../../src/utils
 /**
  * Rotates the array matrix to the left (or -90 degrees)
  *
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
+ *
+ * ```
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
+ * ```
+ *
  * @function Phaser.Utils.Array.Matrix.RotateRight
  * @since 3.0.0
  *
@@ -30120,6 +31364,100 @@ var RotateRight = function (matrix)
 };
 
 module.exports = RotateRight;
+
+
+/***/ }),
+
+/***/ "../../../src/utils/array/matrix/TranslateMatrix.js":
+/*!********************************************************************!*\
+  !*** D:/wamp/www/phaser/src/utils/array/matrix/TranslateMatrix.js ***!
+  \********************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var RotateLeft = __webpack_require__(/*! ../RotateLeft */ "../../../src/utils/array/RotateLeft.js");
+var RotateRight = __webpack_require__(/*! ../RotateRight */ "../../../src/utils/array/RotateRight.js");
+
+/**
+ * Translates the given Array Matrix by shifting each column and row the
+ * amount specified.
+ *
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
+ *
+ * ```
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
+ * ```
+ *
+ * @function Phaser.Utils.Array.Matrix.Translate
+ * @since 3.50.0
+ *
+ * @generic T
+ * @genericUse {T[][]} - [matrix,$return]
+ *
+ * @param {T[][]} [matrix] - The array matrix to translate.
+ * @param {number} [x=0] - The amount to horizontally translate the matrix by.
+ * @param {number} [y=0] - The amount to vertically translate the matrix by.
+ *
+ * @return {T[][]} The translated matrix.
+ */
+var TranslateMatrix = function (matrix, x, y)
+{
+    if (x === undefined) { x = 0; }
+    if (y === undefined) { y = 0; }
+
+    //  Vertical translation
+
+    if (y !== 0)
+    {
+        if (y < 0)
+        {
+            //  Shift Up
+            RotateLeft(matrix, Math.abs(y));
+        }
+        else
+        {
+            //  Shift Down
+            RotateRight(matrix, y);
+        }
+    }
+
+    //  Horizontal translation
+
+    if (x !== 0)
+    {
+        for (var i = 0; i < matrix.length; i++)
+        {
+            var row = matrix[i];
+
+            if (x < 0)
+            {
+                RotateLeft(row, Math.abs(x));
+            }
+            else
+            {
+                RotateRight(row, x);
+            }
+        }
+    }
+
+    return matrix;
+};
+
+module.exports = TranslateMatrix;
 
 
 /***/ }),
@@ -30142,12 +31480,26 @@ module.exports = RotateRight;
  *
  * The transpose of a matrix is a new matrix whose rows are the columns of the original.
  *
+ * A matrix is a two-dimensional array (array of arrays), where all sub-arrays (rows)
+ * have the same length. There must be at least two rows. This is an example matrix:
+ *
+ * ```
+ * [
+ *    [ 1, 1, 1, 1, 1, 1 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 2, 0, 1, 2, 0, 4 ],
+ *    [ 2, 0, 3, 4, 0, 4 ],
+ *    [ 2, 0, 0, 0, 0, 4 ],
+ *    [ 3, 3, 3, 3, 3, 3 ]
+ * ]
+ * ```
+ *
  * @function Phaser.Utils.Array.Matrix.TransposeMatrix
  * @since 3.0.0
- * 
+ *
  * @generic T
  * @genericUse {T[][]} - [array,$return]
- * 
+ *
  * @param {T[][]} [array] - The array matrix to transpose.
  *
  * @return {T[][]} A new array matrix which is a transposed version of the given array.
@@ -30204,6 +31556,7 @@ module.exports = {
     RotateLeft: __webpack_require__(/*! ./RotateLeft */ "../../../src/utils/array/matrix/RotateLeft.js"),
     RotateMatrix: __webpack_require__(/*! ./RotateMatrix */ "../../../src/utils/array/matrix/RotateMatrix.js"),
     RotateRight: __webpack_require__(/*! ./RotateRight */ "../../../src/utils/array/matrix/RotateRight.js"),
+    Translate: __webpack_require__(/*! ./TranslateMatrix */ "../../../src/utils/array/matrix/TranslateMatrix.js"),
     TransposeMatrix: __webpack_require__(/*! ./TransposeMatrix */ "../../../src/utils/array/matrix/TransposeMatrix.js")
 
 };
@@ -30768,7 +32121,7 @@ var SpineFile = new Class({
             for (i = 0; i < atlasURL.length; i++)
             {
                 atlas = new TextFile(loader, {
-                    key: key + '_' + i,
+                    key: key + '!' + i,
                     url: atlasURL[i],
                     extension: GetFastValue(config, 'atlasExtension', 'atlas'),
                     xhrSettings: GetFastValue(config, 'atlasXhrSettings')
@@ -30790,7 +32143,7 @@ var SpineFile = new Class({
 
             for (i = 0; i < atlasURL.length; i++)
             {
-                atlas = new TextFile(loader, key + '_' + i, atlasURL[i], atlasXhrSettings);
+                atlas = new TextFile(loader, key + '!' + i, atlasURL[i], atlasXhrSettings);
                 atlas.cache = cache;
 
                 files.push(atlas);
@@ -30864,9 +32217,12 @@ var SpineFile = new Class({
 
                     var image = new ImageFile(loader, key, textureURL, textureXhrSettings);
 
-                    this.addToMultiFile(image);
+                    if (!loader.keyExists(image))
+                    {
+                        this.addToMultiFile(image);
 
-                    loader.addFile(image);
+                        loader.addFile(image);
+                    }
                 }
 
                 //  Reset the loader settings
@@ -30903,7 +32259,7 @@ var SpineFile = new Class({
 
                 if (file.type === 'text')
                 {
-                    atlasKey = file.key.replace(/_[\d]$/, '');
+                    atlasKey = file.key.replace(/![\d]$/, '');
 
                     atlasCache = file.cache;
 
@@ -30912,7 +32268,7 @@ var SpineFile = new Class({
                 else
                 {
                     var src = file.key.trim();
-                    var pos = src.indexOf('_');
+                    var pos = src.indexOf('!');
                     var key = src.substr(pos + 1);
 
                     if (!textureManager.exists(key))
@@ -30960,6 +32316,9 @@ var SpineFile = __webpack_require__(/*! ./SpineFile */ "./SpineFile.js");
 var SpineGameObject = __webpack_require__(/*! ./gameobject/SpineGameObject */ "./gameobject/SpineGameObject.js");
 var SpineContainer = __webpack_require__(/*! ./container/SpineContainer */ "./container/SpineContainer.js");
 var NOOP = __webpack_require__(/*! ../../../src/utils/NOOP */ "../../../src/utils/NOOP.js");
+
+//  Plugin specific instance of the Spine Scene Renderer
+var sceneRenderer;
 
 /**
  * @classdesc
@@ -31162,6 +32521,8 @@ var SpinePlugin = new Class({
         /**
          * An instance of the Spine WebGL Scene Renderer.
          *
+         * There is only one instance of the Scene Renderer shared across the whole plugin.
+         *
          * Only set if running in WebGL mode.
          *
          * @name SpinePlugin#sceneRenderer
@@ -31192,7 +32553,7 @@ var SpinePlugin = new Class({
 
         /**
          * A reference to the Spine runtime.
-         * This is the runtime created by Esoteric Software
+         * This is the runtime created by Esoteric Software.
          *
          * @name SpinePlugin#plugin
          * @type {spine}
@@ -31382,8 +32743,6 @@ var SpinePlugin = new Class({
      */
     bootWebGL: function ()
     {
-        this.sceneRenderer = new Spine.webgl.SceneRenderer(this.renderer.canvas, this.gl, true);
-
         //  Monkeypatch the Spine setBlendMode functions, or batching is destroyed!
 
         var setBlendMode = function (srcBlend, dstBlend)
@@ -31403,11 +32762,17 @@ var SpinePlugin = new Class({
             }
         };
 
-        this.sceneRenderer.batcher.setBlendMode = setBlendMode;
-        this.sceneRenderer.shapes.setBlendMode = setBlendMode;
+        if (!sceneRenderer)
+        {
+            sceneRenderer = new Spine.webgl.SceneRenderer(this.renderer.canvas, this.gl, true);
+            sceneRenderer.batcher.setBlendMode = setBlendMode;
+            sceneRenderer.shapes.setBlendMode = setBlendMode;
+        }
 
-        this.skeletonRenderer = this.sceneRenderer.skeletonRenderer;
-        this.skeletonDebugRenderer = this.sceneRenderer.skeletonDebugRenderer;
+        //  All share the same instance
+        this.sceneRenderer = sceneRenderer;
+        this.skeletonRenderer = sceneRenderer.skeletonRenderer;
+        this.skeletonDebugRenderer = sceneRenderer.skeletonDebugRenderer;
 
         this.temp1 = new Spine.webgl.Vector3(0, 0, 0);
         this.temp2 = new Spine.webgl.Vector3(0, 0, 0);
@@ -32005,8 +33370,7 @@ var SpinePlugin = new Class({
         sceneRenderer.camera.position.x = viewportWidth / 2;
         sceneRenderer.camera.position.y = viewportHeight / 2;
 
-        sceneRenderer.camera.viewportWidth = viewportWidth;
-        sceneRenderer.camera.viewportHeight = viewportHeight;
+        sceneRenderer.camera.setViewport(viewportWidth, viewportHeight);
     },
 
     /**
@@ -32068,9 +33432,9 @@ var SpinePlugin = new Class({
     {
         this.destroy();
 
-        if (this.sceneRenderer)
+        if (sceneRenderer)
         {
-            this.sceneRenderer.dispose();
+            sceneRenderer.dispose();
         }
 
         this.sceneRenderer = null;
@@ -32178,8 +33542,8 @@ var SpineContainerRender = __webpack_require__(/*! ./SpineContainerRender */ "./
  * A Spine Container is a special kind of Container created specifically for Spine Game Objects.
  *
  * You have all of the same features of a standard Container, but the rendering functions are optimized specifically
- * for Spine Game Objects. You must only add ever Spine Game Objects to this type of Container. Although Phaser will
- * not prevent you from adding other types, they will not render and are likely to throw runtime errors.
+ * for Spine Game Objects. You must only add ever Spine Game Objects, or other Spine Containers, to this type of Container.
+ * Although Phaser will not prevent you from adding other types, they will not render and are likely to throw runtime errors.
  *
  * To create one in a Scene, use the factory methods:
  *
@@ -32192,6 +33556,10 @@ var SpineContainerRender = __webpack_require__(/*! ./SpineContainerRender */ "./
  * ```javascript
  * this.make.spinecontainer();
  * ```
+ *
+ * Note that you should not nest Spine Containers inside regular Containers if you wish to use masks on the
+ * container children. You can, however, mask children of Spine Containers if they are embedded within other
+ * Spine Containers. In short, if you need masking, don't mix and match the types.
  *
  * See the Container documentation for further details about what Containers can do.
  *
@@ -32283,11 +33651,10 @@ module.exports = SpineContainer;
  *
  * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - A reference to the current active Canvas renderer.
  * @param {Phaser.GameObjects.Container} container - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var SpineContainerCanvasRenderer = function (renderer, container, interpolationPercentage, camera, parentMatrix)
+var SpineContainerCanvasRenderer = function (renderer, container, camera, parentMatrix)
 {
     var children = container.list;
 
@@ -32352,7 +33719,7 @@ var SpineContainerCanvasRenderer = function (renderer, container, interpolationP
         child.setAlpha(childAlpha * alpha);
 
         //  Render
-        child.renderCanvas(renderer, child, interpolationPercentage, camera, transformMatrix);
+        child.renderCanvas(renderer, child, camera, transformMatrix);
 
         //  Restore original values
         child.setAlpha(childAlpha);
@@ -32411,18 +33778,13 @@ module.exports = {
   !*** ./container/SpineContainerWebGLRenderer.js ***!
   \**************************************************/
 /*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports) {
 
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @copyright    2020 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
-
-var CounterClockwise = __webpack_require__(/*! ../../../../src/math/angle/CounterClockwise */ "../../../src/math/angle/CounterClockwise.js");
-var Clamp = __webpack_require__(/*! ../../../../src/math/Clamp */ "../../../src/math/Clamp.js");
-var RadToDeg = __webpack_require__(/*! ../../../../src/math/RadToDeg */ "../../../src/math/RadToDeg.js");
-var Wrap = __webpack_require__(/*! ../../../../src/math/Wrap */ "../../../src/math/Wrap.js");
 
 /**
  * Renders this Game Object with the WebGL Renderer to the given Camera.
@@ -32435,11 +33797,10 @@ var Wrap = __webpack_require__(/*! ../../../../src/math/Wrap */ "../../../src/ma
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
  * @param {Phaser.GameObjects.Container} container - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var SpineContainerWebGLRenderer = function (renderer, container, interpolationPercentage, camera, parentMatrix)
+var SpineContainerWebGLRenderer = function (renderer, container, camera, parentMatrix)
 {
     var plugin = container.plugin;
     var sceneRenderer = plugin.sceneRenderer;
@@ -32472,12 +33833,6 @@ var SpineContainerWebGLRenderer = function (renderer, container, interpolationPe
         transformMatrix.applyITRS(container.x, container.y, container.rotation, container.scaleX, container.scaleY);
     }
 
-    var alpha = container.alpha;
-    var scrollFactorX = container.scrollFactorX;
-    var scrollFactorY = container.scrollFactorY;
-
-    var GameObjectRenderMask = 15;
-
     if (renderer.newType)
     {
         //  flush + clear if this is a new type
@@ -32486,91 +33841,53 @@ var SpineContainerWebGLRenderer = function (renderer, container, interpolationPe
         sceneRenderer.begin();
     }
 
+    var rendererNextType = renderer.nextTypeMatch;
+
+    //  Force these to avoid batch flushing during SpineGameObject.renderWebGL
+    renderer.nextTypeMatch = true;
+    renderer.newType = false;
+
     for (var i = 0; i < children.length; i++)
     {
-        var src = children[i];
+        var child = children[i];
 
-        var skeleton = src.skeleton;
-        var childAlpha = skeleton.color.a;
-
-        var willRender = !(GameObjectRenderMask !== src.renderFlags || (src.cameraFilter !== 0 && (src.cameraFilter & camera.id)) || childAlpha === 0);
-
-        if (!skeleton || !willRender)
+        if (child.willRender(camera))
         {
-            continue;
-        }
+            var mask = child.mask;
 
-        var camMatrix = renderer._tempMatrix1;
-        var spriteMatrix = renderer._tempMatrix2;
-        var calcMatrix = renderer._tempMatrix3;
-
-        spriteMatrix.applyITRS(src.x, src.y, src.rotation, Math.abs(src.scaleX), Math.abs(src.scaleY));
-
-        camMatrix.copyFrom(camera.matrix);
-
-        //  Multiply the camera by the parent matrix
-        camMatrix.multiplyWithOffset(transformMatrix, -camera.scrollX * scrollFactorX, -camera.scrollY * scrollFactorY);
-
-        //  Undo the camera scroll
-        spriteMatrix.e = src.x;
-        spriteMatrix.f = src.y;
-
-        //  Multiply by the Sprite matrix, store result in calcMatrix
-        camMatrix.multiply(spriteMatrix, calcMatrix);
-
-        var viewportHeight = renderer.height;
-
-        skeleton.x = calcMatrix.tx;
-        skeleton.y = viewportHeight - calcMatrix.ty;
-
-        skeleton.scaleX = calcMatrix.scaleX;
-        skeleton.scaleY = calcMatrix.scaleY;
-
-        if (src.scaleX < 0)
-        {
-            skeleton.scaleX *= -1;
-
-            src.root.rotation = RadToDeg(calcMatrix.rotationNormalized);
-        }
-        else
-        {
-            //  +90 degrees to account for the difference in Spine vs. Phaser rotation
-            src.root.rotation = Wrap(RadToDeg(CounterClockwise(calcMatrix.rotationNormalized)) + 90, 0, 360);
-        }
-
-        if (src.scaleY < 0)
-        {
-            skeleton.scaleY *= -1;
-
-            if (src.scaleX < 0)
+            if (mask)
             {
-                src.root.rotation -= (RadToDeg(calcMatrix.rotationNormalized) * 2);
+                sceneRenderer.end();
+
+                renderer.pipelines.rebind();
+
+                mask.preRenderWebGL(renderer, child, camera);
+
+                renderer.pipelines.clear();
+
+                sceneRenderer.begin();
             }
-            else
+
+            child.renderWebGL(renderer, child, camera, transformMatrix, container);
+
+            if (mask)
             {
-                src.root.rotation += (RadToDeg(calcMatrix.rotationNormalized) * 2);
+                sceneRenderer.end();
+
+                renderer.pipelines.rebind();
+
+                mask.postRenderWebGL(renderer, camera);
+
+                renderer.pipelines.clear();
+
+                sceneRenderer.begin();
             }
         }
-
-        if (camera.renderToTexture || renderer.currentFramebuffer !== null)
-        {
-            skeleton.y = calcMatrix.ty;
-            skeleton.scaleY *= -1;
-        }
-
-        //  Add autoUpdate option
-        skeleton.updateWorldTransform();
-
-        skeleton.color.a = Clamp(childAlpha * alpha, 0, 1);
-
-        //  Draw the current skeleton
-        sceneRenderer.drawSkeleton(skeleton, src.preMultipliedAlpha);
-
-        //  Restore alpha
-        skeleton.color.a = childAlpha;
     }
 
-    if (!renderer.nextTypeMatch)
+    renderer.nextTypeMatch = rendererNextType;
+
+    if (!rendererNextType)
     {
         //  The next object in the display list is not a Spine Game Object or Spine Container, so we end the batch
         sceneRenderer.end();
@@ -33011,17 +34328,27 @@ var SpineGameObject = new Class({
     },
 
     /**
-     * Overrides the default Game Object method and always returns true.
-     * Rendering is decided in the renderer functions.
+     * Returns `true` if this Spine Game Object both has a skeleton and
+     * also passes the render tests for the given Camera.
      *
      * @method SpineGameObject#willRender
      * @since 3.19.0
      *
-     * @return {boolean} Always returns `true`.
+     * @return {boolean} `true` if this Game Object should be rendered, otherwise `false`.
      */
-    willRender: function ()
+    willRender: function (camera)
     {
-        return true;
+        var skeleton = this.skeleton;
+
+        if (!skeleton)
+        {
+            return false;
+        }
+
+        var GameObjectRenderMask = 15;
+        var childAlpha = skeleton.color.a;
+
+        return !(GameObjectRenderMask !== this.renderFlags || (this.cameraFilter !== 0 && (this.cameraFilter & camera.id)) || childAlpha === 0);
     },
 
     /**
@@ -33806,6 +35133,9 @@ var SpineGameObject = new Class({
      */
     addAnimation: function (trackIndex, animationName, loop, delay)
     {
+        if (loop === undefined) { loop = false; }
+        if (delay === undefined) { delay = 0; }
+
         return this.state.addAnimation(trackIndex, animationName, loop, delay);
     },
 
@@ -34385,26 +35715,16 @@ var Wrap = __webpack_require__(/*! ../../../../src/math/Wrap */ "../../../src/ma
  *
  * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - A reference to the current active Canvas renderer.
  * @param {SpineGameObject} src - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var SpineGameObjectCanvasRenderer = function (renderer, src, interpolationPercentage, camera, parentMatrix)
+var SpineGameObjectCanvasRenderer = function (renderer, src, camera, parentMatrix)
 {
     var context = renderer.currentContext;
 
     var plugin = src.plugin;
     var skeleton = src.skeleton;
     var skeletonRenderer = plugin.skeletonRenderer;
-
-    var GameObjectRenderMask = 15;
-
-    var willRender = !(GameObjectRenderMask !== src.renderFlags || (src.cameraFilter !== 0 && (src.cameraFilter & camera.id)));
-
-    if (!skeleton || !willRender)
-    {
-        return;
-    }
 
     var camMatrix = renderer._tempMatrix1;
     var spriteMatrix = renderer._tempMatrix2;
@@ -34475,7 +35795,6 @@ var SpineGameObjectCanvasRenderer = function (renderer, src, interpolationPercen
         skeleton.scaleY *= -1;
     }
 
-    //  Add autoUpdate option
     skeleton.updateWorldTransform();
 
     skeletonRenderer.ctx = context;
@@ -34542,7 +35861,9 @@ module.exports = {
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
+var Clamp = __webpack_require__(/*! ../../../../src/math/Clamp */ "../../../src/math/Clamp.js");
 var CounterClockwise = __webpack_require__(/*! ../../../../src/math/angle/CounterClockwise */ "../../../src/math/angle/CounterClockwise.js");
+var GetCalcMatrix = __webpack_require__(/*! ../../../../src/gameobjects/GetCalcMatrix */ "../../../src/gameobjects/GetCalcMatrix.js");
 var RadToDeg = __webpack_require__(/*! ../../../../src/math/RadToDeg */ "../../../src/math/RadToDeg.js");
 var Wrap = __webpack_require__(/*! ../../../../src/math/Wrap */ "../../../src/math/Wrap.js");
 
@@ -34557,76 +35878,36 @@ var Wrap = __webpack_require__(/*! ../../../../src/math/Wrap */ "../../../src/ma
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
  * @param {SpineGameObject} src - The Game Object being rendered in this call.
- * @param {number} interpolationPercentage - Reserved for future use and custom pipelines.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
-var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercentage, camera, parentMatrix)
+var SpineGameObjectWebGLRenderer = function (renderer, src, camera, parentMatrix, container)
 {
     var plugin = src.plugin;
     var skeleton = src.skeleton;
-    var childAlpha = skeleton.color.a;
     var sceneRenderer = plugin.sceneRenderer;
-
-    var GameObjectRenderMask = 15;
-
-    var willRender = !(GameObjectRenderMask !== src.renderFlags || (src.cameraFilter !== 0 && (src.cameraFilter & camera.id)) || childAlpha === 0);
-
-    if (!skeleton || !willRender)
-    {
-        //  If there is already a batch running, and the next type isn't a Spine object, or this is the end, we need to close it
-
-        if (sceneRenderer.batcher.isDrawing && (!renderer.nextTypeMatch || renderer.finalType))
-        {
-            //  The next object in the display list is not a Spine object, so we end the batch
-            sceneRenderer.end();
-
-            renderer.pipelines.rebind();
-        }
-
-        if (!renderer.finalType)
-        {
-            //  Reset the current type
-            renderer.currentType = '';
-        }
-
-        return;
-    }
 
     if (renderer.newType)
     {
         //  flush + clear previous pipeline if this is a new type
         renderer.pipelines.clear();
+
+        sceneRenderer.begin();
     }
 
-    var camMatrix = renderer._tempMatrix1;
-    var spriteMatrix = renderer._tempMatrix2;
-    var calcMatrix = renderer._tempMatrix3;
+    var scrollFactorX = src.scrollFactorX;
+    var scrollFactorY = src.scrollFactorY;
+    var alpha = skeleton.color.a;
 
-    spriteMatrix.applyITRS(src.x, src.y, src.rotation, Math.abs(src.scaleX), Math.abs(src.scaleY));
-
-    camMatrix.copyFrom(camera.matrix);
-
-    if (parentMatrix)
+    if (container)
     {
-        //  Multiply the camera by the parent matrix
-        camMatrix.multiplyWithOffset(parentMatrix, -camera.scrollX * src.scrollFactorX, -camera.scrollY * src.scrollFactorY);
+        src.scrollFactorX = container.scrollFactorX;
+        src.scrollFactorY = container.scrollFactorY;
 
-        //  Undo the camera scroll
-        spriteMatrix.e = src.x;
-        spriteMatrix.f = src.y;
-
-        //  Multiply by the Sprite matrix, store result in calcMatrix
-        camMatrix.multiply(spriteMatrix, calcMatrix);
+        skeleton.color.a = Clamp(alpha * container.alpha, 0, 1);
     }
-    else
-    {
-        spriteMatrix.e -= camera.scrollX * src.scrollFactorX;
-        spriteMatrix.f -= camera.scrollY * src.scrollFactorY;
 
-        //  Multiply by the Sprite matrix, store result in calcMatrix
-        camMatrix.multiply(spriteMatrix, calcMatrix);
-    }
+    var calcMatrix = GetCalcMatrix(src, camera, parentMatrix).calc;
 
     var viewportHeight = renderer.height;
 
@@ -34640,7 +35921,8 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
     {
         skeleton.scaleX *= -1;
 
-        src.root.rotation = RadToDeg(calcMatrix.rotationNormalized);
+        //  -180 degrees to account for the difference in Spine vs. Phaser rotation when inversely scaled
+        src.root.rotation = Wrap(RadToDeg(calcMatrix.rotationNormalized) - 180, 0, 360);
     }
     else
     {
@@ -34668,16 +35950,17 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, interpolationPercent
         skeleton.scaleY *= -1;
     }
 
-    //  Add autoUpdate option
     skeleton.updateWorldTransform();
-
-    if (renderer.newType)
-    {
-        sceneRenderer.begin();
-    }
 
     //  Draw the current skeleton
     sceneRenderer.drawSkeleton(skeleton, src.preMultipliedAlpha);
+
+    if (container)
+    {
+        src.scrollFactorX = scrollFactorX;
+        src.scrollFactorY = scrollFactorY;
+        skeleton.color.a = alpha;
+    }
 
     if (plugin.drawDebug || src.drawDebug)
     {

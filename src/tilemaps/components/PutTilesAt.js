@@ -25,8 +25,12 @@ var PutTileAt = require('./PutTileAt');
  */
 var PutTilesAt = function (tilesArray, tileX, tileY, recalculateFaces, layer)
 {
-    if (!Array.isArray(tilesArray)) { return null; }
     if (recalculateFaces === undefined) { recalculateFaces = true; }
+
+    if (!Array.isArray(tilesArray))
+    {
+        return null;
+    }
 
     // Force the input array to be a 2D array
     if (!Array.isArray(tilesArray[0]))

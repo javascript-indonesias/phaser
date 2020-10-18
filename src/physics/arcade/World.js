@@ -18,6 +18,7 @@ var FuzzyGreaterThan = require('../../math/fuzzy/GreaterThan');
 var FuzzyLessThan = require('../../math/fuzzy/LessThan');
 var GetOverlapX = require('./GetOverlapX');
 var GetOverlapY = require('./GetOverlapY');
+var GetTilesWithinWorldXY = require('../../tilemaps/components/GetTilesWithinWorldXY');
 var GetValue = require('../../utils/object/GetValue');
 var MATH_CONST = require('../../math/const');
 var ProcessQueue = require('../../structs/ProcessQueue');
@@ -1466,9 +1467,6 @@ var World = new Class({
      */
     separateCircle: function (body1, body2, overlapOnly, bias)
     {
-        body1.updateCenter();
-        body2.updateCenter();
-
         //  Set the bounding box overlap values into the bodies themselves (hence we don't use the return values here)
         GetOverlapX(body1, body2, false, bias);
         GetOverlapY(body1, body2, false, bias);
@@ -2187,9 +2185,6 @@ var World = new Class({
         var w = body.width;
         var h = body.height;
 
-        // TODO: this logic should be encapsulated within the Tilemap API at some point.
-        // If the maps base tile size differs from the layer's tile size, we need to adjust the
-        // selection area by the difference between the two.
         var layerData = tilemapLayer.layer;
 
         if (layerData.tileWidth > layerData.baseTileWidth)
@@ -2207,7 +2202,7 @@ var World = new Class({
             h += yDiff;
         }
 
-        var mapData = tilemapLayer.getTilesWithinWorldXY(x, y, w, h);
+        var mapData = GetTilesWithinWorldXY(x, y, w, h, null, tilemapLayer.scene.cameras.main, tilemapLayer.layer);
 
         if (mapData.length === 0)
         {
@@ -2254,11 +2249,13 @@ var World = new Class({
 
             tilemapLayer = tile.tilemapLayer;
 
-            tileWorldRect.left = tilemapLayer.tileToWorldX(tile.x);
-            tileWorldRect.top = tilemapLayer.tileToWorldY(tile.y);
+            var point = tilemapLayer.tileToWorldXY(tile.x, tile.y);
 
-            // If the map's base tile size differs from the layer's tile size, only the top of the rect
-            // needs to be adjusted since its origin is (0, 1).
+            tileWorldRect.left = point.x;
+            tileWorldRect.top = point.y;
+
+            //  If the maps base tile size differs from the layer tile size, only the top of the rect
+            //  needs to be adjusted since its origin is (0, 1).
             if (tile.baseHeight !== tile.height)
             {
                 tileWorldRect.top -= (tile.height - tile.baseHeight) * tilemapLayer.scaleY;
@@ -2335,7 +2332,7 @@ var World = new Class({
      * @method Phaser.Physics.Arcade.World#wrap
      * @since 3.3.0
      *
-     * @param {*} object - A Game Object, a Group, an object with `x` and `y` coordinates, or an array of such objects.
+     * @param {any} object - A Game Object, a Group, an object with `x` and `y` coordinates, or an array of such objects.
      * @param {number} [padding=0] - An amount added to each boundary edge during the operation.
      */
     wrap: function (object, padding)

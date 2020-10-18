@@ -29,6 +29,7 @@ Other pipeline changes are as follows:
 * All pipelines will now extract the `attributes` property from the config, allowing you to set it externally.
 * All pipelines will now extract the `topology` property from the config, allowing you to set it externally.
 * The `WebGLPipeline.shouldFlush` method now accepts an optional parameter `amount`. If given, it will return `true` if when the amount is added to the vertex count it will exceed the vertex capacity. The Multi Pipeline has been updated to now use this method instead of performing the comparison multiple times itself.
+* The `RopePipeline` now extends `MultiPipeline` and just changes the topolgy, vastly reducing the filesize.
 
 ### Pipeline Uniform Changes
 
@@ -276,13 +277,13 @@ The way in which Game Objects add themselves to the Scene Update List has change
 
 ### Spine Plugin Updates
 
-* The Spine Runtimes have been updated to 3.8.95, which are the most recent non-beta versions. Please note, you will _need_ to re-export your animations if you're working in a version of Spine lower than 3.8.20.
+* The Spine Runtimes have been updated to 3.8.99, which are the most recent non-beta versions. Please note, you will _need_ to re-export your animations if you're working in a version of Spine lower than 3.8.20.
 * `SpineContainer` is a new Game Object available via `this.add.spineContainer` to which you can add Spine Game Objects only. It uses a special rendering function to retain batching, even across multiple container or Spine Game Object instances, resulting in dramatically improved performance over using regular Containers.
 * A Spine Game Object with `setVisible(false)` will no longer still cause internal gl commands and is now properly skipped, retaining any current batch in the process. Fix #5174 (thanks @Kitsee)
 * The Spine Game Object WebGL Renderer will no longer clear the type if invisible and will only end the batch if the next type doesn't match.
 * The Spine Game Object WebGL Renderer will no longer rebind the pipeline if it was the final object on the display list, saving lots of gl commands.
 * The Webpack build scripts have all been updated for Webpack 4.44.x. Fix #5243 (thanks @RollinSafary)
-* There is a new npm script `npm run plugin.spine.runtimes` which will build all of the Spine runtimes, for ingestion by the plugin. Note: You will need to check-out the Esoteric Spine Runtimes repo into `plugins/spine/` in order for this to work.
+* There is a new npm script `npm run plugin.spine.runtimes` which will build all of the Spine runtimes, for ingestion by the plugin. Note: You will need to check-out the Esoteric Spine Runtimes repo into `plugins/spine/` in order for this to work and then run `npm i`.
 * Spine Game Objects can now be rendered to Render Textures. Fix #5184 (thanks @Kitsee)
 * Using > 128 Spine objects in a Container would cause a `WebGL: INVALID_OPERATION: vertexAttribPointer: no ARRAY_BUFFER is bound and offset is non-zero` error if you added any subsequent Spine objects to the Scene. There is now no limit. Fix #5246 (thanks @d7561985)
 * The Spine Plugin will now work in HEADLESS mode without crashing. Fix #4988 (thanks @raimon-segura)
@@ -292,6 +293,10 @@ The way in which Game Objects add themselves to the Scene Update List has change
 * The `SpineFile` will no longer throw a warning if adding a texture into the Texture Manager that already exists. This allows you to have multiple Spine JSON use the same texture file, however, it also means you now get no warning if you accidentally load a texture that exists, so be careful with your keys! Fix #4947 (thanks @Nomy1)
 * The Spine Plugin `destroy` method will now no longer remove the Game Objects from the Game Object Factory, or dispose of the Scene Renderer. This means when a Scene is destroyed, it will keep the Game Objects in the factory for other Scene's to use. Fix #5279 (thanks @Racoonacoon)
 * `SpinePlugin.gameDestroy` is a new method that is called if the Game instance emits a `destroy` event. It removes the Spine Game Objects from the factory and disposes of the Spine scene renderer.
+* `SpineFile` will now check to see if another identical atlas in the load queue is already loading the texture it needs and will no longer get locked waiting for a file that will never complete. This allows multiple skeleton JSONs to use the same atlas data. Fix #5331 (thanks @Racoonacoon)
+* `SpineFile` now uses a `!` character to split the keys, instead of an underscore, preventing the plugin from incorrectly working out the keys for filenames with underscores in them. Fix #5336 (thanks @Racoonacoon)
+* `SpineGameObject.willRender` is no longer hard-coded to return `true`. It instead now takes a Camera parameter and performs all of the checks needed before returning. Previously, this happened during the render functions.
+* The Spine Plugin now uses a single instance of the Scene Renderer when running under WebGL. All instances of the plugin (installed per Scene) share the same base Scene Renderer, avoiding duplicate allocations and resizing events under multi-Scene games. Fix #5286 (thanks @spayton BunBunBun)
 
 ### Animation API - New Features and Updates
 
@@ -306,6 +311,8 @@ The Animation API has had a significant overhaul to improve playback handling. I
 * The Game Object `Component.Animation` component has been renamed to `AnimationState` and has moved namespace. It's now in `Phaser.Animations` instead of `GameObjects.Components` to help differentiate it from the `Animation` class when browsing the documentation.
 * The `play`, `playReverse`, `playAfterDelay`, `playAfterRepeat` and `chain` Sprite and Animation Component methods can now all take a `Phaser.Types.Animations.PlayAnimationConfig` configuration object, as well as a string, as the `key` parameter. This allows you to override any default animation setting with those defined in the config, giving you far greater control over animations on a Game Object level, without needing to globally duplicate them.
 * `AnimationState.create` is a new method that allows you to create animations directly on a Sprite. These are not global and never enter the Animation Manager, instead risiding within the Sprite itself. This allows you to use the same keys across both local and global animations and set-up Sprite specific local animations.
+* `AnimationState.generateFrameNumbers` is a new method that is a proxy for the same method available under the Animation Manager. It's exposed in the Animation State so you're able to access it from within a Sprite (thanks @juanitogan)
+* `AnimationState.generateFrameNames` is a new method that is a proxy for the same method available under the Animation Manager. It's exposed in the Animation State so you're able to access it from within a Sprite (thanks @juanitogan)
 * All playback methods: `play`, `playReverse`, `playAfterDelay` and `playAfterRepeat` will now check to see if the given animation key exists locally on the Sprite first. If it does, it's used, otherwise it then checks the global Animation Manager for the key instead.
 * `AnimationState.skipMissedFrames` is now used when playing an animation, allowing you to create animations that run at frame rates far exceeding the refresh rate, or that will update to the correct frame should the game lag. Feature #4232 (thanks @colorcube)
 * `AnimationManager.addMix` is a new method that allows you to create mixes between two animations. Mixing allows you to specify a unique delay between a pairing of animations. When playing Animation A on a Game Object, if you then play Animation B, and a mix exists, it will wait for the specified delay to be over before playing Animation B. This allows you to customise smoothing between different types of animation, such as blending between an idle and a walk state, or a running and a firing state.
@@ -396,36 +403,100 @@ The Animation API has had a significant overhaul to improve playback handling. I
 * `GenerateFrameNumbers` can now accept the `start` and `end` parameters in reverse order, meaning you can now do `{ start: 10, end: 1 }` to create the animation in reverse.
 * `GenerateFrameNames` can now accept the `start` and `end` parameters in reverse order, meaning you can now do `{ start: 10, end: 1 }` to create the animation in reverse.
 
+### Tilemap - New Features, Updates and API Changes
+
+There are three large changes to Tilemaps in 3.50. If you use tilemaps, you must read this section:
+
+1) The first change is that there are no longer `DynamicTilemapLayer` and `StaticTilemapLayer` classes. They have both been removed and replaced with the new `TilemapLayer` class. This new class consolidates features from both and provides a lot cleaner API experience, as well as speeding up internal logic.
+
+In your game where you use `map.createDynamicLayer` or `map.createStaticLayer` replace it with `map.createLayer` instead.
+
+2) The second change is that the Tilemap system now supports isometric, hexagonal and staggered isometric map types, along with the previous orthogonal format, thanks to a PR from @svipal. You can now export maps using any of these orientations from the Tiled Map Editor and load them into Phaser using the existing tilemap loading API. No further changes need to take place in the way your maps are loaded.
+
+3) The `Tilemap.createFromObjects` method has been overhauled to make it much more useful. The method signature has changed and it now takes a new `CreateFromObjectLayerConfig` configuration object, or an array of them, which allows much more fine-grained control over which objects in the Tiled Object Layers are converted and what they are converted to. Previously it could only convert to Sprites, but you can now pass in a custom class, filter based on id, gid or name, even provide a Container to add the created Game Objects in to. Please see the new documentation for this method and the config object for more details. Fix #3817 #4613 (thanks @georgzoeller @Secretmapper)
+
+* The `Tilemap.createDynamicLayer` method has been renamed to `createLayer`.
+* The `Tilemap.createStaticLayer` method has been removed. Use `createLayer` instead.
+* The `Tilemap.createBlankDynamicLayer` method has been renamed to `createBlankLayer`.
+* The `Tilemap.convertLayerToStatic` method has been removed as it is no longer required.
+* The `TilemapLayerWebGLRenderer` function will no longer iterate through the layer tilesets, drawing tiles from only that set. Instead all it does now is iterate directly through only the tiles. This allows it to take advantage of the new Multi Texturing pipeline and also draw multi-tileset isometric layers correctly.
+* `Phaser.Types.Tilemaps.TilemapOrientationType` is a new type def that holds the 4 types of map orientation now supported.
+* The `Tile.updatePixelXY` method now updates the tile XY position based on map type.
+* `ParseTilesets` will now correctly handle non-consecutive tile IDs. It also now correctly sets the `maxId` property, fixing a bug where tiles wouldn't render if from IDs outside the expected range. Fix #4367 (thanks @jackfreak)
+* `Tilemap.hexSideLength` is a new property that holds the length of the hexagon sides, if using Hexagonal Tilemaps.
+* `LayerData.orientation` is a new property that holds the tilemap layers orientation constant.
+* `LayerData.hexSideLength` is a new property that holds the length of the hexagon sides, if using Hexagonal Tilemaps.
+* `MapData.orientation` is a new property that holds the tilemap layers orientation constant.
+* `MapData.hexSideLength` is a new property that holds the length of the hexagon sides, if using Hexagonal Tilemaps.
+* `Tilemaps.Components.HexagonalWorldToTileY` is a new function that converts a world Y coordinate to hexagonal tile Y coordinate.
+* `Tilemaps.Components.StaggeredWorldToTileY` is a new function that converts a world Y coordinate to staggered tile Y coordinate.
+* `Tilemaps.Components.HexagonalWorldToTileXY` is a new function that converts world coordinates to hexagonal tile coordinates.
+* `Tilemaps.Components.IsometricWorldToTileXY` is a new function that converts world coordinates to isometric tile coordinates.
+* `Tilemaps.Components.StaggeredWorldToTileXY` is a new function that converts world coordinates to staggered tile coordinates.
+* `Tilemaps.Components.HexagonalTileToWorldY` is a new function that converts a hexagonal Y coordinate to a world coordinate.
+* `Tilemaps.Components.StaggeredTileToWorldY` is a new function that converts a staggered Y coordinate to a world coordinate.
+* `Tilemaps.Components.HexagonalTileToWorldXY` is a new function that converts hexagonal tile coordinates to world coordinates.
+* `Tilemaps.Components.IsometricTileToWorldXY` is a new function that converts isometric tile coordinates to world coordinates.
+* `Tilemaps.Components.StaggeredTileToWorldXY` is a new function that converts staggered tile coordinates to world coordinates.
+* `Tilemaps.Components.GetTileToWorldXFunction` is a new function that returns the correct conversion function to use.
+* `Tilemaps.Components.GetTileToWorldYFunction` is a new function that returns the correct conversion function to use.
+* `Tilemaps.Components.GetTileToWorldXXFunction` is a new function that returns the correct conversion function to use.
+* `Tilemaps.Components.GetWorldToTileXFunction` is a new function that returns the correct conversion function to use.
+* `Tilemaps.Components.GetWorldToTileYFunction` is a new function that returns the correct conversion function to use.
+* `Tilemaps.Components.GetWorldToTileXYFunction` is a new function that returns the correct conversion function to use.
+* `Tilemaps.Components.GetCullTilesFunction` is a new function that returns the correct culling function to use.
+* `Tilemaps.Components.HexagonalCullTiles` is a new function that culls tiles in a hexagonal map.
+* `Tilemaps.Components.StaggeredCullTiles` is a new function that culls tiles in a staggered map.
+* `Tilemaps.Components.IsometricCullTiles` is a new function that culls tiles in a isometric map.
+* `Tilemaps.Components.CullBounds` is a new function that calculates the cull bounds for an orthogonal map.
+* `Tilemaps.Components.HexagonalCullBounds` is a new function that calculates the cull bounds for a hexagonal map.
+* `Tilemaps.Components.StaggeredCullBounds` is a new function that calculates the cull bounds for a staggered map.
+* `Tilemaps.Components.RunCull` is a new function that runs the culling process from the combined bounds and tilemap.
+* `Tilemap._convert` is a new internal private hash of tilemap conversion functions used by the public API.
+* The `Tilemap._isStaticCall` method has been removed and no Tilemap methods now check this, leading to faster execution.
+* The Arcade Physics Sprites vs. Tilemap Layers flow has changed. Previously, it would iterate through a whole bunch of linked functions, taking lots of jumps in the process. It now just calls the `GetTilesWithinWorldXY` component directly, saving lots of overhead.
+
 ### Mesh Game Object - New Features, Updates and API Changes
 
-The Mesh Game Object has been rewritten in v3.50 with a lot of changes to make it more useful and able to handle 3D objects:
+The Mesh Game Object has been rewritten from scratch in v3.50 with a lot of changes to make it much more useful. It is accompanied by the new `Geom.Mesh` set of functions.
 
-* `GameObject.Vertex` is a new micro class that encapsulates all of the data required for a single vertex, such as position, uv, color and alpha. This class is now created internally by the Mesh Game Object.
-* `GameObject.Face` is a new micro class that consists of references to the three `Vertex` instances that construct the single Face.
-* The Mesh constructor and `MeshFactory` signatures have changed to `scene, x, y, texture, frame, vertices, uvs, indicies, colors, alphas`. Note the way the Texture and Frame parameters now comes first. `indicies` is a new parameter added to the list. It allows you to provide indexed vertex data to create the Mesh from, where the `indicies` array holds the vertex index information. The final list of vertices is built from this index along with the provided vertices and uvs arrays. The `indicies` array is optional. If your data is not indexed, then simply pass `null` or an empty array for this parameter.
-* The `Mesh` Game Object now extends the `SingleAlpha` component and the alpha value is factored into the final alpha value per vertex during rendering. This means you can now set the whole alpha across the Mesh using the standard `setAlpha` methods. But, if you wish to, you can still control the alpha on a per-vertex basis as well.
+* `Geom.Mesh` is a new namespace that contains the Mesh related geometry functions. These are stand-alone functions that you may, or may not require, depending on your game.
+* `Geom.Mesh.Vertex` is a new class that encapsulates all of the data required for a single vertex, including position, uv, normals, color and alpha.
+* `Geom.Mesh.Face` is a new class that consists of references to the three `Vertex` instances that construct a single Face in a Mesh and provides methods for manipulating them.
+* `Geom.Mesh.GenerateVerts` is a new function that will return an array of `Vertex` and `Face` objects generated from the given data. You can provide index, or non-index vertex lists, along with UV data, normals, colors and alpha which it will parse and return the results from.
+* `Geom.Mesh.GenerateGridVerts` is a new function that will generate a series of `Vertex` objects in a grid format, based on the given `GenerateGridConfig` config file. You can set the size of the grid, the number of segments to split it into, translate it, color it and tile the texture across it. The resulting data can be easily used by a Mesh Game Object.
+* `Geom.Mesh.GenerateObjVerts` is a new function that will generate a series of `Vertex` objects based on the given parsed Wavefront Obj Model data. You can optionally scale and translate the generated vertices and add them to a Mesh.
+* `Geom.Mesh.ParseObj` is a new function that will parse a triangulated Wavefront OBJ file into model data into a format that the `GenerateObjVerts` function can consume.
+* `Geom.Mesh.ParseObjMaterial` is a new function that will parse a Wavefront material file and extract the diffuse color data from it, combining it with the parsed object data.
+* `Geom.Mesh.RotateFace` is a new function that will rotate a Face by a given amount, based on an optional center of rotation.
+* `Loader.OBJFile` is a new File Loader type that can load triangulated Wavefront OBJ files, and optionally material files, which are then parsed and stored in the OBJ Cache.
+* The Mesh constructor and `MeshFactory` signatures have changed to `scene, x, y, texture, frame, vertices, uvs, indicies, containsZ, normals, colors, alphas`. Note the way the Texture and Frame parameters now comes first. `indicies` is a new parameter that allows you to provide indexed vertex data to create the Mesh from, where the `indicies` array holds the vertex index information. The final list of vertices is built from this index along with the provided vertices and uvs arrays. The `indicies` array is optional. If your data is not indexed, then simply pass `null` or an empty array for this parameter.
 * The `Mesh` Game Object now has the Animation State Component. This allows you to create and play animations across the texture of a Mesh, something that previously wasn't possible. As a result, the Mesh now adds itself to the Update List when added to a Scene.
-* `Geom.ParseObj` is a new function that will parse a triangulated Wavefront OBJ file into model data that can be consumed by the Mesh Game Object.
-* `Loader.OBJFile` is a new File Loader type that can load triangulated Wavefront OBJ files, which are then parsed and stored in the OBJ Cache.
+* `Mesh.addVertices` is a new method that allows you to add vertices to a Mesh Game Object based on the given parameters. This allows you to modify a mesh post-creation, or populate it with data at a later stage.
+* `Mesh.addVerticesFromObj` is a new method that will add the model data from a loaded Wavefront OBJ file to a Mesh. You load it via the new `OBJFile` with a `this.load.obj` call, then you can use the key with this method. This method also takes an optional scale and position parameters to control placement of the created model within the Mesh.
 * `Mesh.hideCCW` is a new boolean property that, when enabled, tells a Face to not render if it isn't counter-clockwise. You can use this to hide backward facing Faces.
-* `Mesh.addOBJ` is a new method that will add the model data from a loaded Wavefront OBJ file to a Mesh. You load it via the new `OBJFile` with a `this.load.obj` call, then you can use the key with the `addOBJ` method. This method also takes an optional scale and position parameters to control placement of the created model within the Mesh.
-* `Mesh.addModel` is a new method that will add the model data to a Mesh. You can prepare the model data yourself, pull it in from a server, or get it by calling `Geom.ParseObj`, or a similar custom function. This method also takes an optional scale and position parameters to control placement of the created model within the Mesh.
-* `Mesh.rotateX` is a new method that will rotate all vertices of the Mesh around the x axis, by the amount given. It then depth sorts the faces.
-* `Mesh.rotateY` is a new method that will rotate all vertices of the Mesh around the y axis, by the amount given. It then depth sorts the faces.
-* `Mesh.rotateZ` is a new method that will rotate all vertices of the Mesh around the z axis, by the amount given. It then depth sorts the faces.
-* `Mesh.depthSort` is a new method that will run a depth sort across all Faces in the Mesh by sorting them on their average depth.
+* `Mesh.modelPosition` is a new Vector3 property that allows you to translate the position of all vertices in the Mesh.
+* `Mesh.modelRotation` is a new Vector3 property that allows you to rotate all vertices in the Mesh.
+* `Mesh.modelScale` is a new Vector3 property that allows you to scale all vertices in the Mesh.
+* `Mesh.panX` is a new function that will translate the view position of the Mesh on the x axis.
+* `Mesh.panY` is a new function that will translate the view position of the Mesh on the y axis.
+* `Mesh.panZ` is a new function that will translate the view position of the Mesh on the z axis.
+* `Mesh.setPerspective` is a new method that allows you to set a perspective projection matrix based on the given dimensions, fov, near and far values.
+* `Mesh.setOrtho` is a new method that allows you to set an orthographic projection matrix based on the given scale, near and far values.
+* `Mesh.clear` is a new method that will destroy all Faces and Vertices and clear the Mesh.
+* `Mesh.depthSort` is a new method that will run a depth sort across all Faces in the Mesh by sorting them based on their average depth.
 * `Mesh.addVertex` is a new method that allows you to add a new single Vertex into the Mesh.
 * `Mesh.addFace` is a new method that allows you to add a new Face into the Mesh. A Face must consist of 3 Vertex instances.
-* `Mesh.addVertices` is a new method that allows you to add vertices to a Mesh Game Object based on the given parameters. This allows you to modify a mesh post-creation, or populate it with data at a later stage.
 * `Mesh.getFaceCount` new is a new method that will return the total number of Faces in the Mesh.
 * `Mesh.getVertexCount` new is a new method that will return the total number of Vertices in the Mesh.
 * `Mesh.getFace` new is a new method that will return a Face instance from the Mesh based on the given index.
 * `Mesh.getFaceAt` new is a new method that will return an array of Face instances from the Mesh based on the given position. The position is checked against each Face, translated through the optional Camera and Mesh matrix. If more than one Face intersects, they will all be returned but the array will be depth sorted first, so the first element will be that closest to the camera.
 * `Mesh.vertices` is now an array of `GameObject.Vertex` instances, not a Float32Array.
 * `Mesh.faces` is a new array of `GameObject.Face` instances, which is populated during a call to methods like `addVertices` or `addModel`.
-* `Mesh.clearVertices` is a new method that will destroy all Faces and Vertices and clear the Mesh.
+* `Mesh.totalRendered` is a new property that holds the total number of Faces that were rendered in the previous frame.
 * `Mesh.setDebug` is a new method that allows you to render a debug visualisation of the Mesh vertices to a Graphics Game Object. You can provide your own Graphics instance and optionally callback that is invoked during rendering. This allows you to easily visualise the vertices of your Mesh to help debug UV mapping.
 * The Mesh now renders by iterating through the Faces array, not the vertices. This allows you to use Array methods such as `BringToTop` to reposition a Face, thus changing the drawing order without having to repopulate all of the vertices. Or, for a 3D model, you can now depth sort the Faces.
+* The `Mesh` Game Object now extends the `SingleAlpha` component and the alpha value is factored into the final alpha value per vertex during rendering. This means you can now set the whole alpha across the Mesh using the standard `setAlpha` methods. But, if you wish to, you can still control the alpha on a per-vertex basis as well.
 * The Mesh renderer will now check to see if the pipeline capacity has been exceeded for every Face added, allowing you to use Meshes with vertex counts that exceed the pipeline capacity without causing runtime errors.
 * You can now supply just a single numerical value as the `colors` parameter in the constructor, factory method and `addVertices` method. If a number, instead of an array, it will be used as the color for all vertices created.
 * You can now supply just a single numerical value as the `alphas` parameter in the constructor, factory method and `addVertices` method. If a number, instead of an array, it will be used as the alpha for all vertices created.
@@ -433,10 +504,17 @@ The Mesh Game Object has been rewritten in v3.50 with a lot of changes to make i
 * `Mesh.debugCallback` is a new property that holds the debug render callback.
 * `Mesh.renderDebugVerts` is a new method that acts as the default render callback for `setDebug` if none is provided.
 * `Mesh.preDestroy` is a new method that will clean-up the Mesh arrays and debug references on destruction.
+* `Mesh.isDirty` is a new method that will check if any of the data is dirty, requiring the vertices to be transformed. This is called automatically in `preUpdate` to avoid generating lots of math when nothing has changed.
 * The `Mesh.uv` array has been removed. All UV data is now bound in the Vertex instances.
 * The `Mesh.colors` array has been removed. All color data is now bound in the Vertex instances.
 * The `Mesh.alphas` array has been removed. All color data is now bound in the Vertex instances.
 * The `Mesh.tintFill` property is now a `boolean` and defaults to `false`.
+
+### Quad Game Object Removed
+
+The `Quad` Game Object has been removed from v3.50.0.
+
+You can now create your own Quads easily using the new `Geom.Mesh.GenerateGridVerts` function, which is far more flexible than the old quads were.
 
 ### Input / Mouse Updates and API Changes
 
@@ -445,17 +523,20 @@ The Mesh Game Object has been rewritten in v3.50 with a lot of changes to make i
 * `inputMousePreventDefaultDown` is a new config option that allows you to control `preventDefault` calls specifically on mouse down events. Set it via `input.mouse.preventDefaultDown` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
 * `inputMousePreventDefaultUp` is a new config option that allows you to control `preventDefault` calls specifically on mouse up events. Set it via `input.mouse.preventDefaultUp` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
 * `inputMousePreventDefaultMove` is a new config option that allows you to control `preventDefault` calls specifically on mouse move events. Set it via `input.mouse.preventDefaultMove` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
+* `inputMousePreventDefaultWheel` is a new config option that allows you to control `preventDefault` calls specifically on mouse wheel events. Set it via `input.mouse.preventDefaultWheel` in the Game Config. It defaults to `true`, the same as the previous `capture` property did.
 * The `MouseManager.capture` property has been removed, as this is now split into 3 new config options (see below)
 * `MouseManager.preventDefaultDown` is a new boolean property, set via the `inputMousePreventDefaultDown` config option that allows you to toggle capture of mouse down events at runtime.
 * `MouseManager.preventDefaultUp` is a new boolean property, set via the `inputMousePreventDefaultUp` config option that allows you to toggle capture of mouse up events at runtime.
 * `MouseManager.preventDefaultMove` is a new boolean property, set via the `inputMousePreventDefaultMove` config option that allows you to toggle capture of mouse move events at runtime.
-* In the `MouseManager` the up, down and move events are no longer set as being passive if captured. Over, Out, Wheel and the Window level Down and Up events are always flagged as being passive.
+* `MouseManager.preventDefaultWheel` is a new boolean property, set via the `inputMousePreventDefaultWheel` config option that allows you to toggle capture of mouse wheel at runtime.
+* In the `MouseManager` the up, down and move events are no longer set as being passive if captured. Over, Out, Wheel and the Window level Down and Up events are always flagged as being passive. Wheel events are non-passive if capturing is enabled.
 * The `GamepadPlugin` will now call `refreshPads` as part of its start process. This allows you to use Gamepads across multiple Scenes, without having to wait for a connected event from each one of them. If you've already had a connected event in a previous Scene, you can now just read the pads directly via `this.input.gamepad.pad1` and similar. Fix #4890 (thanks @Sytten)
 * Shutting down the Gamepad plugin (such as when sleeping a Scene) no longer calls `GamepadPlugin.disconnectAll`, but destroying it does.
 * `Gamepad._created` is a new private internal property that keeps track of when the instance was created. This is compared to the navigator timestamp in the update loop to avoid event spamming. Fix #4890.
 * `Pointer.down` will now check if the browser is running under macOS and if the ctrl key was also pressed, if so, it will flag the down event as being a right-click instead of a left-click, as per macOS conventions. Fix #4245 (thanks @BigZaphod)
 * When destroying an interactive Game Object that had `useHandCursor` enabled, it would reset the CSS cursor to default, even if the cursor wasn't over that Game Object. It will now only reset the cursor if it's over the Game Object being destroyed. Fix #5321 (thanks @JstnPwll)
 * The `InputPlugin.shutdown` method will now reset the CSS cursor, in case it was set by any Game Objects in the Scene that have since been destroyed.
+* The `InputPlugin.processOverEvents` has had a duplicate internal loop removed from it (thanks KingCosmic)
 
 ### Tint Updates and Shader Changes
 
@@ -498,6 +579,17 @@ Prior to v3.50 an Arcade Physics Body could be one of two states: immovable, or 
 * The `Arcade.Body.resetFlags` method has a new optional boolean parameter `clear`. If set, it clears the `wasTouching` flags on the Body. This happens automatically when `Body.reset` is called. Previous to this, the flags were not reset until the next physics step (thanks @samme)
 * `Physics.Arcade.ProcessX` is a new set of functions, called by the `SeparateX` function, that handles all of the different collision tests, checks and resolutions. These functions are not exposed in the public API.
 * `Physics.Arcade.ProcessY` is a new set of functions, called by the `SeparateY` function, that handles all of the different collision tests, checks and resolutions. These functions are not exposed in the public API.
+* `Arcade.Body.center` values were incorrect after collisions with the world bounds or (for rectangular bodies) after collisions with another body. The body center is now updated after those separations (thanks @samme)
+
+### Loader Cache Changes
+
+When loading any of the file types listed below it will no longer store the data file in the cache. For example, when loading a Texture Atlas using a JSON File, it used to store the parsed image data in the Texture Manager and also store the JSON in the JSON Cache under the same key. This has changed in 3.50. The data files are no longer cached, as they are not required by the textures once parsing is completed, which happens during load. This helps free-up memory. How much depends on the size of your data files. And also allows you to easily remove textures based on just their key, without also having to clear out the corresponding data cache.
+
+* `AtlasJSONFile` no longer stores the JSON in the JSON Cache once the texture has been created.
+* `AtlasXMLFile` no longer stores the XML in the XML Cache once the texture has been created.
+* `UnityAtlasFile` no longer stores the Text in the Text Cache once the texture has been created.
+* `BitmapFontFile` no longer stores the XML in the XML Cache once the texture has been created.
+* You can now use `TextureManager.remove` to remove a texture and not have to worry about clearing the corresponding JSON or XML cache entry as well in order to reload a new texture using the same key. Fix #5323 (thanks @TedGriggs)
 
 ### Removal of 'resolution' property from across the API
 
@@ -507,7 +599,7 @@ For a long time, the 'resolution' property has been present - taunting developer
 
 * The `Phaser.Scale.Events#RESIZE` event no longer sends the `resolution` as a parameter.
 * The `BaseCamera.resolution` property has been removed.
-* The internal private `BaseCamera._cx`, `_cy`, `_cw` and `_ch` properties has been removed.
+* The internal private `BaseCamera._cx`, `_cy`, `_cw` and `_ch` properties has been removed, use `x`, `y`, `width` and `height` instead.
 * The `BaseCamera.preRender` method no longer receives or uses the `resolution` parameter.
 * The `Camera.preRender` method no longer receives or uses the `resolution` parameter.
 * The `CameraManager.onResize` method no longer receives or uses the `resolution` parameter.
@@ -520,7 +612,7 @@ For a long time, the 'resolution' property has been present - taunting developer
 
 ### Removed 'interpolationPercentage' parameter from all render functions
 
-Since v3.0.0 the Game Object `render` functions have received a parameter called `interpolationPercentage` that was never used. The renderers do not calculate this value and no Game Objects apply it, so for the sake of clairty, reducing code and removing complexity from the API it has been removed from every single function that either sent or expected the parameter. This touches every single Game Object and changes the parameter order as a result, so please be aware of this if you have your own _custom_ Game Objects that implement their own `render` methods. In terms of surface API changes, you shouldn't notice anything at all from this removal.
+Since v3.0.0 the Game Object `render` functions have received a parameter called `interpolationPercentage` that was never used. The renderers do not calculate this value and no Game Objects apply it, so for the sake of clairty, reducing code and removing complexity from the API it has been removed from every single function that either sent or expected the parameter. This touches every single Game Object and changes the parameter order as a result, so please be aware of this if you have your own _custom_ Game Objects, or plugins, that implement their own `render` methods. In terms of surface API changes, you shouldn't notice anything at all from this removal.
 
 ### New Features
 
@@ -555,6 +647,36 @@ Since v3.0.0 the Game Object `render` functions have received a parameter called
 * When defining the ease used with a Particle Emitter you can now set `easeParams` in the config object, allowing you to pass custom ease parameters through to an ease function (thanks @vforsh)
 * `BitmapMask.createMask` is a new method that will internally create the WebGL textures and framebuffers required for the mask. This is now used by the constructor and if the context is lost. It now also clears any previous textures/fbos that may have been created first, helping prevent memory leaks.
 * `BitmapMask.clearMask` will delete any WebGL textures or framebuffers the mask is using. This is now called when the mask is destroyed, or a new mask is created upon it.
+* `Quaternion` now has a new property `onChangeCallback` which, if set, will be invoked each time the quaternion is updated. This allows you to link change events to other objects.
+* The `Quaternion.set` method has a new optional boolean parameter `update` (defaults to `true`), which will call the `onChangeCallback` if set.
+* `Quaternion.setFromEuler` is a new method that will set the quaternion from the given `Euler` object, optionally calling the `onChangeCallback` in the process.
+* `Quaternion.setFromRotationMatrix` is a new method that will set the rotation of the quaternion from the given Matrix4.
+* `Vector3.setFromMatrixPosition` is a new method that will set the components of the Vector3 based on the position of the given Matrix4.
+* `Vector3.setFromMatrixColumn` is a new method that will set the components of the Vector3 based on the specified Matrix4 column.
+* `Vector3.fromArray` is a new method that will set the components of the Vector3 based on the values in the given array, at the given offset.
+* `Vector3.min` is a new method that will set the components of the Vector3 based on the `Main.min` between it and the given Vector3.
+* `Vector3.max` is a new method that will set the components of the Vector3 based on the `Main.max` between it and the given Vector3.
+* `Vector3.addVectors` is a new method that will set the components of the Vector3 based on the addition of the two Vector3s given.
+* `Vector3.addScalar` is a new method that will multiply the components of the Vector3 by the scale value given.
+* `Vector3.applyMatrix3` is a new method that will take a Matrix3 and apply it to the Vector3.
+* `Vector3.applyMatrix4` is a new method that will take a Matrix4 and apply it to the Vector3.
+* `Vector3.projectViewMatrix` is a new method that multiplies the Vector3 by the given view and projection matrices.
+* `Vector3.unprojectViewMatrix` is a new method that multiplies the Vector3 by the given inversed projection matrix and world matrix.
+* `Matrix4.setValues` is a new method that allows you to set all of the matrix components individually. Most internal methods now use this.
+* `Matrix.multiplyToMat4` is a new method that multiplies a Matrix4 by the given `src` Matrix4 and stores the results in the `out` Matrix4.
+* `Matrix4.fromRotationXYTranslation` is a new method that takes the rotation and position vectors and builds this Matrix4 from them.
+* `Matrix4.getMaxScaleOnAxis` is a new method that will return the maximum axis scale from the Matrix4.
+* `Matrix4.lookAtRH` is a new method that will generate a right-handed look-at matrix from the given eye, target and up positions.
+* `Matrix4.transform` is a new method that will generate a transform matrix from the given position and scale vectors and a rotation quaternion.
+* `Matrix4.multiplyMatrices` is a new method that multiplies two given Matrix4 objects and stores the results in the Matrix4.
+* `Matrix4.premultiply` is a new method that takes a Matrix4 and multiplies it by the current Matrix4.
+* `Matrix4.getInverse` is a new method that takes a Matrix4, copies it to the current matrix, then returns the inverse of it.
+* `WebGLRenderer.instancedArraysExtension` is a new property that holds the WebGL Extension for instanced array drawing, if supported by the browser.
+* `WebGLRenderer.vaoExtension` is a new property that holds a reference to the Vertex Array Object WebGL Extension, if supported by the browser.
+* `CameraManager.getVisibleChildren` is a new method that is called internally by the `CameraManager.render` method. It filters the DisplayList, so that Game Objects that pass the `willRender` test for the given Camera are added to a sub-list, which is then passed to the renderer. This avoids the renderer having to do any checks on the children, it just renders each one in turn.
+* `Physics.Arcade.Body.setDamping` is a new method that allows you to set the `useDamping` property of a Body in a chainable way. Fix #5352 (thanks @juanitogan)
+* The `GameObjects.Graphics.fillGradientStyle` method can now accept a different alpha value for each of the fill colors. The default is still 1. If you only provide a single alpha, it'll be used for all colors. Fix #5044 (thanks @zhangciwu)
+* `Cameras.Scene2D.Events.FOLLOW_UPDATE` is a new Event that is dispatched by a Camera when it is following a Game Object. It is dispatched every frame, right after the final Camera position and internal matrices have been updated. Use it if you need to react to a camera, using its most current position and the camera is following something. Fix #5253 (thanks @rexrainbow)
 
 ### Updates and API Changes
 
@@ -565,7 +687,6 @@ Since v3.0.0 the Game Object `render` functions have received a parameter called
 * `StaticTilemapLayer.upload` will now set the vertex attributes and buffer the data, and handles internal checks more efficiently.
 * `StaticTilemapLayer` now includes the `ModelViewProjection` mixin, so it doesn't need to modify the pipeline during rendering.
 * `WebGLRenderer.textureFlush` is a new property that keeps track of the total texture flushes per frame.
-* The `TextureTintStripPipeline` now extends `TextureTintPipeline` and just changes the topolgy, vastly reducing the filesize.
 * `TransformMatrix.getXRound` is a new method that will return the X component, optionally passed via `Math.round`.
 * `TransformMatrix.getYRound` is a new method that will return the Y component, optionally passed via `Math.round`.
 * The `KeyboardPlugin` no longer emits `keydown_` events. These were replaced with `keydown-` events in v3.15. The previous event string was deprecated in v3.20.
@@ -576,7 +697,6 @@ Since v3.0.0 the Game Object `render` functions have received a parameter called
 * The constant `Phaser.Renderer.WebGL.UNSIGNED_BYTE` value has been removed as it wasn't used internally.
 * The constant `Phaser.Renderer.WebGL.UNSIGNED_SHORT` value has been removed as it wasn't used internally.
 * The constant `Phaser.Renderer.WebGL.FLOAT` value has been removed as it wasn't used internally.
-* `global.Phaser = Phaser` has been removed, as it's no longer required by the UMD loader, which should make importing in Angular 10 easier. Fix #5212 (thanks @blackyale)
 * `Pointer.downTime` now stores the event timestamp of when the first button on the input device was pressed down, not just when button 1 was pressed down.
 * `Pointer.upTime` now stores the event timestamp of when the final depressed button on the input device was released, not just when button 1 was released.
 * The `Pointer.getDuration` method now uses the new Pointer `downTime` and `upTime` values, meaning it will accurately report the duration of when any button is being held down, not just the primary one. Fix #5112 (thanks @veleek)
@@ -589,7 +709,8 @@ Since v3.0.0 the Game Object `render` functions have received a parameter called
 * `Tween.seek` will no longer issue a console warning for `'Tween.seek duration too long'`, it's now up to you to check on the performance of tween seeking.
 * `WebGLRenderer.previousPipeline` is a new property that is set during a call to `clearPipeline` and used during calls to `rebindPipeline`, allowing the renderer to rebind any previous pipeline, not just the Multi Pipeline.
 * The `WebGLRenderer.rebindPipeline` method has been changed slightly. Previously, you had to specify the `pipelineInstance`, but this is now optional. If you don't, it will use the new `previousPipeline` property instead. If not set, or none given, it will now return without throwing gl errors as well.
-* If `inputWindowEvents` is set in the Game Config, then the `MouseManager` will now listen for the events on `window.top` instead of just `window`, which should help in situations where the pointer is released outside of an embedded iframe. Fix #4824 (thanks @rexrainbow)
+* If `inputWindowEvents` is set in the Game Config, then the `MouseManager` will now listen for the events on `window.top` instead of just `window`, which should help in situations where the pointer is released outside of an embedded iframe. This check is wrapped in a `try/catch` block, as not all sites allow access to `window.top` (specifically in cross-origin iframe situations) Fix #4824 (thanks @rexrainbow)
+* `MouseManager.isTop` is a new boolean read-only property that flags if the mouse event listeners were attached to `window.top` (true), or just `window` (false). By default Phaser will attempt `window.top`, but this isn't possible in all environments, such as cross-origin iframes, so it will fall back to `window` in those cases and set this property to false (thanks BunBunBun)
 * `Types.GameObjects.Text.GetTextSizeObject` is a new type def for the GetTextSize function results.
 * `Utils.Array.StableSort` has been recoded. It's now based on Two-Screens stable sort 0.1.8 and has been updated to fit into Phaser better and no longer create any window bound objects. The `inplace` function has been removed, just call `StableSort(array)` directly now. All classes that used `StableSort.inplace` have been updated to call it directly.
 * If a Scene is paused, or sent to sleep, it will automatically call `Keyboard.resetKeys`. This means that if you hold a key down, then sleep or pause a Scene, then release the key and resume or wake the Scene, it will no longer think it is still being held down (thanks @samme)
@@ -605,6 +726,14 @@ Since v3.0.0 the Game Object `render` functions have received a parameter called
 * `WebGLRenderer.defaultScissor` is a new property that holds the default scissor dimensions for the renderer. This is modified during `resize` and avoids continuous array generation in the `preRender` loop.
 * When running an Arcade Physics `overlap` test against a `StaticBody`, it will no longer set the `blocked` states of the dynamic body. If you are doing a collision test, they will still be set, but they're skipped for overlap-only tests. Fix #4435 (thanks @samme)
 * The `Line` Game Object will now default its width and height to 1, rather than zero. This allows you to give Line objects a physics body (although you will still need to re-adjust the center of the body manually). Fix #4596 (thanks @andrewaustin)
+* Internally, the `Quaternion` class now has 4 new private properties: `_x`, `_y`, `_z` and `_w` and 4 new getters and setters for the public versions. It also now passes most methods via `set` to allow for the onChange callback to be invoked. This does not change the public-facing API.
+* `Group` now extends `EventEmitter`, allowing you to emit custom events from within a Group.
+* `Device.Audio.wav` now uses `audio/wav` as the `canPlayType` check string, instead of `audio/wav; codecs="1"`, which should allow iOS13 to play wav files again.
+* In the `Loader.FileTypes.TextFile` config you can now override the type and cache destination for the file.
+* `Loader.MultiFile` will now parse the given files array and only add valid entries into the file list, allowing multifiles to now have optional file entries.
+* The `ParticleEmitter.tint` value is now `0xffffff` (previously, it was `0xffffffff`) to allow particle tints to work in the correct RGB order including alpha (thanks @vforsh)
+* `SceneManager.start` will now reset the `SceneSystems.sceneUpdate` reference to `NOOP`. This gets set back to the Scene update method again during `bootScene` (if it has one) and stops errors with external plugins and multi-part files that may trigger `update` before `create` has been called. Fix #4629 (thanks @Osmose)
+* If the Camera has `roundPixels` set it will now round the internal scroll factors and `worldView` during the `preRender` step. Fix #4464 (thanks @Antriel)
 
 ### Bug Fixes
 
@@ -633,6 +762,9 @@ Since v3.0.0 the Game Object `render` functions have received a parameter called
 * Creating a Bitmap Mask from a texture atlas that was then used to mask another Game Object also using that same texture atlas would throw the error `GL_INVALID_OPERATION : glDrawArrays: Source and destination textures of the draw are the same.`. It now renders as expected. Fix #4675 (thanks @JacobCaron)
 * When using the same asset for a Game Object to be used as a mask, it would make other Game Objects using the same asset, that appeared above the mask in the display list, to not render. Fix #4767 (thanks @smjnab)
 * When taking a `snapshot` in WebGL it would often have an extra line of empty pixels at the top of the resulting image, due to a rounding error in the `WebGLSnapshot` function. Fix #4956 (thanks @gammafp @telinc1)
+* You can now draw a `Group` to a `RenderTexture`. Previously, it failed to pass the camera across, resulting in none of the Group children being drawn. Fix #5330 (thanks @somnolik)
+* `Particles.EmitterOp.setMethods` will now reset both `onEmit` and `onUpdate` to their default values. This allows you to reconfigure an emitter op with a new type of value and not have it stuck on the previous one. Fix #3663 (thanks @samme)
+* `Particles.EmitterOp` now cleanly separates between the different types of property configuration options. `start | end` will now ease between the two values, `min | max` will pick a random value between them and `random: []` will pick a random element. They no longer get mixed together. Fix #3608 (thanks @samme)
 
 ### Namespace Updates
 
@@ -663,4 +795,4 @@ Since v3.0.0 the Game Object `render` functions have received a parameter called
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
 
-@samme @16patsle @scott20145 @khasanovbi @mk360 @volkans80 @jaabberwocky @maikthomas @atursams @LearningCode2023 @DylanC @BenjaminDRichards @rexrainbow @Riderrr @spwilson2 @EmilSV @PhaserEditor2D @Gangryong @vinerz
+@samme @16patsle @scott20145 @khasanovbi @mk360 @volkans80 @jaabberwocky @maikthomas @atursams @LearningCode2023 @DylanC @BenjaminDRichards @rexrainbow @Riderrr @spwilson2 @EmilSV @PhaserEditor2D @Gangryong @vinerz @trynx

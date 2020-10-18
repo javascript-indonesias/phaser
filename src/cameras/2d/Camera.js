@@ -11,6 +11,7 @@ var Clamp = require('../../math/Clamp');
 var Class = require('../../utils/Class');
 var Components = require('../../gameobjects/components');
 var Effects = require('./effects');
+var Events = require('./events');
 var Linear = require('../../math/Linear');
 var Rectangle = require('../../geom/rectangle/Rectangle');
 var Vector2 = require('../../math/Vector2');
@@ -316,7 +317,7 @@ var Camera = new Class({
      *
      * Doing this gives you the ability to modify the texture before this happens,
      * allowing for special effects such as Camera specific shaders, or post-processing
-     * on the texture.
+     * on the texture. You can also then 'tint' the Camera.
      *
      * If running under Canvas the Camera will render to its `canvas` property.
      *
@@ -774,6 +775,8 @@ var Camera = new Class({
             CenterOn(deadzone, this.midPoint.x, this.midPoint.y);
         }
 
+        var emitFollowEvent = false;
+
         if (follow && !this.panEffect.isRunning)
         {
             var fx = (follow.x - this.followOffset.x);
@@ -804,6 +807,8 @@ var Camera = new Class({
                 sx = Linear(sx, fx - originX, this.lerp.x);
                 sy = Linear(sy, fy - originY, this.lerp.y);
             }
+
+            emitFollowEvent = true;
         }
 
         if (this.useBounds)
@@ -816,6 +821,9 @@ var Camera = new Class({
         {
             originX = Math.round(originX);
             originY = Math.round(originY);
+
+            sx = Math.round(sx);
+            sy = Math.round(sy);
         }
 
         //  Values are in pixels and not impacted by zooming the Camera
@@ -832,17 +840,26 @@ var Camera = new Class({
         var displayWidth = width / zoom;
         var displayHeight = height / zoom;
 
-        this.worldView.setTo(
-            midX - (displayWidth / 2),
-            midY - (displayHeight / 2),
-            displayWidth,
-            displayHeight
-        );
+        var vwx = midX - (displayWidth / 2);
+        var vwy = midY - (displayHeight / 2);
+
+        if (this.roundPixels)
+        {
+            vwx = Math.round(vwx);
+            vwy = Math.round(vwy);
+        }
+
+        this.worldView.setTo(vwx, vwy, displayWidth, displayHeight);
 
         matrix.applyITRS(this.x + originX, this.y + originY, this.rotation, zoom, zoom);
         matrix.translate(-originX, -originY);
 
         this.shakeEffect.preRender();
+
+        if (emitFollowEvent)
+        {
+            this.emit(Events.FOLLOW_UPDATE, this, follow);
+        }
     },
 
     /**

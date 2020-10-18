@@ -11,7 +11,6 @@ var Class = require('../../utils/Class');
 var Components = require('../components');
 var Events = require('../events');
 var GameObject = require('../GameObject');
-var GameObjectEvents = require('../events');
 var Rectangle = require('../../geom/rectangle/Rectangle');
 var Render = require('./ContainerRender');
 var Union = require('../../geom/rectangle/Union');
@@ -44,7 +43,7 @@ var Vector2 = require('../../math/Vector2');
  *
  * Containers can be enabled for input. Because they do not have a texture you need to provide a shape for them
  * to use as their hit area. Container children can also be enabled for input, independent of the Container.
- * 
+ *
  * If input enabling a _child_ you should not set both the `origin` and a **negative** scale factor on the child,
  * or the input area will become misaligned.
  *
@@ -460,7 +459,7 @@ var Container = new Class({
         //  Is only on the Display List via this Container
         if (!this.scene.sys.displayList.exists(gameObject))
         {
-            gameObject.emit(GameObjectEvents.ADDED_TO_SCENE, gameObject, this.scene);
+            gameObject.emit(Events.ADDED_TO_SCENE, gameObject, this.scene);
         }
     },
 
@@ -485,7 +484,7 @@ var Container = new Class({
         //  Is only on the Display List via this Container
         if (!this.scene.sys.displayList.exists(gameObject))
         {
-            gameObject.emit(GameObjectEvents.REMOVED_FROM_SCENE, gameObject, this.scene);
+            gameObject.emit(Events.REMOVED_FROM_SCENE, gameObject, this.scene);
         }
     },
 
