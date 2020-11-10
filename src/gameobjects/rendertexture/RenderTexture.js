@@ -13,7 +13,6 @@ var CONST = require('../../const');
 var Frame = require('../../textures/Frame');
 var GameObject = require('../GameObject');
 var NOOP = require('../../utils/NOOP');
-var ProjectOrtho = require('../../renderer/webgl/mvp/ProjectOrtho');
 var Render = require('./RenderTextureRender');
 var Utils = require('../../renderer/webgl/Utils');
 var UUID = require('../../utils/string/UUID');
@@ -100,7 +99,7 @@ var RenderTexture = new Class({
          * @type {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)}
          * @since 3.2.0
          */
-        this.renderer = scene.sys.game.renderer;
+        this.renderer = scene.sys.renderer;
 
         /**
          * A reference to the Texture Manager.
@@ -304,6 +303,7 @@ var RenderTexture = new Class({
         }
 
         this.setOrigin(0, 0);
+
         this.initPipeline();
     },
 
@@ -539,39 +539,55 @@ var RenderTexture = new Class({
 
         if (gl)
         {
+            // console.log('RT.fill', x, y, width, height);
+
             var cx = camera.x;
             var cy = camera.y;
             var cw = camera.width;
             var ch = camera.height;
 
-            renderer.resetTextures(true);
+            // renderer.resetTextures(true);
 
-            renderer.pushScissor(cx, cy, cw, -ch);
+            // renderer.pushScissor(cx, cy, cw, -ch);
 
-            renderer.setFramebuffer(this.framebuffer, false);
+            renderer.flush();
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+
+            // renderer.resetTextures(true);
+
+            // renderer.setFramebuffer(this.framebuffer);
 
             var pipeline = this.pipeline;
 
-            var tw = texture.width;
-            var th = texture.height;
+            // var tw = texture.width;
+            // var th = texture.height;
 
-            var rw = pipeline.width;
-            var rh = pipeline.height;
+            // var rw = pipeline.width;
+            // var rh = pipeline.height;
 
-            var sx = rw / tw;
-            var sy = rh / th;
+            // var sx = rw / tw;
+            // var sy = rh / th;
+
+            // pipeline.drawFillRect(
+            //     x * sx, (th - height - y) * sy, width * sx, height * sy,
+            //     GetColor(b, g, r), alpha
+            // );
 
             pipeline.drawFillRect(
-                x * sx, (th - height - y) * sy, width * sx, height * sy,
-                Utils.getTintFromFloats(r / 255, g / 255, b / 255, 1),
+                cx, cy, cw, ch,
+                Utils.getTintFromFloats(r, g, b, 1),
                 alpha
             );
 
             pipeline.flush();
 
-            renderer.setFramebuffer(null, false);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-            renderer.popScissor();
+            // renderer.setFramebuffer(null);
+            renderer.resetTextures();
+
+            // renderer.popScissor();
         }
         else
         {
@@ -619,6 +635,7 @@ var RenderTexture = new Class({
                 gl.clear(gl.COLOR_BUFFER_BIT);
 
                 renderer.setFramebuffer(null, true);
+                renderer.resetTextures(true);
             }
             else
             {
@@ -783,24 +800,30 @@ var RenderTexture = new Class({
             var cw = camera.width;
             var ch = camera.height;
 
-            renderer.resetTextures(true);
-
-            renderer.setFramebuffer(this.framebuffer, false);
+            renderer.setFramebuffer(this.framebuffer);
 
             renderer.pushScissor(cx, cy, cw, ch, ch);
 
-            var pipeline = this.pipeline;
+            // var pipeline = this.pipeline;
 
-            ProjectOrtho(pipeline, 0, this.texture.width, 0, this.texture.height, -1000.0, 1000.0);
+            // var pipelineWidth = pipeline.width;
+            // var pipelineHeight = pipeline.height;
+
+            // pipeline.resize(this.texture.width, this.texture.height);
+
+            // console.log('RT.draw', this.texture.width, this.texture.height);
 
             this.batchList(entries, x, y, alpha, tint);
 
-            //  Causes a flush + popScissor
-            renderer.setFramebuffer(null, true);
+            renderer.flush();
+
+            renderer.setFramebuffer(null);
 
             renderer.resetTextures(true);
 
-            ProjectOrtho(pipeline, 0, pipeline.width, pipeline.height, 0, -1000.0, 1000.0);
+            renderer.currentProgram = null;
+
+            // pipeline.resize(pipelineWidth, pipelineHeight);
         }
         else
         {
@@ -852,6 +875,8 @@ var RenderTexture = new Class({
         if (y === undefined) { y = 0; }
         if (alpha === undefined) { alpha = this.globalAlpha; }
 
+        console.log('RT.drawFrame');
+
         if (tint === undefined)
         {
             tint = (this.globalTint >> 16) + (this.globalTint & 0xff00) + ((this.globalTint & 0xff) << 16);
@@ -885,7 +910,11 @@ var RenderTexture = new Class({
 
                 var pipeline = this.pipeline;
 
-                ProjectOrtho(pipeline, 0, this.texture.width, 0, this.texture.height, -1000.0, 1000.0);
+                var pipelineWidth = pipeline.width;
+                var pipelineHeight = pipeline.height;
+
+                pipeline.width = this.texture.width;
+                pipeline.height = this.texture.height;
 
                 pipeline.batchTextureFrame(textureFrame, x + this.frame.cutX, y + this.frame.cutY, tint, alpha, camera.matrix, null);
 
@@ -895,7 +924,8 @@ var RenderTexture = new Class({
 
                 renderer.popScissor();
 
-                ProjectOrtho(pipeline, 0, pipeline.width, pipeline.height, 0, -1000.0, 1000.0);
+                pipeline.width = pipelineWidth;
+                pipeline.height = pipelineHeight;
             }
             else
             {
@@ -961,7 +991,7 @@ var RenderTexture = new Class({
     },
 
     /**
-     * Internal method that handles the drawing a Phaser Group contents.
+     * Internal method that handles drawing a Phaser Group contents.
      *
      * @method Phaser.GameObjects.RenderTexture#batchGroup
      * @private

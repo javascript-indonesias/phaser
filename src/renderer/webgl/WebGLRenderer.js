@@ -5,6 +5,7 @@
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
+var ArrayRemove = require('../../utils/array/Remove');
 var BaseCamera = require('../../cameras/2d/BaseCamera');
 var CameraEvents = require('../../cameras/2d/events');
 var Class = require('../../utils/Class');
@@ -12,13 +13,9 @@ var CONST = require('../../const');
 var GameEvents = require('../../core/events');
 var IsSizePowerOfTwo = require('../../math/pow2/IsSizePowerOfTwo');
 var NOOP = require('../../utils/NOOP');
-var PIPELINE_CONST = require('./pipelines/const');
 var PipelineManager = require('./PipelineManager');
-var ProjectOrtho = require('./mvp/ProjectOrtho');
 var ScaleEvents = require('../../scale/events');
-var SpliceOne = require('../../utils/array/SpliceOne');
 var TextureEvents = require('../../textures/events');
-var TransformMatrix = require('../../gameobjects/components/TransformMatrix');
 var Utils = require('./Utils');
 var WebGLSnapshot = require('../snapshot/WebGLSnapshot');
 
@@ -161,16 +158,6 @@ var WebGLRenderer = new Class({
         this.blendModes = [];
 
         /**
-         * Keeps track of any WebGLTexture created with the current WebGLRenderingContext.
-         *
-         * @name Phaser.Renderer.WebGL.WebGLRenderer#nativeTextures
-         * @type {array}
-         * @default []
-         * @since 3.0.0
-         */
-        this.nativeTextures = [];
-
-        /**
          * This property is set to `true` if the WebGL context of the renderer is lost.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#contextLost
@@ -202,8 +189,6 @@ var WebGLRenderer = new Class({
             bufferWidth: 0,
             bufferHeight: 0
         };
-
-        // Internal Renderer State (Textures, Framebuffers, Pipelines, Buffers, etc)
 
         /**
          * Cached value for the last texture unit that was used.
@@ -275,7 +260,7 @@ var WebGLRenderer = new Class({
         this.normalTexture;
 
         /**
-         * Current framebuffer in use.
+         * The currently bound framebuffer in use.
          *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#currentFramebuffer
          * @type {WebGLFramebuffer}
@@ -283,6 +268,15 @@ var WebGLRenderer = new Class({
          * @since 3.0.0
          */
         this.currentFramebuffer = null;
+
+        /**
+         * A stack into which the frame buffer objects are pushed and popped.
+         *
+         * @name Phaser.Renderer.WebGL.WebGLRenderer#fboStack
+         * @type {WebGLFramebuffer[]}
+         * @since 3.50.0
+         */
+        this.fboStack = [];
 
         /**
          * Current WebGLProgram in use.
@@ -487,46 +481,6 @@ var WebGLRenderer = new Class({
          * @since 3.12.0
          */
         this.defaultCamera = new BaseCamera(0, 0, 0, 0);
-
-        /**
-         * A temporary Transform Matrix, re-used internally during batching.
-         *
-         * @name Phaser.Renderer.WebGL.WebGLRenderer#_tempMatrix1
-         * @private
-         * @type {Phaser.GameObjects.Components.TransformMatrix}
-         * @since 3.12.0
-         */
-        this._tempMatrix1 = new TransformMatrix();
-
-        /**
-         * A temporary Transform Matrix, re-used internally during batching.
-         *
-         * @name Phaser.Renderer.WebGL.WebGLRenderer#_tempMatrix2
-         * @private
-         * @type {Phaser.GameObjects.Components.TransformMatrix}
-         * @since 3.12.0
-         */
-        this._tempMatrix2 = new TransformMatrix();
-
-        /**
-         * A temporary Transform Matrix, re-used internally during batching.
-         *
-         * @name Phaser.Renderer.WebGL.WebGLRenderer#_tempMatrix3
-         * @private
-         * @type {Phaser.GameObjects.Components.TransformMatrix}
-         * @since 3.12.0
-         */
-        this._tempMatrix3 = new TransformMatrix();
-
-        /**
-         * A temporary Transform Matrix, re-used internally during batching.
-         *
-         * @name Phaser.Renderer.WebGL.WebGLRenderer#_tempMatrix4
-         * @private
-         * @type {Phaser.GameObjects.Components.TransformMatrix}
-         * @since 3.12.0
-         */
-        this._tempMatrix4 = new TransformMatrix();
 
         /**
          * The total number of masks currently stacked.
@@ -775,12 +729,17 @@ var WebGLRenderer = new Class({
 
         };
 
-        // Load supported extensions
+        //  Load supported extensions
         var exts = gl.getSupportedExtensions();
 
         if (!config.maxTextures || config.maxTextures === -1)
         {
             config.maxTextures = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+        }
+
+        if (!config.maxTextureSize)
+        {
+            config.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
         }
 
         var extString = 'WEBGL_compressed_texture_';
@@ -840,7 +799,7 @@ var WebGLRenderer = new Class({
 
             gl.bindTexture(gl.TEXTURE_2D, tempTexture);
 
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([ 255, 255, 255, 255 ]));
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([ 0, 0, 255, 255 ]));
 
             tempTextures[index] = tempTexture;
 
@@ -873,15 +832,35 @@ var WebGLRenderer = new Class({
     boot: function ()
     {
         var game = this.game;
+        var pipelineManager = this.pipelines;
 
-        this.pipelines.boot();
+        var baseSize = game.scale.baseSize;
 
-        var multi = this.pipelines.get(PIPELINE_CONST.MULTI_PIPELINE);
+        this.width = baseSize.width;
+        this.height = baseSize.height;
+
+        //  Set-up pipelines
+
+        //  First, default ones
+        pipelineManager.boot();
+
+        var pipelines = game.config.pipeline;
+
+        //  Then, custom ones
+        if (pipelines)
+        {
+            for (var pipelineName in pipelines)
+            {
+                var pipelineInstance = pipelines[pipelineName];
+
+                pipelineManager.add(pipelineName, new pipelineInstance(game));
+            }
+        }
+
+        //  Set-up default textures, fbo and scissor
 
         this.blankTexture = game.textures.getFrame('__DEFAULT');
         this.whiteTexture = game.textures.getFrame('__WHITE');
-
-        multi.currentFrame = this.whiteTexture;
 
         var gl = this.gl;
 
@@ -890,8 +869,6 @@ var WebGLRenderer = new Class({
         gl.enable(gl.SCISSOR_TEST);
 
         game.scale.on(ScaleEvents.RESIZE, this.onResize, this);
-
-        var baseSize = game.scale.baseSize;
 
         this.resize(baseSize.width, baseSize.height);
     },
@@ -1247,7 +1224,7 @@ var WebGLRenderer = new Class({
      */
     setTextureSource: function (textureSource)
     {
-        if (this.pipelines.current.forceZero)
+        if (this.pipelines.forceZero())
         {
             this.setTextureZero(textureSource.glTexture, true);
 
@@ -1440,16 +1417,22 @@ var WebGLRenderer = new Class({
         var gl = this.gl;
         var temp = this.tempTextures;
 
-        var total = (all) ? temp.length : 2;
-
-        for (var i = 0; i < total; i++)
-        {
-            gl.activeTexture(gl.TEXTURE0 + i);
-            gl.bindTexture(gl.TEXTURE_2D, temp[i]);
-        }
-
         if (all)
         {
+            for (var i = 0; i < temp.length; i++)
+            {
+                gl.activeTexture(gl.TEXTURE0 + i);
+                gl.bindTexture(gl.TEXTURE_2D, temp[i]);
+            }
+
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, temp[1]);
+        }
+        else
+        {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, temp[0]);
+
             gl.activeTexture(gl.TEXTURE1);
             gl.bindTexture(gl.TEXTURE_2D, temp[1]);
         }
@@ -1477,7 +1460,7 @@ var WebGLRenderer = new Class({
      */
     setTexture2D: function (texture)
     {
-        if (this.pipelines.current.forceZero)
+        if (this.pipelines.forceZero())
         {
             this.setTextureZero(texture, true);
 
@@ -1524,117 +1507,210 @@ var WebGLRenderer = new Class({
     },
 
     /**
-     * Binds a framebuffer. If there was another framebuffer already bound it will force a pipeline flush.
+     * Pushes a new framebuffer onto the FBO stack and makes it the currently bound framebuffer.
+     *
+     * If there was another framebuffer already bound it will force a pipeline flush.
+     *
+     * Call `popFramebuffer` to remove it again.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#pushFramebuffer
+     * @since 3.50.0
+     *
+     * @param {WebGLFramebuffer} framebuffer - The framebuffer that needs to be bound.
+     * @param {boolean} [updateScissor=false] - Set the gl scissor to match the frame buffer size? Or, if `null` given, pop the scissor from the stack.
+     * @param {boolean} [resetTextures=false] - Should the WebGL Textures be reset after the new framebuffer is bound?
+     *
+     * @return {this} This WebGLRenderer instance.
+     */
+    pushFramebuffer: function (framebuffer, updateScissor, resetTextures)
+    {
+        if (framebuffer === this.currentFramebuffer)
+        {
+            return this;
+        }
+
+        this.fboStack.push(framebuffer);
+
+        return this.setFramebuffer(framebuffer, updateScissor, resetTextures);
+    },
+
+    /**
+     * Sets the given framebuffer as the active and currently bound framebuffer.
+     *
+     * If there was another framebuffer already bound it will force a pipeline flush.
+     *
+     * Typically, you should call `pushFramebuffer` instead of this method.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#setFramebuffer
      * @since 3.0.0
      *
      * @param {WebGLFramebuffer} framebuffer - The framebuffer that needs to be bound.
      * @param {boolean} [updateScissor=false] - If a framebuffer is given, set the gl scissor to match the frame buffer size? Or, if `null` given, pop the scissor from the stack.
+     * @param {boolean} [resetTextures=false] - Should the WebGL Textures be reset after the new framebuffer is bound?
      *
      * @return {this} This WebGLRenderer instance.
      */
-    setFramebuffer: function (framebuffer, updateScissor)
+    setFramebuffer: function (framebuffer, updateScissor, resetTextures)
     {
         if (updateScissor === undefined) { updateScissor = false; }
+        if (resetTextures === undefined) { resetTextures = false; }
+
+        if (framebuffer === this.currentFramebuffer)
+        {
+            return this;
+        }
 
         var gl = this.gl;
 
         var width = this.width;
         var height = this.height;
 
-        if (framebuffer !== this.currentFramebuffer)
+        if (framebuffer && framebuffer.renderTexture)
         {
-            if (framebuffer && framebuffer.renderTexture)
+            width = framebuffer.renderTexture.width;
+            height = framebuffer.renderTexture.height;
+        }
+        else
+        {
+            this.flush();
+        }
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+        gl.viewport(0, 0, width, height);
+
+        if (updateScissor)
+        {
+            if (framebuffer)
             {
-                width = framebuffer.renderTexture.width;
-                height = framebuffer.renderTexture.height;
+                this.drawingBufferHeight = height;
+
+                this.pushScissor(0, 0, width, height);
             }
             else
             {
-                this.flush();
+                this.drawingBufferHeight = this.height;
+
+                this.popScissor();
             }
+        }
 
-            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        this.currentFramebuffer = framebuffer;
 
-            gl.viewport(0, 0, width, height);
-
-            if (updateScissor)
-            {
-                if (framebuffer)
-                {
-                    this.drawingBufferHeight = height;
-
-                    this.pushScissor(0, 0, width, height);
-                }
-                else
-                {
-                    this.drawingBufferHeight = this.height;
-
-                    this.popScissor();
-                }
-            }
-
-            this.currentFramebuffer = framebuffer;
+        if (resetTextures)
+        {
+            this.resetTextures();
         }
 
         return this;
     },
 
     /**
-     * Binds a program. If there was another program already bound it will force a pipeline flush.
+     * Pops the previous framebuffer from the fbo stack and sets it.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#popFramebuffer
+     * @since 3.50.0
+     */
+    popFramebuffer: function ()
+    {
+        var fboStack = this.fboStack;
+
+        //  Remove the current fbo
+        fboStack.pop();
+
+        //  Reset the previous framebuffer
+        var framebuffer = fboStack[fboStack.length - 1];
+
+        if (!framebuffer)
+        {
+            framebuffer = null;
+        }
+
+        this.setFramebuffer(framebuffer, false, true);
+    },
+
+    /**
+     * Binds a shader program.
+     *
+     * If there was a different program already bound it will force a pipeline flush first.
+     *
+     * If the same program given to this method is already set as the current program, no change
+     * will take place and this method will return `false`.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#setProgram
      * @since 3.0.0
      *
      * @param {WebGLProgram} program - The program that needs to be bound.
      *
-     * @return {this} This WebGLRenderer instance.
+     * @return {boolean} `true` if the given program was bound, otherwise `false`.
      */
     setProgram: function (program)
     {
-        var gl = this.gl;
-
         if (program !== this.currentProgram)
         {
             this.flush();
 
-            gl.useProgram(program);
+            this.gl.useProgram(program);
 
             this.currentProgram = program;
+
+            return true;
         }
+
+        return false;
+    },
+
+    /**
+     * Rebinds whatever program `WebGLRenderer.currentProgram` is set as, without
+     * changing anything, or flushing.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#resetProgram
+     * @since 3.50.0
+     *
+     * @return {this} This WebGLRenderer instance.
+     */
+    resetProgram: function ()
+    {
+        this.gl.useProgram(this.currentProgram);
 
         return this;
     },
 
     /**
-     * Bounds a vertex buffer. If there is a vertex buffer already bound it'll force a pipeline flush.
+     * Binds a vertex buffer.
+     *
+     * If there was a different vertex buffer already bound it will force a pipeline flush first.
+     *
+     * If the same buffer given to this method is already set as the current buffer, no change
+     * will take place and this method will return `false`.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#setVertexBuffer
      * @since 3.0.0
      *
      * @param {WebGLBuffer} vertexBuffer - The buffer that needs to be bound.
      *
-     * @return {this} This WebGLRenderer instance.
+     * @return {boolean} `true` if the given buffer was bound, otherwise `false`.
      */
     setVertexBuffer: function (vertexBuffer)
     {
-        var gl = this.gl;
-
-        if (vertexBuffer !== this.currentVertexBuffer)
+        if (vertexBuffer && vertexBuffer !== this.currentVertexBuffer)
         {
+            var gl = this.gl;
+
             this.flush();
 
             gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 
             this.currentVertexBuffer = vertexBuffer;
+
+            return true;
         }
 
-        return this;
+        return false;
     },
 
     /**
-     * Bounds a index buffer. If there is a index buffer already bound it'll force a pipeline flush.
+     * Binds an index buffer. If there is an index buffer already bound it'll force a pipeline flush.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#setIndexBuffer
      * @since 3.0.0
@@ -1647,7 +1723,7 @@ var WebGLRenderer = new Class({
     {
         var gl = this.gl;
 
-        if (indexBuffer !== this.currentIndexBuffer)
+        if (indexBuffer && indexBuffer !== this.currentIndexBuffer)
         {
             this.flush();
 
@@ -1784,21 +1860,19 @@ var WebGLRenderer = new Class({
         texture.glIndex = 0;
         texture.glIndexCounter = -1;
 
-        this.nativeTextures.push(texture);
-
         return texture;
     },
 
     /**
-     * Wrapper for creating WebGLFramebuffer.
+     * Creates a WebGL Framebuffer object and optionally binds a depth stencil render buffer.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#createFramebuffer
      * @since 3.0.0
      *
-     * @param {integer} width - Width in pixels of the framebuffer
-     * @param {integer} height - Height in pixels of the framebuffer
-     * @param {WebGLTexture} renderTexture - The color texture to where the color pixels are written
-     * @param {boolean} addDepthStencilBuffer - Indicates if the current framebuffer support depth and stencil buffers
+     * @param {integer} width - If `addDepthStencilBuffer` is true, this controls the width of the depth stencil.
+     * @param {integer} height - If `addDepthStencilBuffer` is true, this controls the height of the depth stencil.
+     * @param {WebGLTexture} renderTexture - The color texture where the color pixels are written.
+     * @param {boolean} [addDepthStencilBuffer=false] - Create a Renderbuffer for the depth stencil?
      *
      * @return {WebGLFramebuffer} Raw WebGLFramebuffer
      */
@@ -1813,6 +1887,7 @@ var WebGLRenderer = new Class({
         if (addDepthStencilBuffer)
         {
             var depthStencilBuffer = gl.createRenderbuffer();
+
             gl.bindRenderbuffer(gl.RENDERBUFFER, depthStencilBuffer);
             gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_STENCIL, width, height);
             gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, depthStencilBuffer);
@@ -1834,28 +1909,30 @@ var WebGLRenderer = new Class({
                 36061: 'Framebuffer Unsupported'
             };
 
-            throw new Error('Framebuffer incomplete. Framebuffer status: ' + errors[complete]);
+            throw new Error('Framebuffer status: ' + errors[complete]);
         }
 
         framebuffer.renderTexture = renderTexture;
 
         this.setFramebuffer(null);
 
-        this.resetTextures(true);
+        this.resetTextures();
 
         return framebuffer;
     },
 
     /**
-     * Wrapper for creating a WebGLProgram
+     * Creates a WebGLProgram instance based on the given vertex and fragment shader source.
+     *
+     * Then compiles, attaches and links the program before returning it.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#createProgram
      * @since 3.0.0
      *
-     * @param {string} vertexShader - Source to the vertex shader
-     * @param {string} fragmentShader - Source to the fragment shader
+     * @param {string} vertexShader - The vertex shader source code as a single string.
+     * @param {string} fragmentShader - The fragment shader source code as a single string.
      *
-     * @return {WebGLProgram} Raw WebGLProgram
+     * @return {WebGLProgram} The linked WebGLProgram created from the given shader source.
      */
     createProgram: function (vertexShader, fragmentShader)
     {
@@ -1888,6 +1965,8 @@ var WebGLRenderer = new Class({
             throw new Error('Link Program failed:\n' + gl.getProgramInfoLog(program));
         }
 
+        gl.useProgram(program);
+
         return program;
     },
 
@@ -1907,11 +1986,9 @@ var WebGLRenderer = new Class({
         var gl = this.gl;
         var vertexBuffer = gl.createBuffer();
 
-        this.setVertexBuffer(vertexBuffer);
-
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, initialDataOrSize, bufferUsage);
-
-        this.setVertexBuffer(null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
         return vertexBuffer;
     },
@@ -1932,37 +2009,36 @@ var WebGLRenderer = new Class({
         var gl = this.gl;
         var indexBuffer = gl.createBuffer();
 
-        this.setIndexBuffer(indexBuffer);
-
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, initialDataOrSize, bufferUsage);
-
-        this.setIndexBuffer(null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
         return indexBuffer;
     },
 
     /**
-     * Removes the given texture from the nativeTextures array and then deletes it from the GPU.
+     * Calls `GL.deleteTexture` on the given WebGLTexture and also optionally
+     * resets the currently defined textures.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#deleteTexture
      * @since 3.0.0
      *
      * @param {WebGLTexture} texture - The WebGL Texture to be deleted.
+     * @param {boolean} [reset=false] - Call the `resetTextures` method after deleting this texture?
      *
      * @return {this} This WebGLRenderer instance.
      */
-    deleteTexture: function (texture)
+    deleteTexture: function (texture, reset)
     {
-        var index = this.nativeTextures.indexOf(texture);
-
-        if (index !== -1)
+        if (texture)
         {
-            SpliceOne(this.nativeTextures, index);
+            this.gl.deleteTexture(texture);
         }
 
-        this.gl.deleteTexture(texture);
-
-        this.resetTextures();
+        if (reset)
+        {
+            this.resetTextures();
+        }
 
         return this;
     },
@@ -1979,7 +2055,17 @@ var WebGLRenderer = new Class({
      */
     deleteFramebuffer: function (framebuffer)
     {
-        this.gl.deleteFramebuffer(framebuffer);
+        if (framebuffer)
+        {
+            this.gl.deleteFramebuffer(framebuffer);
+
+            ArrayRemove(this.fboStack, framebuffer);
+
+            if (this.currentFramebuffer === framebuffer)
+            {
+                this.currentFramebuffer = null;
+            }
+        }
 
         return this;
     },
@@ -1996,7 +2082,10 @@ var WebGLRenderer = new Class({
      */
     deleteProgram: function (program)
     {
-        this.gl.deleteProgram(program);
+        if (program)
+        {
+            this.gl.deleteProgram(program);
+        }
 
         return this;
     },
@@ -2036,63 +2125,32 @@ var WebGLRenderer = new Class({
 
         var color = camera.backgroundColor;
 
-        var MultiPipeline = this.pipelines.MULTI_PIPELINE;
+        this.pipelines.preBatch(camera);
 
-        if (camera.renderToTexture)
+        this.pushScissor(cx, cy, cw, ch);
+
+        if (camera.mask)
         {
-            this.flush();
+            this.currentCameraMask.mask = camera.mask;
+            this.currentCameraMask.camera = camera._maskCamera;
 
-            this.pushScissor(cx, cy, cw, -ch);
-
-            this.setFramebuffer(camera.framebuffer);
-
-            var gl = this.gl;
-
-            gl.clearColor(0, 0, 0, 0);
-
-            gl.clear(gl.COLOR_BUFFER_BIT);
-
-            ProjectOrtho(MultiPipeline, cx, cw + cx, cy, ch + cy, -1000, 1000);
-
-            if (camera.mask)
-            {
-                this.currentCameraMask.mask = camera.mask;
-                this.currentCameraMask.camera = camera._maskCamera;
-
-                camera.mask.preRenderWebGL(this, camera, camera._maskCamera);
-            }
-
-            if (color.alphaGL > 0)
-            {
-                MultiPipeline.drawFillRect(
-                    cx, cy, cw + cx, ch + cy,
-                    Utils.getTintFromFloats(color.redGL, color.greenGL, color.blueGL, 1),
-                    color.alphaGL
-                );
-            }
-
-            camera.emit(CameraEvents.PRE_RENDER, camera);
+            camera.mask.preRenderWebGL(this, camera, camera._maskCamera);
         }
-        else
+
+        if (color.alphaGL > 0)
         {
-            this.pushScissor(cx, cy, cw, ch);
+            var pipeline = this.pipelines.setCameraPipeline();
 
-            if (camera.mask)
-            {
-                this.currentCameraMask.mask = camera.mask;
-                this.currentCameraMask.camera = camera._maskCamera;
+            pipeline.drawFillRect(
+                cx, cy, cw, ch,
+                Utils.getTintFromFloats(color.redGL, color.greenGL, color.blueGL, 1),
+                color.alphaGL
+            );
+        }
 
-                camera.mask.preRenderWebGL(this, camera, camera._maskCamera);
-            }
-
-            if (color.alphaGL > 0)
-            {
-                MultiPipeline.drawFillRect(
-                    cx, cy, cw , ch,
-                    Utils.getTintFromFloats(color.redGL, color.greenGL, color.blueGL, 1),
-                    color.alphaGL
-                );
-            }
+        if (camera.postPipeline)
+        {
+            camera.emit(CameraEvents.PRE_RENDER, camera);
         }
     },
 
@@ -2123,7 +2181,8 @@ var WebGLRenderer = new Class({
 
     /**
      * Controls the post-render operations for the given camera.
-     * Renders the foreground camera effects like flash and fading. It resets the current scissor state.
+     *
+     * Renders the foreground camera effects like flash and fading, then resets the current scissor state.
      *
      * @method Phaser.Renderer.WebGL.WebGLRenderer#postRenderCamera
      * @since 3.0.0
@@ -2132,63 +2191,32 @@ var WebGLRenderer = new Class({
      */
     postRenderCamera: function (camera)
     {
-        var multiPipeline = this.pipelines.setMulti();
+        if (camera.flashEffect.isRunning || camera.fadeEffect.isRunning)
+        {
+            var pipeline = this.pipelines.setCameraPipeline();
 
-        camera.flashEffect.postRenderWebGL(multiPipeline, Utils.getTintFromFloats);
-        camera.fadeEffect.postRenderWebGL(multiPipeline, Utils.getTintFromFloats);
+            camera.flashEffect.postRenderWebGL(pipeline, Utils.getTintFromFloats);
+            camera.fadeEffect.postRenderWebGL(pipeline, Utils.getTintFromFloats);
+        }
 
         camera.dirty = false;
 
         this.popScissor();
-
-        if (camera.renderToTexture)
-        {
-            multiPipeline.flush();
-
-            this.setFramebuffer(null);
-
-            camera.emit(CameraEvents.POST_RENDER, camera);
-
-            if (camera.renderToGame)
-            {
-                ProjectOrtho(multiPipeline, 0, multiPipeline.width, multiPipeline.height, 0, -1000.0, 1000.0);
-
-                var getTint = Utils.getTintAppendFloatAlpha;
-
-                var pipeline = (camera.pipeline) ? camera.pipeline : multiPipeline;
-
-                pipeline.batchTexture(
-                    camera,
-                    camera.glTexture,
-                    camera.width, camera.height,
-                    camera.x, camera.y,
-                    camera.width, camera.height,
-                    1, 1,
-                    0,
-                    camera.flipX, !camera.flipY,
-                    1, 1,
-                    0, 0,
-                    0, 0, camera.width, camera.height,
-                    getTint(camera.tintTopLeft, camera._alphaTL),
-                    getTint(camera.tintTopRight, camera._alphaTR),
-                    getTint(camera.tintBottomLeft, camera._alphaBL),
-                    getTint(camera.tintBottomRight, camera._alphaBR),
-                    camera.tintFill,
-                    0, 0,
-                    this.defaultCamera,
-                    null
-                );
-            }
-
-            //  Force clear the current texture so that items next in the batch (like Graphics) don't try and use it
-            this.setBlankTexture(true);
-        }
 
         if (camera.mask)
         {
             this.currentCameraMask.mask = null;
 
             camera.mask.postRenderWebGL(this, camera._maskCamera);
+        }
+
+        if (camera.postPipeline)
+        {
+            camera.emit(CameraEvents.POST_RENDER, camera);
+
+            this.pipelines.postBatch(camera);
+
+            this.resetTextures();
         }
     },
 
@@ -2218,8 +2246,6 @@ var WebGLRenderer = new Class({
 
         gl.enable(gl.SCISSOR_TEST);
 
-        this.pipelines.preRender();
-
         this.currentScissor = this.defaultScissor;
 
         this.scissorStack.length = 0;
@@ -2236,7 +2262,7 @@ var WebGLRenderer = new Class({
 
         this.textureFlush = 0;
 
-        this.pipelines.setMulti();
+        this.pipelines.preRender();
     },
 
     /**
@@ -2355,9 +2381,7 @@ var WebGLRenderer = new Class({
     {
         if (this.contextLost) { return; }
 
-        this.flush();
-
-        // Unbind custom framebuffer here
+        this.pipelines.postRender();
 
         var state = this.snapshotState;
 
@@ -2367,8 +2391,6 @@ var WebGLRenderer = new Class({
 
             state.callback = null;
         }
-
-        this.pipelines.postRender();
 
         if (this.textureFlush > 0)
         {
@@ -2770,403 +2792,6 @@ var WebGLRenderer = new Class({
     },
 
     /**
-     * Sets a 1f uniform value on the given shader.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setFloat1
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {number} x - The 1f value to set on the named uniform.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setFloat1: function (program, name, x)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform1f(this.gl.getUniformLocation(program, name), x);
-
-        return this;
-    },
-
-    /**
-     * Sets the 2f uniform values on the given shader.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setFloat2
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {number} x - The 2f x value to set on the named uniform.
-     * @param {number} y - The 2f y value to set on the named uniform.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setFloat2: function (program, name, x, y)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform2f(this.gl.getUniformLocation(program, name), x, y);
-
-        return this;
-    },
-
-    /**
-     * Sets the 3f uniform values on the given shader.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setFloat3
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {number} x - The 3f x value to set on the named uniform.
-     * @param {number} y - The 3f y value to set on the named uniform.
-     * @param {number} z - The 3f z value to set on the named uniform.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setFloat3: function (program, name, x, y, z)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform3f(this.gl.getUniformLocation(program, name), x, y, z);
-
-        return this;
-    },
-
-    /**
-     * Sets the 4f uniform values on the given shader.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setFloat4
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {number} x - The 4f x value to set on the named uniform.
-     * @param {number} y - The 4f y value to set on the named uniform.
-     * @param {number} z - The 4f z value to set on the named uniform.
-     * @param {number} w - The 4f w value to set on the named uniform.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setFloat4: function (program, name, x, y, z, w)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform4f(this.gl.getUniformLocation(program, name), x, y, z, w);
-
-        return this;
-    },
-
-    /**
-     * Sets the value of a 1fv uniform variable in the given WebGLProgram.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setFloat1v
-     * @since 3.13.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {Float32Array} arr - The new value to be used for the uniform variable.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setFloat1v: function (program, name, arr)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform1fv(this.gl.getUniformLocation(program, name), arr);
-
-        return this;
-    },
-
-    /**
-     * Sets the value of a 2fv uniform variable in the given WebGLProgram.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setFloat2v
-     * @since 3.13.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {Float32Array} arr - The new value to be used for the uniform variable.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setFloat2v: function (program, name, arr)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform2fv(this.gl.getUniformLocation(program, name), arr);
-
-        return this;
-    },
-
-    /**
-     * Sets the value of a 3fv uniform variable in the given WebGLProgram.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setFloat3v
-     * @since 3.13.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {Float32Array} arr - The new value to be used for the uniform variable.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setFloat3v: function (program, name, arr)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform3fv(this.gl.getUniformLocation(program, name), arr);
-
-        return this;
-    },
-
-    /**
-     * Sets the value of a 4fv uniform variable in the given WebGLProgram.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setFloat4v
-     * @since 3.13.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {Float32Array} arr - The new value to be used for the uniform variable.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-
-    setFloat4v: function (program, name, arr)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform4fv(this.gl.getUniformLocation(program, name), arr);
-
-        return this;
-    },
-
-    /**
-     * Sets a 1iv uniform value on the given shader.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setInt1iv
-     * @since 3.50.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {Int32List} arr - The 1iv value to set on the named uniform.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setInt1iv: function (program, name, arr)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform1iv(this.gl.getUniformLocation(program, name), arr);
-
-        return this;
-    },
-
-    /**
-     * Sets a 1i uniform value on the given shader.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setInt1
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {integer} x - The 1i value to set on the named uniform.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setInt1: function (program, name, x)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform1i(this.gl.getUniformLocation(program, name), x);
-
-        return this;
-    },
-
-    /**
-     * Sets the 2i uniform values on the given shader.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setInt2
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {integer} x - The 2i x value to set on the named uniform.
-     * @param {integer} y - The 2i y value to set on the named uniform.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setInt2: function (program, name, x, y)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform2i(this.gl.getUniformLocation(program, name), x, y);
-
-        return this;
-    },
-
-    /**
-     * Sets the 3i uniform values on the given shader.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setInt3
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {integer} x - The 3i x value to set on the named uniform.
-     * @param {integer} y - The 3i y value to set on the named uniform.
-     * @param {integer} z - The 3i z value to set on the named uniform.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setInt3: function (program, name, x, y, z)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform3i(this.gl.getUniformLocation(program, name), x, y, z);
-
-        return this;
-    },
-
-    /**
-     * Sets the 4i uniform values on the given shader.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setInt4
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {integer} x - The 4i x value to set on the named uniform.
-     * @param {integer} y - The 4i y value to set on the named uniform.
-     * @param {integer} z - The 4i z value to set on the named uniform.
-     * @param {integer} w - The 4i w value to set on the named uniform.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setInt4: function (program, name, x, y, z, w)
-    {
-        this.setProgram(program);
-
-        this.gl.uniform4i(this.gl.getUniformLocation(program, name), x, y, z, w);
-
-        return this;
-    },
-
-    /**
-     * Sets the value of a matrix 2fv uniform variable in the given WebGLProgram.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setMatrix2
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {boolean} transpose - The value indicating whether to transpose the matrix. Must be false.
-     * @param {Float32Array} matrix - A Float32Array or sequence of 4 float values.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setMatrix2: function (program, name, transpose, matrix)
-    {
-        this.setProgram(program);
-
-        this.gl.uniformMatrix2fv(this.gl.getUniformLocation(program, name), transpose, matrix);
-
-        return this;
-    },
-
-    /**
-     * Sets the value of a matrix 3fv uniform variable in the given WebGLProgram.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setMatrix3
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {boolean} transpose - The value indicating whether to transpose the matrix. Must be false.
-     * @param {Float32Array} matrix - A Float32Array or sequence of 9 float values.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setMatrix3: function (program, name, transpose, matrix)
-    {
-        this.setProgram(program);
-
-        this.gl.uniformMatrix3fv(this.gl.getUniformLocation(program, name), transpose, matrix);
-
-        return this;
-    },
-
-    /**
-     * Sets the value of a matrix 4fv uniform variable in the given WebGLProgram.
-     *
-     * If the shader is not currently active, it is made active first.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#setMatrix4
-     * @since 3.0.0
-     *
-     * @param {WebGLProgram} program - The target WebGLProgram from which the uniform location will be looked-up.
-     * @param {string} name - The name of the uniform to look-up and modify.
-     * @param {boolean} transpose - The value indicating whether to transpose the matrix. Must be false.
-     * @param {Float32Array} matrix - A Float32Array or sequence of 16 float values.
-     *
-     * @return {this} This WebGL Renderer instance.
-     */
-    setMatrix4: function (program, name, transpose, matrix)
-    {
-        this.setProgram(program);
-
-        this.gl.uniformMatrix4fv(this.gl.getUniformLocation(program, name), transpose, matrix);
-
-        return this;
-    },
-
-    /**
-     * Returns the maximum number of texture units that can be used in a fragment shader.
-     *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#getMaxTextures
-     * @since 3.8.0
-     *
-     * @return {integer} The maximum number of textures WebGL supports.
-     */
-    getMaxTextures: function ()
-    {
-        return this.config.maxTextures;
-    },
-
-    /**
      * Returns the largest texture size (either width or height) that can be created.
      * Note that VRAM may not allow a texture of any given size, it just expresses
      * hardware / driver support for a given size.
@@ -3189,46 +2814,32 @@ var WebGLRenderer = new Class({
      */
     destroy: function ()
     {
-        //  Clear-up anything that should be cleared :)
+        this.canvas.removeEventListener('webglcontextlost', this.contextLostHandler, false);
+        this.canvas.removeEventListener('webglcontextrestored', this.contextRestoredHandler, false);
 
-        var i;
         var gl = this.gl;
 
         var temp = this.tempTextures;
-        var native = this.nativeTextures;
 
-        for (i = 0; i < temp.length; i++)
+        for (var i = 0; i < temp.length; i++)
         {
             gl.deleteTexture(temp[i]);
         }
 
-        for (i = 0; i < native.length; i++)
-        {
-            gl.deleteTexture(native[i]);
-        }
-
-        this.textureIndexes = [];
-        this.nativeTextures = [];
-
         this.pipelines.destroy();
-
         this.defaultCamera.destroy();
 
+        this.fboStack = [];
+        this.maskStack = [];
+        this.extensions = {};
+        this.textureIndexes = [];
+
+        this.gl = null;
+        this.game = null;
+        this.canvas = null;
+        this.contextLost = true;
         this.currentMask = null;
         this.currentCameraMask = null;
-
-        this.canvas.removeEventListener('webglcontextlost', this.contextLostHandler, false);
-        this.canvas.removeEventListener('webglcontextrestored', this.contextRestoredHandler, false);
-
-        this.game = null;
-        this.gl = null;
-        this.canvas = null;
-
-        this.maskStack = [];
-
-        this.contextLost = true;
-
-        this.extensions = {};
     }
 
 });

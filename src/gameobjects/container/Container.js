@@ -70,6 +70,7 @@ var Vector2 = require('../../math/Vector2');
  * @extends Phaser.GameObjects.Components.ComputedSize
  * @extends Phaser.GameObjects.Components.Depth
  * @extends Phaser.GameObjects.Components.Mask
+ * @extends Phaser.GameObjects.Components.Pipeline
  * @extends Phaser.GameObjects.Components.Transform
  * @extends Phaser.GameObjects.Components.Visible
  *
@@ -88,6 +89,7 @@ var Container = new Class({
         Components.ComputedSize,
         Components.Depth,
         Components.Mask,
+        Components.Pipeline,
         Components.Transform,
         Components.Visible,
         Render
@@ -221,7 +223,7 @@ var Container = new Class({
          * @name Phaser.GameObjects.Container#scrollFactorX
          * @type {number}
          * @default 1
-         * @since 3.0.0
+         * @since 3.4.0
          */
         this.scrollFactorX = 1;
 
@@ -248,9 +250,11 @@ var Container = new Class({
          * @name Phaser.GameObjects.Container#scrollFactorY
          * @type {number}
          * @default 1
-         * @since 3.0.0
+         * @since 3.4.0
          */
         this.scrollFactorY = 1;
+
+        this.initPipeline();
 
         this.setPosition(x, y);
 
@@ -1184,7 +1188,7 @@ var Container = new Class({
      * them from physics bodies if not accounted for in your code.
      *
      * @method Phaser.GameObjects.Container#setScrollFactor
-     * @since 3.0.0
+     * @since 3.4.0
      *
      * @param {number} x - The horizontal scroll factor of this Game Object.
      * @param {number} [y=x] - The vertical scroll factor of this Game Object. If not set it will use the `x` value.

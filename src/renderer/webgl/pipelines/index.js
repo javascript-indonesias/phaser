@@ -14,9 +14,10 @@ var Extend = require('../../../utils/object/Extend');
 var Pipelines = {
 
     BitmapMaskPipeline: require('./BitmapMaskPipeline'),
+    GraphicsPipeline: require('./GraphicsPipeline'),
     LightPipeline: require('./LightPipeline'),
-    ModelViewProjection: require('./components/ModelViewProjection'),
     MultiPipeline: require('./MultiPipeline'),
+    PostFXPipeline: require('./PostFXPipeline'),
     RopePipeline: require('./RopePipeline'),
     SinglePipeline: require('./SinglePipeline')
 

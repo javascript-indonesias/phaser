@@ -4,7 +4,13 @@
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
+var TransformMatrix = require('../components/TransformMatrix');
 var Utils = require('../../renderer/webgl/Utils');
+
+var tempMatrix1 = new TransformMatrix();
+var tempMatrix2 = new TransformMatrix();
+var tempMatrix3 = new TransformMatrix();
+var tempMatrix4 = new TransformMatrix();
 
 /**
  * Renders this Game Object with the WebGL Renderer to the given Camera.
@@ -32,10 +38,10 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, camera, p
 
     var pipeline = renderer.pipelines.set(this.pipeline);
 
-    var camMatrix = pipeline._tempMatrix1;
-    var calcMatrix = pipeline._tempMatrix2;
-    var particleMatrix = pipeline._tempMatrix3;
-    var managerMatrix = pipeline._tempMatrix4;
+    var camMatrix = tempMatrix1;
+    var calcMatrix = tempMatrix2;
+    var particleMatrix = tempMatrix3;
+    var managerMatrix = tempMatrix4;
 
     if (parentMatrix)
     {
@@ -129,7 +135,7 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, camera, p
 
             var tint = getTint(particle.tint, alpha);
 
-            pipeline.batchQuad(tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, frame.u0, frame.v0, frame.u1, frame.v1, tint, tint, tint, tint, tintEffect, texture, textureUnit);
+            pipeline.batchQuad(emitter, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, frame.u0, frame.v0, frame.u1, frame.v1, tint, tint, tint, tint, tintEffect, texture, textureUnit);
         }
 
         if (emitter.mask)

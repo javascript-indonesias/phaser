@@ -342,6 +342,11 @@ var Config = new Class({
         var renderConfig = GetValue(config, 'render', config);
 
         /**
+         * @const {?Phaser.Types.Core.PipelineConfig)} Phaser.Core.Config#pipeline - An object mapping WebGL names to WebGLPipeline classes. These should be class constructors, not instances.
+         */
+        this.pipeline = GetValue(renderConfig, 'pipeline', null);
+
+        /**
          * @const {boolean} Phaser.Core.Config#antialias - When set to `true`, WebGL uses linear interpolation to draw scaled or rotated textures, giving a smooth appearance. When set to `false`, WebGL uses nearest-neighbor interpolation, giving a crisper appearance. `false` also disables antialiasing of the game canvas itself, if the browser supports it, when the game canvas is scaled.
          */
         this.antialias = GetValue(renderConfig, 'antialias', true);
@@ -404,7 +409,7 @@ var Config = new Class({
         this.powerPreference = GetValue(renderConfig, 'powerPreference', 'default');
 
         /**
-         * @const {integer} Phaser.Core.Config#batchSize - The default WebGL Batch size.
+         * @const {integer} Phaser.Core.Config#batchSize - The default WebGL Batch size. Represents the number of _quads_ that can be added to a single batch.
          */
         this.batchSize = GetValue(renderConfig, 'batchSize', 4096);
 
@@ -425,8 +430,9 @@ var Config = new Class({
          */
         this.backgroundColor = ValueToColor(bgc);
 
-        if (bgc === 0 && this.transparent)
+        if (this.transparent)
         {
+            this.backgroundColor = ValueToColor(0x000000);
             this.backgroundColor.alpha = 0;
         }
 
