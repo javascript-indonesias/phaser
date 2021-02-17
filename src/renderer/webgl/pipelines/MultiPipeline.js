@@ -81,23 +81,17 @@ var MultiPipeline = new Class({
         config.attributes = GetFastValue(config, 'attributes', [
             {
                 name: 'inPosition',
-                size: 2,
-                type: WEBGL_CONST.FLOAT
+                size: 2
             },
             {
                 name: 'inTexCoord',
-                size: 2,
-                type: WEBGL_CONST.FLOAT
+                size: 2
             },
             {
-                name: 'inTexId',
-                size: 1,
-                type: WEBGL_CONST.FLOAT
+                name: 'inTexId'
             },
             {
-                name: 'inTintEffect',
-                size: 1,
-                type: WEBGL_CONST.FLOAT
+                name: 'inTintEffect'
             },
             {
                 name: 'inTint',
@@ -105,10 +99,6 @@ var MultiPipeline = new Class({
                 type: WEBGL_CONST.UNSIGNED_BYTE,
                 normalized: true
             }
-        ]);
-        config.uniforms = GetFastValue(config, 'uniforms', [
-            'uProjectionMatrix',
-            'uMainSampler'
         ]);
 
         WebGLPipeline.call(this, config);
@@ -167,19 +157,19 @@ var MultiPipeline = new Class({
      * @method Phaser.Renderer.WebGL.Pipelines.MultiPipeline#batchSprite
      * @since 3.0.0
      *
-     * @param {(Phaser.GameObjects.Image|Phaser.GameObjects.Sprite)} sprite - The texture based Game Object to add to the batch.
+     * @param {(Phaser.GameObjects.Image|Phaser.GameObjects.Sprite)} gameObject - The texture based Game Object to add to the batch.
      * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera to use for the rendering transform.
      * @param {Phaser.GameObjects.Components.TransformMatrix} [parentTransformMatrix] - The transform matrix of the parent container, if set.
      */
-    batchSprite: function (sprite, camera, parentTransformMatrix)
+    batchSprite: function (gameObject, camera, parentTransformMatrix)
     {
-        this.manager.set(this, sprite);
+        this.manager.set(this, gameObject);
 
         var camMatrix = this._tempMatrix1;
         var spriteMatrix = this._tempMatrix2;
         var calcMatrix = this._tempMatrix3;
 
-        var frame = sprite.frame;
+        var frame = gameObject.frame;
         var texture = frame.glTexture;
 
         var u0 = frame.u0;
@@ -192,19 +182,19 @@ var MultiPipeline = new Class({
         var frameHeight = frame.cutHeight;
         var customPivot = frame.customPivot;
 
-        var displayOriginX = sprite.displayOriginX;
-        var displayOriginY = sprite.displayOriginY;
+        var displayOriginX = gameObject.displayOriginX;
+        var displayOriginY = gameObject.displayOriginY;
 
         var x = -displayOriginX + frameX;
         var y = -displayOriginY + frameY;
 
-        if (sprite.isCropped)
+        if (gameObject.isCropped)
         {
-            var crop = sprite._crop;
+            var crop = gameObject._crop;
 
-            if (crop.flipX !== sprite.flipX || crop.flipY !== sprite.flipY)
+            if (crop.flipX !== gameObject.flipX || crop.flipY !== gameObject.flipY)
             {
-                frame.updateCropUVs(crop, sprite.flipX, sprite.flipY);
+                frame.updateCropUVs(crop, gameObject.flipX, gameObject.flipY);
             }
 
             u0 = crop.u0;
@@ -225,7 +215,7 @@ var MultiPipeline = new Class({
         var flipX = 1;
         var flipY = 1;
 
-        if (sprite.flipX)
+        if (gameObject.flipX)
         {
             if (!customPivot)
             {
@@ -236,7 +226,8 @@ var MultiPipeline = new Class({
         }
 
         //  Auto-invert the flipY if this is coming from a GLTexture
-        if (sprite.flipY || (frame.source.isGLTexture && !texture.flipY))
+
+        if (gameObject.flipY || (frame.source.isGLTexture && !texture.flipY))
         {
             if (!customPivot)
             {
@@ -246,23 +237,23 @@ var MultiPipeline = new Class({
             flipY = -1;
         }
 
-        spriteMatrix.applyITRS(sprite.x, sprite.y, sprite.rotation, sprite.scaleX * flipX, sprite.scaleY * flipY);
+        spriteMatrix.applyITRS(gameObject.x, gameObject.y, gameObject.rotation, gameObject.scaleX * flipX, gameObject.scaleY * flipY);
 
         camMatrix.copyFrom(camera.matrix);
 
         if (parentTransformMatrix)
         {
             //  Multiply the camera by the parent matrix
-            camMatrix.multiplyWithOffset(parentTransformMatrix, -camera.scrollX * sprite.scrollFactorX, -camera.scrollY * sprite.scrollFactorY);
+            camMatrix.multiplyWithOffset(parentTransformMatrix, -camera.scrollX * gameObject.scrollFactorX, -camera.scrollY * gameObject.scrollFactorY);
 
             //  Undo the camera scroll
-            spriteMatrix.e = sprite.x;
-            spriteMatrix.f = sprite.y;
+            spriteMatrix.e = gameObject.x;
+            spriteMatrix.f = gameObject.y;
         }
         else
         {
-            spriteMatrix.e -= camera.scrollX * sprite.scrollFactorX;
-            spriteMatrix.f -= camera.scrollY * sprite.scrollFactorY;
+            spriteMatrix.e -= camera.scrollX * gameObject.scrollFactorX;
+            spriteMatrix.f -= camera.scrollY * gameObject.scrollFactorY;
         }
 
         //  Multiply by the Sprite matrix, store result in calcMatrix
@@ -271,53 +262,40 @@ var MultiPipeline = new Class({
         var xw = x + frameWidth;
         var yh = y + frameHeight;
 
-        var tx0 = calcMatrix.getX(x, y);
-        var ty0 = calcMatrix.getY(x, y);
+        var roundPixels = camera.roundPixels;
 
-        var tx1 = calcMatrix.getX(x, yh);
-        var ty1 = calcMatrix.getY(x, yh);
+        var tx0 = calcMatrix.getXRound(x, y, roundPixels);
+        var ty0 = calcMatrix.getYRound(x, y, roundPixels);
 
-        var tx2 = calcMatrix.getX(xw, yh);
-        var ty2 = calcMatrix.getY(xw, yh);
+        var tx1 = calcMatrix.getXRound(x, yh, roundPixels);
+        var ty1 = calcMatrix.getYRound(x, yh, roundPixels);
 
-        var tx3 = calcMatrix.getX(xw, y);
-        var ty3 = calcMatrix.getY(xw, y);
+        var tx2 = calcMatrix.getXRound(xw, yh, roundPixels);
+        var ty2 = calcMatrix.getYRound(xw, yh, roundPixels);
+
+        var tx3 = calcMatrix.getXRound(xw, y, roundPixels);
+        var ty3 = calcMatrix.getYRound(xw, y, roundPixels);
 
         var getTint = Utils.getTintAppendFloatAlpha;
         var cameraAlpha = camera.alpha;
 
-        var tintTL = getTint(sprite.tintTopLeft, cameraAlpha * sprite._alphaTL);
-        var tintTR = getTint(sprite.tintTopRight, cameraAlpha * sprite._alphaTR);
-        var tintBL = getTint(sprite.tintBottomLeft, cameraAlpha * sprite._alphaBL);
-        var tintBR = getTint(sprite.tintBottomRight, cameraAlpha * sprite._alphaBR);
-
-        if (camera.roundPixels)
-        {
-            tx0 = Math.round(tx0);
-            ty0 = Math.round(ty0);
-
-            tx1 = Math.round(tx1);
-            ty1 = Math.round(ty1);
-
-            tx2 = Math.round(tx2);
-            ty2 = Math.round(ty2);
-
-            tx3 = Math.round(tx3);
-            ty3 = Math.round(ty3);
-        }
+        var tintTL = getTint(gameObject.tintTopLeft, cameraAlpha * gameObject._alphaTL);
+        var tintTR = getTint(gameObject.tintTopRight, cameraAlpha * gameObject._alphaTR);
+        var tintBL = getTint(gameObject.tintBottomLeft, cameraAlpha * gameObject._alphaBL);
+        var tintBR = getTint(gameObject.tintBottomRight, cameraAlpha * gameObject._alphaBR);
 
         if (this.shouldFlush(6))
         {
             this.flush();
         }
 
-        var unit = this.setGameObject(sprite, frame);
+        var unit = this.setGameObject(gameObject, frame);
 
-        this.manager.preBatch(sprite);
+        this.manager.preBatch(gameObject);
 
-        this.batchQuad(sprite, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, sprite.tintEffect, texture, unit);
+        this.batchQuad(gameObject, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, gameObject.tintFill, texture, unit);
 
-        this.manager.postBatch(sprite);
+        this.manager.postBatch(gameObject);
     },
 
     /**
@@ -328,8 +306,8 @@ var MultiPipeline = new Class({
      *
      * @param {Phaser.GameObjects.GameObject} gameObject - Source GameObject.
      * @param {WebGLTexture} texture - Raw WebGLTexture associated with the quad.
-     * @param {integer} textureWidth - Real texture width.
-     * @param {integer} textureHeight - Real texture height.
+     * @param {number} textureWidth - Real texture width.
+     * @param {number} textureHeight - Real texture height.
      * @param {number} srcX - X coordinate of the quad.
      * @param {number} srcY - Y coordinate of the quad.
      * @param {number} srcWidth - Width of the quad.
@@ -347,10 +325,10 @@ var MultiPipeline = new Class({
      * @param {number} frameY - Y coordinate of the texture frame.
      * @param {number} frameWidth - Width of the texture frame.
      * @param {number} frameHeight - Height of the texture frame.
-     * @param {integer} tintTL - Tint for top left.
-     * @param {integer} tintTR - Tint for top right.
-     * @param {integer} tintBL - Tint for bottom left.
-     * @param {integer} tintBR - Tint for bottom right.
+     * @param {number} tintTL - Tint for top left.
+     * @param {number} tintTR - Tint for top right.
+     * @param {number} tintBL - Tint for bottom left.
+     * @param {number} tintBR - Tint for bottom right.
      * @param {number} tintEffect - The tint effect.
      * @param {number} uOffset - Horizontal offset on texture coordinate.
      * @param {number} vOffset - Vertical offset on texture coordinate.
@@ -399,11 +377,14 @@ var MultiPipeline = new Class({
         {
             var crop = gameObject._crop;
 
-            width = crop.width;
-            height = crop.height;
+            var cropWidth = crop.width;
+            var cropHeight = crop.height;
 
-            srcWidth = crop.width;
-            srcHeight = crop.height;
+            width = cropWidth;
+            height = cropHeight;
+
+            srcWidth = cropWidth;
+            srcHeight = cropHeight;
 
             frameX = crop.x;
             frameY = crop.y;
@@ -413,18 +394,18 @@ var MultiPipeline = new Class({
 
             if (flipX)
             {
-                ox = (frameWidth - crop.x - crop.width);
+                ox = (frameWidth - crop.x - cropWidth);
             }
 
-            if (flipY && !texture.isRenderTexture)
+            if (flipY)
             {
-                oy = (frameHeight - crop.y - crop.height);
+                oy = (frameHeight - crop.y - cropHeight);
             }
 
             u0 = (ox / textureWidth) + uOffset;
             v0 = (oy / textureHeight) + vOffset;
-            u1 = (ox + crop.width) / textureWidth + uOffset;
-            v1 = (oy + crop.height) / textureHeight + vOffset;
+            u1 = (ox + cropWidth) / textureWidth + uOffset;
+            v1 = (oy + cropHeight) / textureHeight + vOffset;
 
             x = -displayOriginX + frameX;
             y = -displayOriginY + frameY;
@@ -470,44 +451,36 @@ var MultiPipeline = new Class({
         //  Multiply by the Sprite matrix, store result in calcMatrix
         camMatrix.multiply(spriteMatrix, calcMatrix);
 
-        var tx0 = calcMatrix.getX(x, y);
-        var ty0 = calcMatrix.getY(x, y);
+        var roundPixels = camera.roundPixels;
 
-        var tx1 = calcMatrix.getX(x, yh);
-        var ty1 = calcMatrix.getY(x, yh);
+        var tx0 = calcMatrix.getXRound(x, y, roundPixels);
+        var ty0 = calcMatrix.getYRound(x, y, roundPixels);
 
-        var tx2 = calcMatrix.getX(xw, yh);
-        var ty2 = calcMatrix.getY(xw, yh);
+        var tx1 = calcMatrix.getXRound(x, yh, roundPixels);
+        var ty1 = calcMatrix.getYRound(x, yh, roundPixels);
 
-        var tx3 = calcMatrix.getX(xw, y);
-        var ty3 = calcMatrix.getY(xw, y);
+        var tx2 = calcMatrix.getXRound(xw, yh, roundPixels);
+        var ty2 = calcMatrix.getYRound(xw, yh, roundPixels);
 
-        if (camera.roundPixels)
-        {
-            tx0 = Math.round(tx0);
-            ty0 = Math.round(ty0);
-
-            tx1 = Math.round(tx1);
-            ty1 = Math.round(ty1);
-
-            tx2 = Math.round(tx2);
-            ty2 = Math.round(ty2);
-
-            tx3 = Math.round(tx3);
-            ty3 = Math.round(ty3);
-        }
+        var tx3 = calcMatrix.getXRound(xw, y, roundPixels);
+        var ty3 = calcMatrix.getYRound(xw, y, roundPixels);
 
         if (textureUnit === undefined)
         {
             textureUnit = this.renderer.setTexture2D(texture);
         }
 
-        //  TODO - parameter toggle?
-        // this.manager.preBatch(gameObject);
+        if (gameObject)
+        {
+            this.manager.preBatch(gameObject);
+        }
 
         this.batchQuad(gameObject, tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3, u0, v0, u1, v1, tintTL, tintTR, tintBL, tintBR, tintEffect, texture, textureUnit);
 
-        // this.manager.postBatch(gameObject);
+        if (gameObject)
+        {
+            this.manager.postBatch(gameObject);
+        }
     },
 
     /**
@@ -532,7 +505,7 @@ var MultiPipeline = new Class({
         parentTransformMatrix
     )
     {
-        this.renderer.pipelines.set(this);
+        this.manager.set(this);
 
         var spriteMatrix = this._tempMatrix1.copyFrom(transformMatrix);
         var calcMatrix = this._tempMatrix2;

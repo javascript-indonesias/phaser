@@ -36,7 +36,7 @@ var tempMatrix = new Matrix4();
  * example, no frame is given, the UVs will be in the range 0 to 1. If a frame is given,
  * such as from a texture atlas, the UVs will be generated within the range of that frame.
  *
- * @function Phaser.Geom.Mesh.GeneraterGridVerts
+ * @function Phaser.Geom.Mesh.GenerateGridVerts
  * @since 3.50.0
  *
  * @param {Phaser.Types.Geom.Mesh.GenerateGridConfig} config - A Grid configuration object.
@@ -63,6 +63,7 @@ var GenerateGridVerts = function (config)
     var colors = GetFastValue(config, 'colors', [ 0xffffff ]);
     var alphas = GetFastValue(config, 'alphas', [ 1 ]);
     var tile = GetFastValue(config, 'tile', false);
+    var flipY = GetFastValue(config, 'flipY', false);
 
     var widthSet = GetFastValue(config, 'width', null);
 
@@ -125,8 +126,17 @@ var GenerateGridVerts = function (config)
     {
         frameU0 = textureFrame.u0;
         frameU1 = textureFrame.u1;
-        frameV0 = textureFrame.v0;
-        frameV1 = textureFrame.v1;
+
+        if (!flipY)
+        {
+            frameV0 = textureFrame.v0;
+            frameV1 = textureFrame.v1;
+        }
+        else
+        {
+            frameV0 = textureFrame.v1;
+            frameV1 = textureFrame.v0;
+        }
     }
 
     var frameU = frameU1 - frameU0;

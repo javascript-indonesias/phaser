@@ -14,7 +14,6 @@ var WebGLPipeline = require('../WebGLPipeline');
 
 /**
  * @classdesc
- *
  * The Bitmap Mask Pipeline handles all of the bitmap mask rendering in WebGL for applying
  * alpha masks to Game Objects. It works by sampling two texture on the fragment shader and
  * using the fragments alpha to clip the region.
@@ -52,19 +51,13 @@ var BitmapMaskPipeline = new Class({
         config.fragShader = GetFastValue(config, 'fragShader', ShaderSourceFS),
         config.vertShader = GetFastValue(config, 'vertShader', ShaderSourceVS),
         config.batchSize = GetFastValue(config, 'batchSize', 1),
-        config.vertices = GetFastValue(config, 'vertices', new Float32Array([ -1, 1, -1, -7, 7, 1 ]).buffer),
+        config.vertices = GetFastValue(config, 'vertices', [ -1, 1, -1, -7, 7, 1 ]),
         config.attributes = GetFastValue(config, 'attributes', [
             {
                 name: 'inPosition',
                 size: 2,
                 type: WEBGL_CONST.FLOAT
             }
-        ]);
-        config.uniforms = GetFastValue(config, 'uniforms', [
-            'uResolution',
-            'uMainSampler',
-            'uMaskSampler',
-            'uInvertMaskAlpha'
         ]);
 
         WebGLPipeline.call(this, config);
@@ -78,8 +71,10 @@ var BitmapMaskPipeline = new Class({
         this.set1i('uMaskSampler', 1);
     },
 
-    onResize: function (width, height)
+    resize: function (width, height)
     {
+        WebGLPipeline.prototype.resize.call(this, width, height);
+
         this.set2f('uResolution', width, height);
     },
 
@@ -96,19 +91,16 @@ var BitmapMaskPipeline = new Class({
      */
     beginMask: function (mask, maskedObject, camera)
     {
-        var renderer = this.renderer;
         var gl = this.gl;
 
         //  The renderable Game Object that is being used for the bitmap mask
-        var bitmapMask = mask.bitmapMask;
-
-        if (bitmapMask && gl)
+        if (mask.bitmapMask && gl)
         {
+            var renderer = this.renderer;
+
             renderer.flush();
 
-            mask.prevFramebuffer = renderer.currentFramebuffer;
-
-            renderer.setFramebuffer(mask.mainFramebuffer);
+            renderer.pushFramebuffer(mask.mainFramebuffer);
 
             gl.disable(gl.STENCIL_TEST);
             gl.clearColor(0, 0, 0, 0);
@@ -143,11 +135,13 @@ var BitmapMaskPipeline = new Class({
 
         if (bitmapMask && gl)
         {
+            //  mask.mainFramebuffer should now contain all the Game Objects we want masked
             renderer.flush();
 
-            //  First we draw the mask to the mask fb
-            renderer.setFramebuffer(mask.maskFramebuffer);
+            //  Swap to the mask framebuffer (push, in case the bitmapMask GO has a post-pipeline)
+            renderer.pushFramebuffer(mask.maskFramebuffer);
 
+            //  Clear it and draw the Game Object that is acting as a mask to it
             gl.clearColor(0, 0, 0, 0);
             gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -157,7 +151,9 @@ var BitmapMaskPipeline = new Class({
 
             renderer.flush();
 
-            renderer.setFramebuffer(mask.prevFramebuffer);
+            //  Clear the mask framebuffer + main framebuffer
+            renderer.popFramebuffer();
+            renderer.popFramebuffer();
 
             //  Is there a stencil further up the stack?
             var prev = renderer.getCurrentStencilMask();
@@ -173,7 +169,7 @@ var BitmapMaskPipeline = new Class({
                 renderer.currentMask.mask = null;
             }
 
-            //  Bind bitmap mask pipeline and draw
+            //  Bind this pipeline and draw
             renderer.pipelines.set(this);
 
             gl.activeTexture(gl.TEXTURE1);

@@ -16,7 +16,7 @@ var RunCull = require('./RunCull');
  * @param {Phaser.Tilemaps.LayerData} layer - The Tilemap Layer to act upon.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera to run the cull check against.
  * @param {array} [outputArray] - An optional array to store the Tile objects within.
- * @param {integer} [renderOrder=0] - The rendering order constant.
+ * @param {number} [renderOrder=0] - The rendering order constant.
  *
  * @return {Phaser.Tilemaps.Tile[]} An array of Tile objects.
  */
@@ -29,15 +29,19 @@ var CullTiles = function (layer, camera, outputArray, renderOrder)
 
     var tilemapLayer = layer.tilemapLayer;
 
-    if (!tilemapLayer.skipCull && tilemapLayer.scrollFactorX === 1 && tilemapLayer.scrollFactorY === 1)
+    //  Camera world view bounds, snapped for scaled tile size
+    //  Cull Padding values are given in tiles, not pixels
+    var bounds = CullBounds(layer, camera);
+
+    if (tilemapLayer.skipCull || tilemapLayer.scrollFactorX !== 1 || tilemapLayer.scrollFactorY !== 1)
     {
-        //  Camera world view bounds, snapped for scaled tile size
-        //  Cull Padding values are given in tiles, not pixels
-
-        var bounds = CullBounds(layer, camera);
-
-        RunCull(layer, bounds, renderOrder, outputArray);
+        bounds.left = 0;
+        bounds.right = layer.width;
+        bounds.top = 0;
+        bounds.bottom = layer.height;
     }
+
+    RunCull(layer, bounds, renderOrder, outputArray);
 
     return outputArray;
 };

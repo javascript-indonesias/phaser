@@ -6,6 +6,7 @@
 
 var Class = require('../../utils/Class');
 var GameEvents = require('../../core/events');
+var RenderEvents = require('../../renderer/events');
 
 /**
  * @classdesc
@@ -72,7 +73,7 @@ var BitmapMask = new Class({
         this.bitmapMask = renderable;
 
         /**
-         * The texture used for the mask's framebuffer.
+         * The texture used for the masks framebuffer.
          *
          * @name Phaser.Display.Masks.BitmapMask#maskTexture
          * @type {WebGLTexture}
@@ -120,18 +121,10 @@ var BitmapMask = new Class({
         this.maskFramebuffer = null;
 
         /**
-         * The previous framebuffer set in the renderer before this one was enabled.
-         *
-         * @name Phaser.Display.Masks.BitmapMask#prevFramebuffer
-         * @type {WebGLFramebuffer}
-         * @since 3.17.0
-         */
-        this.prevFramebuffer = null;
-
-        /**
          * Whether to invert the masks alpha.
          *
-         * If `true`, the alpha of the masking pixel will be inverted before it's multiplied with the masked pixel. Essentially, this means that a masked area will be visible only if the corresponding area in the mask is invisible.
+         * If `true`, the alpha of the masking pixel will be inverted before it's multiplied with the masked pixel.
+         * Essentially, this means that a masked area will be visible only if the corresponding area in the mask is invisible.
          *
          * @name Phaser.Display.Masks.BitmapMask#invertAlpha
          * @type {boolean}
@@ -152,6 +145,11 @@ var BitmapMask = new Class({
         this.createMask();
 
         scene.sys.game.events.on(GameEvents.CONTEXT_RESTORED, this.createMask, this);
+
+        if (renderer)
+        {
+            renderer.on(RenderEvents.RESIZE, this.createMask, this);
+        }
     },
 
     /**
@@ -165,7 +163,7 @@ var BitmapMask = new Class({
     {
         var renderer = this.renderer;
 
-        if (!renderer.gl)
+        if (!renderer || !renderer.gl)
         {
             return;
         }
@@ -202,7 +200,7 @@ var BitmapMask = new Class({
     {
         var renderer = this.renderer;
 
-        if (!renderer.gl || !this.mainTexture)
+        if (!renderer || !renderer.gl || !this.mainTexture)
         {
             return;
         }
@@ -304,6 +302,11 @@ var BitmapMask = new Class({
     {
         this.clearMask();
 
+        if (this.renderer)
+        {
+            this.renderer.off(RenderEvents.RESIZE, this.createMask, this);
+        }
+        
         this.bitmapMask = null;
         this.prevFramebuffer = null;
         this.renderer = null;

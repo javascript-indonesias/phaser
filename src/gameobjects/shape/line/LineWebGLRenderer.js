@@ -23,7 +23,9 @@ var Utils = require('../../../renderer/webgl/Utils');
  */
 var LineWebGLRenderer = function (renderer, src, camera, parentMatrix)
 {
-    var pipeline = renderer.pipelines.set(this.pipeline);
+    camera.addToRenderList(src);
+
+    var pipeline = renderer.pipelines.set(src.pipeline);
 
     var result = GetCalcMatrix(src, camera, parentMatrix);
 
@@ -32,6 +34,8 @@ var LineWebGLRenderer = function (renderer, src, camera, parentMatrix)
     var dx = src._displayOriginX;
     var dy = src._displayOriginY;
     var alpha = camera.alpha * src.alpha;
+
+    renderer.pipelines.preBatch(src);
 
     if (src.isStroked)
     {
@@ -60,6 +64,8 @@ var LineWebGLRenderer = function (renderer, src, camera, parentMatrix)
             result.camera
         );
     }
+
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = LineWebGLRenderer;

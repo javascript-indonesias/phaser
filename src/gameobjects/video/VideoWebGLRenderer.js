@@ -22,7 +22,9 @@ var VideoWebGLRenderer = function (renderer, src, camera, parentMatrix)
 {
     if (src.videoTexture)
     {
-        this.pipeline.batchSprite(src, camera, parentMatrix);
+        camera.addToRenderList(src);
+
+        src.pipeline.batchSprite(src, camera, parentMatrix);
     }
 };
 

@@ -23,7 +23,9 @@ var Utils = require('../../../renderer/webgl/Utils');
  */
 var IsoBoxWebGLRenderer = function (renderer, src, camera, parentMatrix)
 {
-    var pipeline = renderer.pipelines.set(this.pipeline);
+    camera.addToRenderList(src);
+
+    var pipeline = renderer.pipelines.set(src.pipeline);
 
     var result = GetCalcMatrix(src, camera, parentMatrix);
 
@@ -55,6 +57,9 @@ var IsoBoxWebGLRenderer = function (renderer, src, camera, parentMatrix)
 
     var x3;
     var y3;
+
+
+    renderer.pipelines.preBatch(src);
 
     //  Top Face
 
@@ -118,6 +123,8 @@ var IsoBoxWebGLRenderer = function (renderer, src, camera, parentMatrix)
 
         pipeline.batchQuad(x0, y0, x1, y1, x2, y2, x3, y3, tint, tint, tint, tint);
     }
+
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = IsoBoxWebGLRenderer;

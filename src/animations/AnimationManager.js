@@ -93,7 +93,7 @@ var AnimationManager = new Class({
          * See the {@link #setMix} method for more details.
          *
          * @name Phaser.Animations.AnimationManager#mixes
-         * @type {Phaser.Structs.Map.<string>}
+         * @type {Phaser.Structs.Map.<string, Phaser.Animations.Animation>}
          * @since 3.50.0
          */
         this.mixes = new CustomMap();
@@ -354,17 +354,17 @@ var AnimationManager = new Class({
      *
      * This was tested with Aseprite 1.2.25.
      *
-     * This will export a png and json file which you can load using the Atlas Loader, i.e.:
+     * This will export a png and json file which you can load using the Aseprite Loader, i.e.:
      *
      * ```javascript
      * function preload ()
      * {
      *     this.load.path = 'assets/animations/aseprite/';
-     *     this.load.atlas('paladin', 'paladin.png', 'paladin.json');
+     *     this.load.aseprite('paladin', 'paladin.png', 'paladin.json');
      * }
      * ```
      *
-     * Once exported, you can call this method from within a Scene with the 'atlas' key:
+     * Once loaded, you can call this method from within a Scene with the 'atlas' key:
      *
      * ```javascript
      * this.anims.createFromAseprite('paladin');
@@ -689,16 +689,19 @@ var AnimationManager = new Class({
      * Example:
      *
      * If you have a sprite sheet loaded called `explosion` and it contains 12 frames, then you can call this method using:
-     * `this.anims.generateFrameNumbers('explosion', { start: 0, end: 12 })`.
      *
-     * The `end` value tells it to stop after 12 frames. To create an animation using this method, you can do:
+     * `this.anims.generateFrameNumbers('explosion', { start: 0, end: 11 })`.
+     *
+     * The `end` value of 11 tells it to stop after the 12th frame has been added, because it started at zero.
+     *
+     * To create an animation using this method, you can do:
      *
      * ```javascript
      * this.anims.create({
      *   key: 'boom',
      *   frames: this.anims.generateFrameNames('explosion', {
      *     start: 0,
-     *     end: 12
+     *     end: 11
      *   })
      * });
      * ```

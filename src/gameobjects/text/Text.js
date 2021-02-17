@@ -520,7 +520,12 @@ var Text = new Class({
             {
                 var word = words[j];
                 var wordWidth = context.measureText(word).width;
-                var wordWidthWithSpace = wordWidth + whiteSpaceWidth;
+                var wordWidthWithSpace = wordWidth;
+
+                if (j < lastWordIndex)
+                {
+                    wordWidthWithSpace += whiteSpaceWidth;
+                }
 
                 if (wordWidthWithSpace > spaceLeft)
                 {
@@ -1083,7 +1088,7 @@ var Text = new Class({
      * @method Phaser.GameObjects.Text#setMaxLines
      * @since 3.0.0
      *
-     * @param {integer} [max=0] - The maximum number of lines to draw.
+     * @param {number} [max=0] - The maximum number of lines to draw.
      *
      * @return {this} This Text object.
      */

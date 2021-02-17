@@ -32,6 +32,16 @@ var BlitterWebGLRenderer = function (renderer, src, camera, parentMatrix)
         return;
     }
 
+    var alpha = camera.alpha * src.alpha;
+
+    if (alpha === 0)
+    {
+        //  Nothing to see, so abort early
+        return;
+    }
+
+    camera.addToRenderList(src);
+
     var pipeline = renderer.pipelines.set(this.pipeline, src);
 
     var cameraScrollX = camera.scrollX * src.scrollFactorX;
@@ -51,8 +61,9 @@ var BlitterWebGLRenderer = function (renderer, src, camera, parentMatrix)
     var blitterY = src.y - cameraScrollY;
     var prevTextureSourceIndex = -1;
     var tintEffect = false;
-    var alpha = camera.alpha * src.alpha;
     var roundPixels = camera.roundPixels;
+
+    renderer.pipelines.preBatch(src);
 
     for (var index = 0; index < list.length; index++)
     {
@@ -117,6 +128,8 @@ var BlitterWebGLRenderer = function (renderer, src, camera, parentMatrix)
             prevTextureSourceIndex = -1;
         }
     }
+
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = BlitterWebGLRenderer;

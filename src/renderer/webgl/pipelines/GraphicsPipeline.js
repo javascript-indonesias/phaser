@@ -55,8 +55,7 @@ var GraphicsPipeline = new Class({
         config.attributes = GetFastValue(config, 'attributes', [
             {
                 name: 'inPosition',
-                size: 2,
-                type: WEBGL_CONST.FLOAT
+                size: 2
             },
             {
                 name: 'inColor',
@@ -64,9 +63,6 @@ var GraphicsPipeline = new Class({
                 type: WEBGL_CONST.UNSIGNED_BYTE,
                 normalized: true
             }
-        ]);
-        config.uniforms = GetFastValue(config, 'uniforms', [
-            'uProjectionMatrix'
         ]);
 
         WebGLPipeline.call(this, config);
@@ -571,6 +567,7 @@ var GraphicsPipeline = new Class({
      * Where tx0/ty0 = 0, tx1/ty1 = 1, tx2/ty2 = 2 and tx3/ty3 = 3
      *
      * @method Phaser.Renderer.WebGL.Pipelines.GraphicsPipeline#batchQuad
+     * @override
      * @since 3.50.0
      *
      * @param {number} x0 - The top-left x position.
@@ -625,6 +622,7 @@ var GraphicsPipeline = new Class({
      * ```
      *
      * @method Phaser.Renderer.WebGL.Pipelines.GraphicsPipeline#batchTri
+     * @override
      * @since 3.50.0
      *
      * @param {number} x1 - The bottom-left x position.
@@ -660,8 +658,8 @@ var GraphicsPipeline = new Class({
     /**
      * Destroys all shader instances, removes all object references and nulls all external references.
      *
-     * @method Phaser.Renderer.WebGL.WebGLPipeline#destroy
-     * @since 3.0.0
+     * @method Phaser.Renderer.WebGL.Pipelines.GraphicsPipeline#destroy
+     * @since 3.50.0
      *
      * @return {this} This WebGLPipeline instance.
      */

@@ -24,7 +24,9 @@ var StrokePathWebGL = require('../StrokePathWebGL');
  */
 var EllipseWebGLRenderer = function (renderer, src, camera, parentMatrix)
 {
-    var pipeline = renderer.pipelines.set(this.pipeline);
+    camera.addToRenderList(src);
+
+    var pipeline = renderer.pipelines.set(src.pipeline);
 
     var result = GetCalcMatrix(src, camera, parentMatrix);
 
@@ -35,6 +37,8 @@ var EllipseWebGLRenderer = function (renderer, src, camera, parentMatrix)
 
     var alpha = camera.alpha * src.alpha;
 
+    renderer.pipelines.preBatch(src);
+
     if (src.isFilled)
     {
         FillPathWebGL(pipeline, calcMatrix, src, alpha, dx, dy);
@@ -44,6 +48,8 @@ var EllipseWebGLRenderer = function (renderer, src, camera, parentMatrix)
     {
         StrokePathWebGL(pipeline, src, alpha, dx, dy);
     }
+
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = EllipseWebGLRenderer;

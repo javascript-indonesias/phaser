@@ -45,15 +45,18 @@ var TilemapLayerWebGLRenderer = function (renderer, src, camera)
     var sx = src.scaleX;
     var sy = src.scaleY;
 
-    var pipelines = renderer.pipelines;
-
-    pipelines.preBatch(src);
+    renderer.pipelines.preBatch(src);
 
     for (var i = 0; i < tileCount; i++)
     {
         var tile = renderTiles[i];
 
         var tileset = gidMap[tile.index];
+
+        if (!tileset)
+        {
+            continue;
+        }
 
         var tileTexCoords = tileset.getTileTextureCoordinates(tile.index);
 
@@ -98,7 +101,7 @@ var TilemapLayerWebGLRenderer = function (renderer, src, camera)
         );
     }
 
-    pipelines.postBatch(src);
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = TilemapLayerWebGLRenderer;

@@ -1615,7 +1615,7 @@ var DataManager = new Class({
      * Return the total number of entries in this Data Manager.
      *
      * @name Phaser.Data.DataManager#count
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     count: {
@@ -1853,6 +1853,7 @@ module.exports = {
 
 var Class = __webpack_require__(/*! ../../utils/Class */ "../../../src/utils/Class.js");
 var GameEvents = __webpack_require__(/*! ../../core/events */ "../../../src/core/events/index.js");
+var RenderEvents = __webpack_require__(/*! ../../renderer/events */ "../../../src/renderer/events/index.js");
 
 /**
  * @classdesc
@@ -1898,7 +1899,7 @@ var BitmapMask = new Class({
 
     function BitmapMask (scene, renderable)
     {
-        var renderer = scene.sys.game.renderer;
+        var renderer = scene.sys.renderer;
 
         /**
          * A reference to either the Canvas or WebGL Renderer that this Mask is using.
@@ -1919,7 +1920,7 @@ var BitmapMask = new Class({
         this.bitmapMask = renderable;
 
         /**
-         * The texture used for the mask's framebuffer.
+         * The texture used for the masks framebuffer.
          *
          * @name Phaser.Display.Masks.BitmapMask#maskTexture
          * @type {WebGLTexture}
@@ -1967,18 +1968,10 @@ var BitmapMask = new Class({
         this.maskFramebuffer = null;
 
         /**
-         * The previous framebuffer set in the renderer before this one was enabled.
-         *
-         * @name Phaser.Display.Masks.BitmapMask#prevFramebuffer
-         * @type {WebGLFramebuffer}
-         * @since 3.17.0
-         */
-        this.prevFramebuffer = null;
-
-        /**
          * Whether to invert the masks alpha.
          *
-         * If `true`, the alpha of the masking pixel will be inverted before it's multiplied with the masked pixel. Essentially, this means that a masked area will be visible only if the corresponding area in the mask is invisible.
+         * If `true`, the alpha of the masking pixel will be inverted before it's multiplied with the masked pixel.
+         * Essentially, this means that a masked area will be visible only if the corresponding area in the mask is invisible.
          *
          * @name Phaser.Display.Masks.BitmapMask#invertAlpha
          * @type {boolean}
@@ -1999,6 +1992,8 @@ var BitmapMask = new Class({
         this.createMask();
 
         scene.sys.game.events.on(GameEvents.CONTEXT_RESTORED, this.createMask, this);
+
+        renderer.on(RenderEvents.RESIZE, this.createMask, this);
     },
 
     /**
@@ -2151,6 +2146,8 @@ var BitmapMask = new Class({
     {
         this.clearMask();
 
+        this.renderer.off(RenderEvents.RESIZE, this.createMask, this);
+
         this.bitmapMask = null;
         this.prevFramebuffer = null;
         this.renderer = null;
@@ -2223,6 +2220,8 @@ var GeometryMask = new Class({
          * Similar to the BitmapMasks invertAlpha setting this to true will then hide all pixels
          * drawn to the Geometry Mask.
          *
+         * This is a WebGL only feature.
+         *
          * @name Phaser.Display.Masks.GeometryMask#invertAlpha
          * @type {boolean}
          * @since 3.16.0
@@ -2269,7 +2268,10 @@ var GeometryMask = new Class({
 
     /**
      * Sets the `invertAlpha` property of this Geometry Mask.
+     *
      * Inverting the alpha essentially flips the way the mask works.
+     *
+     * This is a WebGL only feature.
      *
      * @method Phaser.Display.Masks.GeometryMask#setInvertAlpha
      * @since 3.17.0
@@ -2675,6 +2677,20 @@ var GameObject = new Class({
         this.scene = scene;
 
         /**
+         * Holds a reference to the Display List that contains this Game Object.
+         *
+         * This is set automatically when this Game Object is added to a Scene or Layer.
+         *
+         * You should treat this property as being read-only.
+         *
+         * @name Phaser.GameObjects.GameObject#displayList
+         * @type {(Phaser.GameObjects.DisplayList|Phaser.GameObjects.Layer)}
+         * @default null
+         * @since 3.50.0
+         */
+        this.displayList = null;
+
+        /**
          * A textual representation of this Game Object, i.e. `sprite`.
          * Used internally by Phaser but is available for your own custom classes to populate.
          *
@@ -2695,7 +2711,7 @@ var GameObject = new Class({
          * If you need to store complex data about your Game Object, look at using the Data Component instead.
          *
          * @name Phaser.GameObjects.GameObject#state
-         * @type {(integer|string)}
+         * @type {(number|string)}
          * @since 3.16.0
          */
         this.state = 0;
@@ -2737,7 +2753,7 @@ var GameObject = new Class({
          * Reserved for future use by plugins and the Input Manager.
          *
          * @name Phaser.GameObjects.GameObject#tabIndex
-         * @type {integer}
+         * @type {number}
          * @default -1
          * @since 3.0.0
          */
@@ -2761,7 +2777,7 @@ var GameObject = new Class({
          * If those components are not used by your custom class then you can use this bitmask as you wish.
          *
          * @name Phaser.GameObjects.GameObject#renderFlags
-         * @type {integer}
+         * @type {number}
          * @default 15
          * @since 3.0.0
          */
@@ -2816,6 +2832,9 @@ var GameObject = new Class({
          */
         this.ignoreDestroy = false;
 
+        this.on(Events.ADDED_TO_SCENE, this.addedToScene, this);
+        this.on(Events.REMOVED_FROM_SCENE, this.removedFromScene, this);
+
         //  Tell the Scene to re-sort the children
         scene.sys.queueDepthSort();
     },
@@ -2869,7 +2888,7 @@ var GameObject = new Class({
      * @method Phaser.GameObjects.GameObject#setState
      * @since 3.16.0
      *
-     * @param {(integer|string)} value - The state of the Game Object.
+     * @param {(number|string)} value - The state of the Game Object.
      *
      * @return {this} This GameObject.
      */
@@ -3235,7 +3254,7 @@ var GameObject = new Class({
      * @method Phaser.GameObjects.GameObject#getIndexList
      * @since 3.4.0
      *
-     * @return {integer[]} An array of display list position indexes.
+     * @return {number[]} An array of display list position indexes.
      */
     getIndexList: function ()
     {
@@ -3284,13 +3303,9 @@ var GameObject = new Class({
      * @method Phaser.GameObjects.GameObject#destroy
      * @fires Phaser.GameObjects.Events#DESTROY
      * @since 3.0.0
-     *
-     * @param {boolean} [fromScene=false] - Is this Game Object being destroyed as the result of a Scene shutdown?
      */
-    destroy: function (fromScene)
+    destroy: function ()
     {
-        if (fromScene === undefined) { fromScene = false; }
-
         //  This Game Object has already been destroyed
         if (!this.scene || this.ignoreDestroy)
         {
@@ -3304,16 +3319,23 @@ var GameObject = new Class({
 
         this.emit(Events.DESTROY, this);
 
-        var sys = this.scene.sys;
+        this.removeAllListeners();
 
-        if (!fromScene)
+        if (this.postPipelines)
         {
-            sys.displayList.remove(this);
+            this.resetPostPipeline(true);
+        }
+
+        if (this.displayList)
+        {
+            this.displayList.queueDepthSort();
+            this.displayList.remove(this);
         }
 
         if (this.input)
         {
-            sys.input.clear(this);
+            this.scene.sys.input.clear(this);
+
             this.input = undefined;
         }
 
@@ -3327,23 +3349,16 @@ var GameObject = new Class({
         if (this.body)
         {
             this.body.destroy();
-            this.body = undefined;
-        }
 
-        //  Tell the Scene to re-sort the children
-        if (!fromScene)
-        {
-            sys.queueDepthSort();
+            this.body = undefined;
         }
 
         this.active = false;
         this.visible = false;
 
         this.scene = undefined;
-
+        this.displayList = undefined;
         this.parentContainer = undefined;
-
-        this.removeAllListeners();
     }
 
 });
@@ -3351,7 +3366,7 @@ var GameObject = new Class({
 /**
  * The bitmask that `GameObject.renderFlags` is compared against to determine if the Game Object will render or not.
  *
- * @constant {integer} RENDER_MASK
+ * @constant {number} RENDER_MASK
  * @memberof Phaser.GameObjects.GameObject
  * @default
  */
@@ -3882,7 +3897,7 @@ var BlendMode = {
      * Private internal value. Holds the current blend mode.
      * 
      * @name Phaser.GameObjects.Components.BlendMode#_blendMode
-     * @type {integer}
+     * @type {number}
      * @private
      * @default 0
      * @since 3.0.0
@@ -4280,7 +4295,7 @@ module.exports = Crop;
 /**
  * Provides methods used for setting the depth of a Game Object.
  * Should be applied as a mixin and not used directly.
- * 
+ *
  * @namespace Phaser.GameObjects.Components.Depth
  * @since 3.0.0
  */
@@ -4289,9 +4304,9 @@ var Depth = {
 
     /**
      * Private internal value. Holds the depth of the Game Object.
-     * 
+     *
      * @name Phaser.GameObjects.Components.Depth#_depth
-     * @type {integer}
+     * @type {number}
      * @private
      * @default 0
      * @since 3.0.0
@@ -4300,7 +4315,7 @@ var Depth = {
 
     /**
      * The depth of this Game Object within the Scene.
-     * 
+     *
      * The depth is also known as the 'z-index' in some environments, and allows you to change the rendering order
      * of Game Objects, without actually moving their position in the display list.
      *
@@ -4308,7 +4323,7 @@ var Depth = {
      * value will always render in front of one with a lower value.
      *
      * Setting the depth will queue a depth sort event within the Scene.
-     * 
+     *
      * @name Phaser.GameObjects.Components.Depth#depth
      * @type {number}
      * @since 3.0.0
@@ -4322,7 +4337,11 @@ var Depth = {
 
         set: function (value)
         {
-            this.scene.sys.queueDepthSort();
+            if (this.displayList)
+            {
+                this.displayList.queueDepthSort();
+            }
+
             this._depth = value;
         }
 
@@ -4330,7 +4349,7 @@ var Depth = {
 
     /**
      * The depth of this Game Object within the Scene.
-     * 
+     *
      * The depth is also known as the 'z-index' in some environments, and allows you to change the rendering order
      * of Game Objects, without actually moving their position in the display list.
      *
@@ -4338,12 +4357,12 @@ var Depth = {
      * value will always render in front of one with a lower value.
      *
      * Setting the depth will queue a depth sort event within the Scene.
-     * 
+     *
      * @method Phaser.GameObjects.Components.Depth#setDepth
      * @since 3.0.0
      *
-     * @param {integer} value - The depth of this Game Object.
-     * 
+     * @param {number} value - The depth of this Game Object.
+     *
      * @return {this} This Game Object instance.
      */
     setDepth: function (value)
@@ -5368,7 +5387,7 @@ var PathFollower = {
      * Records the direction of the follower so it can change direction.
      *
      * @name Phaser.GameObjects.PathFollower#_prevDirection
-     * @type {integer}
+     * @type {number}
      * @private
      * @since 3.0.0
      */
@@ -5702,7 +5721,9 @@ module.exports = PathFollower;
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
+var DeepCopy = __webpack_require__(/*! ../../utils/object/DeepCopy */ "../../../src/utils/object/DeepCopy.js");
 var PIPELINE_CONST = __webpack_require__(/*! ../../renderer/webgl/pipelines/const */ "../../../src/renderer/webgl/pipelines/const.js");
+var SpliceOne = __webpack_require__(/*! ../../utils/array/SpliceOne */ "../../../src/utils/array/SpliceOne.js");
 
 /**
  * Provides methods used for setting the WebGL rendering pipeline of a Game Object.
@@ -5716,6 +5737,8 @@ var Pipeline = {
 
     /**
      * The initial WebGL pipeline of this Game Object.
+     *
+     * If you call `resetPipeline` on this Game Object, the pipeline is reset to this default.
      *
      * @name Phaser.GameObjects.Components.Pipeline#defaultPipeline
      * @type {Phaser.Renderer.WebGL.WebGLPipeline}
@@ -5737,58 +5760,238 @@ var Pipeline = {
     pipeline: null,
 
     /**
+     * Does this Game Object have any Post Pipelines set?
+     *
+     * @name Phaser.GameObjects.Components.Pipeline#hasPostPipeline
+     * @type {boolean}
+     * @webglOnly
+     * @since 3.50.0
+     */
+    hasPostPipeline: false,
+
+    /**
+     * The WebGL Post FX Pipelines this Game Object uses for post-render effects.
+     *
+     * The pipelines are processed in the order in which they appear in this array.
+     *
+     * If you modify this array directly, be sure to set the
+     * `hasPostPipeline` property accordingly.
+     *
+     * @name Phaser.GameObjects.Components.Pipeline#postPipeline
+     * @type {Phaser.Renderer.WebGL.Pipelines.PostFXPipeline[]}
+     * @webglOnly
+     * @since 3.50.0
+     */
+    postPipelines: null,
+
+    /**
+     * An object to store pipeline specific data in, to be read by the pipelines this Game Object uses.
+     *
+     * @name Phaser.GameObjects.Components.Pipeline#pipelineData
+     * @type {object}
+     * @webglOnly
+     * @since 3.50.0
+     */
+    pipelineData: null,
+
+    /**
      * Sets the initial WebGL Pipeline of this Game Object.
      *
-     * This should only be called during the instantiation of the Game Object.
+     * This should only be called during the instantiation of the Game Object. After that, use `setPipeline`.
      *
      * @method Phaser.GameObjects.Components.Pipeline#initPipeline
      * @webglOnly
      * @since 3.0.0
      *
-     * @param {string} [name=MultiPipeline] - The name of the pipeline to set on this Game Object. Defaults to the Multi Pipeline.
+     * @param {(string|Phaser.Renderer.WebGL.WebGLPipeline)} pipeline - Either the string-based name of the pipeline, or a pipeline instance to set.
      *
      * @return {boolean} `true` if the pipeline was set successfully, otherwise `false`.
      */
-    initPipeline: function (name)
+    initPipeline: function (pipeline)
     {
-        if (name === undefined) { name = PIPELINE_CONST.MULTI_PIPELINE; }
+        if (pipeline === undefined) { pipeline = PIPELINE_CONST.MULTI_PIPELINE; }
 
-        var renderer = this.scene.sys.game.renderer;
+        var renderer = this.scene.sys.renderer;
         var pipelines = renderer.pipelines;
 
-        if (pipelines && pipelines.has(name))
-        {
-            this.defaultPipeline = pipelines.get(name);
-            this.pipeline = this.defaultPipeline;
+        this.postPipelines = [];
+        this.pipelineData = {};
 
-            return true;
+        if (pipelines)
+        {
+            var instance = pipelines.get(pipeline);
+
+            if (instance)
+            {
+                this.defaultPipeline = instance;
+                this.pipeline = instance;
+
+                return true;
+            }
         }
 
         return false;
     },
 
     /**
-     * Sets the active WebGL Pipeline of this Game Object.
+     * Sets the main WebGL Pipeline of this Game Object.
+     *
+     * Also sets the `pipelineData` property, if the parameter is given.
+     *
+     * Both the pipeline and post pipelines share the same pipeline data object.
      *
      * @method Phaser.GameObjects.Components.Pipeline#setPipeline
      * @webglOnly
      * @since 3.0.0
      *
-     * @param {string} name - The name of the pipeline to set on this Game Object.
+     * @param {(string|Phaser.Renderer.WebGL.WebGLPipeline)} pipeline - Either the string-based name of the pipeline, or a pipeline instance to set.
+     * @param {object} [pipelineData] - Optional pipeline data object that is _deep copied_ into the `pipelineData` property of this Game Object.
+     * @param {boolean} [copyData=true] - Should the pipeline data object be _deep copied_ into the `pipelineData` property of this Game Object? If `false` it will be set by reference instead.
      *
      * @return {this} This Game Object instance.
      */
-    setPipeline: function (name)
+    setPipeline: function (pipeline, pipelineData, copyData)
     {
-        var renderer = this.scene.sys.game.renderer;
+        var renderer = this.scene.sys.renderer;
         var pipelines = renderer.pipelines;
 
-        if (pipelines && pipelines.has(name))
+        if (pipelines)
         {
-            this.pipeline = pipelines.get(name);
+            var instance = pipelines.get(pipeline);
+
+            if (instance)
+            {
+                this.pipeline = instance;
+            }
+
+            if (pipelineData)
+            {
+                this.pipelineData = (copyData) ? DeepCopy(pipelineData) : pipelineData;
+            }
         }
 
         return this;
+    },
+
+    /**
+     * Sets one, or more, Post Pipelines on this Game Object.
+     *
+     * Post Pipelines are invoked after this Game Object has rendered to its target and
+     * are commonly used for post-fx.
+     *
+     * The post pipelines are appended to the `postPipelines` array belonging to this
+     * Game Object. When the renderer processes this Game Object, it iterates through the post
+     * pipelines in the order in which they appear in the array. If you are stacking together
+     * multiple effects, be aware that the order is important.
+     *
+     * If you call this method multiple times, the new pipelines will be appended to any existing
+     * post pipelines already set. Use the `resetPostPipeline` method to clear them first, if required.
+     *
+     * You can optionally also sets the `pipelineData` property, if the parameter is given.
+     *
+     * Both the pipeline and post pipelines share the pipeline data object together.
+     *
+     * @method Phaser.GameObjects.Components.Pipeline#setPostPipeline
+     * @webglOnly
+     * @since 3.50.0
+     *
+     * @param {(string|string[]|function|function[]|Phaser.Renderer.WebGL.Pipelines.PostFXPipeline|Phaser.Renderer.WebGL.Pipelines.PostFXPipeline[])} pipelines - Either the string-based name of the pipeline, or a pipeline instance, or class, or an array of them.
+     * @param {object} [pipelineData] - Optional pipeline data object that is _deep copied_ into the `pipelineData` property of this Game Object.
+     * @param {boolean} [copyData=true] - Should the pipeline data object be _deep copied_ into the `pipelineData` property of this Game Object? If `false` it will be set by reference instead.
+     *
+     * @return {this} This Game Object instance.
+     */
+    setPostPipeline: function (pipelines, pipelineData, copyData)
+    {
+        var renderer = this.scene.sys.renderer;
+        var pipelineManager = renderer.pipelines;
+
+        if (pipelineManager)
+        {
+            if (!Array.isArray(pipelines))
+            {
+                pipelines = [ pipelines ];
+            }
+
+            for (var i = 0; i < pipelines.length; i++)
+            {
+                var instance = pipelineManager.getPostPipeline(pipelines[i], this);
+
+                if (instance)
+                {
+                    this.postPipelines.push(instance);
+                }
+            }
+
+            if (pipelineData)
+            {
+                this.pipelineData = (copyData) ? DeepCopy(pipelineData) : pipelineData;
+            }
+        }
+
+        this.hasPostPipeline = (this.postPipelines.length > 0);
+
+        return this;
+    },
+
+    /**
+     * Adds an entry to the `pipelineData` object belonging to this Game Object.
+     *
+     * If the 'key' already exists, its value is updated. If it doesn't exist, it is created.
+     *
+     * If `value` is undefined, and `key` exists, `key` is removed from the data object.
+     *
+     * Both the pipeline and post pipelines share the pipeline data object together.
+     *
+     * @method Phaser.GameObjects.Components.Pipeline#setPipelineData
+     * @webglOnly
+     * @since 3.50.0
+     *
+     * @param {string} key - The key of the pipeline data to set, update, or delete.
+     * @param {any} [value] - The value to be set with the key. If `undefined` then `key` will be deleted from the object.
+     *
+     * @return {this} This Game Object instance.
+     */
+    setPipelineData: function (key, value)
+    {
+        var data = this.pipelineData;
+
+        if (value === undefined)
+        {
+            delete data[key];
+        }
+        else
+        {
+            data[key] = value;
+        }
+
+        return this;
+    },
+
+    /**
+     * Gets a Post Pipeline instance from this Game Object, based on the given name, and returns it.
+     *
+     * @method Phaser.GameObjects.Components.Pipeline#getPostPipeline
+     * @webglOnly
+     * @since 3.50.0
+     *
+     * @param {(string|function|Phaser.Renderer.WebGL.Pipelines.PostFXPipeline)} pipeline - The string-based name of the pipeline, or a pipeline class.
+     *
+     * @return {Phaser.Renderer.WebGL.Pipelines.PostFXPipeline} The first Post Pipeline matching the name, or undefined if no match.
+     */
+    getPostPipeline: function (pipeline)
+    {
+        var pipelines = this.postPipelines;
+
+        for (var i = 0; i < pipelines.length; i++)
+        {
+            var instance = pipelines[i];
+
+            if ((typeof pipeline === 'string' && instance.name === pipeline) || instance instanceof pipeline)
+            {
+                return instance;
+            }
+        }
     },
 
     /**
@@ -5798,13 +6001,94 @@ var Pipeline = {
      * @webglOnly
      * @since 3.0.0
      *
-     * @return {boolean} `true` if the pipeline was set successfully, otherwise `false`.
+     * @param {boolean} [resetPostPipelines=false] - Reset all of the post pipelines?
+     * @param {boolean} [resetData=false] - Reset the `pipelineData` object to being an empty object?
+     *
+     * @return {boolean} `true` if the pipeline was reset successfully, otherwise `false`.
      */
-    resetPipeline: function ()
+    resetPipeline: function (resetPostPipelines, resetData)
     {
+        if (resetPostPipelines === undefined) { resetPostPipelines = false; }
+        if (resetData === undefined) { resetData = false; }
+
         this.pipeline = this.defaultPipeline;
 
+        if (resetPostPipelines)
+        {
+            this.postPipelines = [];
+            this.hasPostPipeline = false;
+        }
+
+        if (resetData)
+        {
+            this.pipelineData = {};
+        }
+
         return (this.pipeline !== null);
+    },
+
+    /**
+     * Resets the WebGL Post Pipelines of this Game Object. It does this by calling
+     * the `destroy` method on each post pipeline and then clearing the local array.
+     *
+     * @method Phaser.GameObjects.Components.Pipeline#resetPostPipeline
+     * @webglOnly
+     * @since 3.50.0
+     *
+     * @param {boolean} [resetData=false] - Reset the `pipelineData` object to being an empty object?
+     */
+    resetPostPipeline: function (resetData)
+    {
+        if (resetData === undefined) { resetData = false; }
+
+        var pipelines = this.postPipelines;
+
+        for (var i = 0; i < pipelines.length; i++)
+        {
+            pipelines[i].destroy();
+        }
+
+        this.postPipelines = [];
+        this.hasPostPipeline = false;
+
+        if (resetData)
+        {
+            this.pipelineData = {};
+        }
+    },
+
+    /**
+     * Removes a single Post Pipeline instance from this Game Object, based on the given name, and destroys it.
+     *
+     * If you wish to remove all Post Pipelines use the `resetPostPipeline` method instead.
+     *
+     * @method Phaser.GameObjects.Components.Pipeline#removePostPipeline
+     * @webglOnly
+     * @since 3.50.0
+     *
+     * @param {string|Phaser.Renderer.WebGL.Pipelines.PostFXPipeline} pipeline - The string-based name of the pipeline, or a pipeline class.
+     *
+     * @return {this} This Game Object.
+     */
+    removePostPipeline: function (pipeline)
+    {
+        var pipelines = this.postPipelines;
+
+        for (var i = 0; i < pipelines.length; i++)
+        {
+            var instance = pipelines[i];
+
+            if ((typeof pipeline === 'string' && instance.name === pipeline) || instance instanceof pipeline)
+            {
+                instance.destroy();
+
+                SpliceOne(pipelines, i);
+
+                return this;
+            }
+        }
+
+        return this;
     },
 
     /**
@@ -6194,7 +6478,7 @@ var Texture = {
      * @since 3.0.0
      *
      * @param {(string|Phaser.Textures.Texture)} key - The key of the texture to be used, as stored in the Texture Manager, or a Texture instance.
-     * @param {(string|integer)} [frame] - The name or index of the frame within the Texture.
+     * @param {(string|number)} [frame] - The name or index of the frame within the Texture.
      *
      * @return {this} This Game Object instance.
      */
@@ -6218,7 +6502,7 @@ var Texture = {
      * @method Phaser.GameObjects.Components.Texture#setFrame
      * @since 3.0.0
      *
-     * @param {(string|integer)} frame - The name or index of the frame within the Texture.
+     * @param {(string|number)} frame - The name or index of the frame within the Texture.
      * @param {boolean} [updateSize=true] - Should this call adjust the size of the Game Object?
      * @param {boolean} [updateOrigin=true] - Should this call adjust the origin of the Game Object?
      *
@@ -6323,24 +6607,24 @@ var TextureCrop = {
 
     /**
      * Applies a crop to a texture based Game Object, such as a Sprite or Image.
-     * 
+     *
      * The crop is a rectangle that limits the area of the texture frame that is visible during rendering.
-     * 
+     *
      * Cropping a Game Object does not change its size, dimensions, physics body or hit area, it just
      * changes what is shown when rendered.
-     * 
+     *
      * The crop coordinates are relative to the texture frame, not the Game Object, meaning 0 x 0 is the top-left.
-     * 
+     *
      * Therefore, if you had a Game Object that had an 800x600 sized texture, and you wanted to show only the left
      * half of it, you could call `setCrop(0, 0, 400, 600)`.
-     * 
+     *
      * It is also scaled to match the Game Object scale automatically. Therefore a crop rect of 100x50 would crop
      * an area of 200x100 when applied to a Game Object that had a scale factor of 2.
-     * 
+     *
      * You can either pass in numeric values directly, or you can provide a single Rectangle object as the first argument.
-     * 
+     *
      * Call this method with no arguments at all to reset the crop, or toggle the property `isCropped` to `false`.
-     * 
+     *
      * You should do this if the crop rectangle becomes the same size as the frame itself, as it will allow
      * the renderer to skip several internal calculations.
      *
@@ -6388,7 +6672,7 @@ var TextureCrop = {
      * @since 3.0.0
      *
      * @param {string} key - The key of the texture to be used, as stored in the Texture Manager.
-     * @param {(string|integer)} [frame] - The name or index of the frame within the Texture.
+     * @param {(string|number)} [frame] - The name or index of the frame within the Texture.
      *
      * @return {this} This Game Object instance.
      */
@@ -6412,7 +6696,7 @@ var TextureCrop = {
      * @method Phaser.GameObjects.Components.TextureCrop#setFrame
      * @since 3.0.0
      *
-     * @param {(string|integer)} frame - The name or index of the frame within the Texture.
+     * @param {(string|number)} frame - The name or index of the frame within the Texture.
      * @param {boolean} [updateSize=true] - Should this call adjust the size of the Game Object?
      * @param {boolean} [updateOrigin=true] - Should this call adjust the origin of the Game Object?
      *
@@ -6465,7 +6749,7 @@ var TextureCrop = {
      * @method Phaser.GameObjects.Components.TextureCrop#resetCropObject
      * @private
      * @since 3.12.0
-     * 
+     *
      * @return {object} The crop object.
      */
     resetCropObject: function ()
@@ -6604,10 +6888,10 @@ var Tint = {
      * @webglOnly
      * @since 3.0.0
      *
-     * @param {integer} [topLeft=0xffffff] - The tint being applied to the top-left of the Game Object. If no other values are given this value is applied evenly, tinting the whole Game Object.
-     * @param {integer} [topRight] - The tint being applied to the top-right of the Game Object.
-     * @param {integer} [bottomLeft] - The tint being applied to the bottom-left of the Game Object.
-     * @param {integer} [bottomRight] - The tint being applied to the bottom-right of the Game Object.
+     * @param {number} [topLeft=0xffffff] - The tint being applied to the top-left of the Game Object. If no other values are given this value is applied evenly, tinting the whole Game Object.
+     * @param {number} [topRight] - The tint being applied to the top-right of the Game Object.
+     * @param {number} [bottomLeft] - The tint being applied to the bottom-left of the Game Object.
+     * @param {number} [bottomRight] - The tint being applied to the bottom-right of the Game Object.
      *
      * @return {this} This Game Object instance.
      */
@@ -6653,10 +6937,10 @@ var Tint = {
      * @webglOnly
      * @since 3.11.0
      *
-     * @param {integer} [topLeft=0xffffff] - The tint being applied to the top-left of the Game Object. If not other values are given this value is applied evenly, tinting the whole Game Object.
-     * @param {integer} [topRight] - The tint being applied to the top-right of the Game Object.
-     * @param {integer} [bottomLeft] - The tint being applied to the bottom-left of the Game Object.
-     * @param {integer} [bottomRight] - The tint being applied to the bottom-right of the Game Object.
+     * @param {number} [topLeft=0xffffff] - The tint being applied to the top-left of the Game Object. If not other values are given this value is applied evenly, tinting the whole Game Object.
+     * @param {number} [topRight] - The tint being applied to the top-right of the Game Object.
+     * @param {number} [bottomLeft] - The tint being applied to the bottom-left of the Game Object.
+     * @param {number} [bottomRight] - The tint being applied to the bottom-right of the Game Object.
      *
      * @return {this} This Game Object instance.
      */
@@ -6674,7 +6958,7 @@ var Tint = {
      * This property is a setter-only. Use the properties `tintTopLeft` etc to read the current tint value.
      *
      * @name Phaser.GameObjects.Components.Tint#tint
-     * @type {integer}
+     * @type {number}
      * @webglOnly
      * @since 3.0.0
      */
@@ -7003,7 +7287,7 @@ var Transform = {
      * If you prefer to work in radians, see the `rotation` property instead.
      *
      * @name Phaser.GameObjects.Components.Transform#angle
-     * @type {integer}
+     * @type {number}
      * @default 0
      * @since 3.0.0
      */
@@ -7691,13 +7975,13 @@ var TransformMatrix = new Class({
             if (a || b)
             {
                 // var r = Math.sqrt(a * a + b * b);
-    
+
                 return (b > 0) ? Math.acos(a / this.scaleX) : -Math.acos(a / this.scaleX);
             }
             else if (c || d)
             {
                 // var s = Math.sqrt(c * c + d * d);
-    
+
                 return MATH_CONST.TAU - ((d > 0) ? Math.acos(-c / this.scaleY) : -Math.acos(c / this.scaleY));
             }
             else
@@ -7840,7 +8124,7 @@ var TransformMatrix = new Class({
 
     /**
      * Multiply this Matrix by the given Matrix.
-     * 
+     *
      * If an `out` Matrix is given then the results will be stored in it.
      * If it is not given, this matrix will be updated in place instead.
      * Use an `out` Matrix if you do not wish to mutate this matrix.
@@ -7886,7 +8170,7 @@ var TransformMatrix = new Class({
 
     /**
      * Multiply this Matrix by the matrix given, including the offset.
-     * 
+     *
      * The offsetX is added to the tx value: `offsetX * a + offsetY * c + tx`.
      * The offsetY is added to the ty value: `offsetY * b + offsetY * d + ty`.
      *
@@ -8120,7 +8404,7 @@ var TransformMatrix = new Class({
 
     /**
      * Copy the values in this Matrix to the array given.
-     * 
+     *
      * Where array indexes 0, 1, 2, 3, 4 and 5 are mapped to a, b, c, d, e and f.
      *
      * @method Phaser.GameObjects.Components.TransformMatrix#copyToArray
@@ -8182,9 +8466,9 @@ var TransformMatrix = new Class({
 
     /**
      * Decompose this Matrix into its translation, scale and rotation values using QR decomposition.
-     * 
+     *
      * The result must be applied in the following order to reproduce the current matrix:
-     * 
+     *
      * translate -> rotate -> scale
      *
      * @method Phaser.GameObjects.Components.TransformMatrix#decomposeMatrix
@@ -8276,7 +8560,7 @@ var TransformMatrix = new Class({
     /**
      * Takes the `x` and `y` values and returns a new position in the `output` vector that is the inverse of
      * the current matrix with its transformation applied.
-     * 
+     *
      * Can be used to translate points from world to local space.
      *
      * @method Phaser.GameObjects.Components.TransformMatrix#applyInverse
@@ -8315,7 +8599,7 @@ var TransformMatrix = new Class({
      *
      * @method Phaser.GameObjects.Components.TransformMatrix#getX
      * @since 3.12.0
-     * 
+     *
      * @param {number} x - The x value.
      * @param {number} y - The y value.
      *
@@ -8332,7 +8616,7 @@ var TransformMatrix = new Class({
      *
      * @method Phaser.GameObjects.Components.TransformMatrix#getY
      * @since 3.12.0
-     * 
+     *
      * @param {number} x - The x value.
      * @param {number} y - The y value.
      *
@@ -8345,12 +8629,12 @@ var TransformMatrix = new Class({
 
     /**
      * Returns the X component of this matrix multiplied by the given values.
-     * 
+     *
      * This is the same as `x * a + y * c + e`, optionally passing via `Math.round`.
      *
      * @method Phaser.GameObjects.Components.TransformMatrix#getXRound
      * @since 3.50.0
-     * 
+     *
      * @param {number} x - The x value.
      * @param {number} y - The y value.
      * @param {boolean} [round=false] - Math.round the resulting value?
@@ -8371,12 +8655,12 @@ var TransformMatrix = new Class({
 
     /**
      * Returns the Y component of this matrix multiplied by the given values.
-     * 
+     *
      * This is the same as `x * b + y * d + f`, optionally passing via `Math.round`.
      *
      * @method Phaser.GameObjects.Components.TransformMatrix#getYRound
      * @since 3.50.0
-     * 
+     *
      * @param {number} x - The x value.
      * @param {number} y - The y value.
      * @param {boolean} [round=false] - Math.round the resulting value?
@@ -8648,6 +8932,7 @@ var Vector2 = __webpack_require__(/*! ../../math/Vector2 */ "../../../src/math/V
  * @extends Phaser.GameObjects.Components.ComputedSize
  * @extends Phaser.GameObjects.Components.Depth
  * @extends Phaser.GameObjects.Components.Mask
+ * @extends Phaser.GameObjects.Components.Pipeline
  * @extends Phaser.GameObjects.Components.Transform
  * @extends Phaser.GameObjects.Components.Visible
  *
@@ -8666,6 +8951,7 @@ var Container = new Class({
         Components.ComputedSize,
         Components.Depth,
         Components.Mask,
+        Components.Pipeline,
         Components.Transform,
         Components.Visible,
         Render
@@ -8712,7 +8998,7 @@ var Container = new Class({
          * the maximum limit the Container can grow in size to.
          *
          * @name Phaser.GameObjects.Container#maxSize
-         * @type {integer}
+         * @type {number}
          * @default -1
          * @since 3.4.0
          */
@@ -8722,7 +9008,7 @@ var Container = new Class({
          * The cursor position.
          *
          * @name Phaser.GameObjects.Container#position
-         * @type {integer}
+         * @type {number}
          * @since 3.4.0
          */
         this.position = 0;
@@ -8799,7 +9085,7 @@ var Container = new Class({
          * @name Phaser.GameObjects.Container#scrollFactorX
          * @type {number}
          * @default 1
-         * @since 3.0.0
+         * @since 3.4.0
          */
         this.scrollFactorX = 1;
 
@@ -8826,9 +9112,11 @@ var Container = new Class({
          * @name Phaser.GameObjects.Container#scrollFactorY
          * @type {number}
          * @default 1
-         * @since 3.0.0
+         * @since 3.4.0
          */
         this.scrollFactorY = 1;
+
+        this.initPipeline();
 
         this.setPosition(x, y);
 
@@ -8849,6 +9137,7 @@ var Container = new Class({
      * @name Phaser.GameObjects.Container#originX
      * @type {number}
      * @readonly
+     * @override
      * @since 3.4.0
      */
     originX: {
@@ -8867,6 +9156,7 @@ var Container = new Class({
      * @name Phaser.GameObjects.Container#originY
      * @type {number}
      * @readonly
+     * @override
      * @since 3.4.0
      */
     originY: {
@@ -8885,6 +9175,7 @@ var Container = new Class({
      * @name Phaser.GameObjects.Container#displayOriginX
      * @type {number}
      * @readonly
+     * @override
      * @since 3.4.0
      */
     displayOriginX: {
@@ -8903,6 +9194,7 @@ var Container = new Class({
      * @name Phaser.GameObjects.Container#displayOriginY
      * @type {number}
      * @readonly
+     * @override
      * @since 3.4.0
      */
     displayOriginY: {
@@ -9148,7 +9440,7 @@ var Container = new Class({
      * @since 3.4.0
      *
      * @param {Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]} child - The Game Object, or array of Game Objects, to add to the Container.
-     * @param {integer} [index=0] - The position to insert the Game Object/s at.
+     * @param {number} [index=0] - The position to insert the Game Object/s at.
      *
      * @return {this} This Container instance.
      */
@@ -9165,7 +9457,7 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#getAt
      * @since 3.4.0
      *
-     * @param {integer} index - The position to get the Game Object from.
+     * @param {number} index - The position to get the Game Object from.
      *
      * @return {?Phaser.GameObjects.GameObject} The Game Object at the specified index, or `null` if none found.
      */
@@ -9182,7 +9474,7 @@ var Container = new Class({
      *
      * @param {Phaser.GameObjects.GameObject} child - The Game Object to search for in this Container.
      *
-     * @return {integer} The index of the Game Object in this Container, or -1 if not found.
+     * @return {number} The index of the Game Object in this Container, or -1 if not found.
      */
     getIndex: function (child)
     {
@@ -9243,8 +9535,8 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#getRandom
      * @since 3.4.0
      *
-     * @param {integer} [startIndex=0] - An optional start index.
-     * @param {integer} [length] - An optional length, the total number of elements (from the startIndex) to choose from.
+     * @param {number} [startIndex=0] - An optional start index.
+     * @param {number} [length] - An optional length, the total number of elements (from the startIndex) to choose from.
      *
      * @return {?Phaser.GameObjects.GameObject} A random child from the Container, or `null` if the Container is empty.
      */
@@ -9268,8 +9560,8 @@ var Container = new Class({
      *
      * @param {string} property - The property to test on each Game Object in the Container.
      * @param {*} value - The value to test the property against. Must pass a strict (`===`) comparison check.
-     * @param {integer} [startIndex=0] - An optional start index to search from.
-     * @param {integer} [endIndex=Container.length] - An optional end index to search up to (but not included)
+     * @param {number} [startIndex=0] - An optional start index to search from.
+     * @param {number} [endIndex=Container.length] - An optional end index to search up to (but not included)
      *
      * @return {?Phaser.GameObjects.GameObject} The first matching Game Object, or `null` if none was found.
      */
@@ -9298,8 +9590,8 @@ var Container = new Class({
      *
      * @param {string} [property] - The property to test on each Game Object in the Container.
      * @param {any} [value] - If property is set then the `property` must strictly equal this value to be included in the results.
-     * @param {integer} [startIndex=0] - An optional start index to search from.
-     * @param {integer} [endIndex=Container.length] - An optional end index to search up to (but not included)
+     * @param {number} [startIndex=0] - An optional start index to search from.
+     * @param {number} [endIndex=Container.length] - An optional end index to search up to (but not included)
      *
      * @return {Phaser.GameObjects.GameObject[]} An array of matching Game Objects from this Container.
      */
@@ -9321,10 +9613,10 @@ var Container = new Class({
      *
      * @param {string} property - The property to check.
      * @param {any} value - The value to check.
-     * @param {integer} [startIndex=0] - An optional start index to search from.
-     * @param {integer} [endIndex=Container.length] - An optional end index to search up to (but not included)
+     * @param {number} [startIndex=0] - An optional start index to search from.
+     * @param {number} [endIndex=Container.length] - An optional end index to search up to (but not included)
      *
-     * @return {integer} The total number of Game Objects in this Container with a property matching the given value.
+     * @return {number} The total number of Game Objects in this Container with a property matching the given value.
      */
     count: function (property, value, startIndex, endIndex)
     {
@@ -9362,7 +9654,7 @@ var Container = new Class({
      * @since 3.4.0
      *
      * @param {Phaser.GameObjects.GameObject} child - The Game Object to move.
-     * @param {integer} index - The new position of the Game Object in this Container.
+     * @param {number} index - The new position of the Game Object in this Container.
      *
      * @return {this} This Container instance.
      */
@@ -9416,7 +9708,7 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#removeAt
      * @since 3.4.0
      *
-     * @param {integer} index - The index of the Game Object to be removed.
+     * @param {number} index - The index of the Game Object to be removed.
      * @param {boolean} [destroyChild=false] - Optionally call `destroy` on the Game Object if successfully removed from this Container.
      *
      * @return {this} This Container instance.
@@ -9441,8 +9733,8 @@ var Container = new Class({
      * @method Phaser.GameObjects.Container#removeBetween
      * @since 3.4.0
      *
-     * @param {integer} [startIndex=0] - An optional start index to search from.
-     * @param {integer} [endIndex=Container.length] - An optional end index to search up to (but not included)
+     * @param {number} [startIndex=0] - An optional start index to search from.
+     * @param {number} [endIndex=Container.length] - An optional end index to search up to (but not included)
      * @param {boolean} [destroyChild=false] - Optionally call `destroy` on each Game Object successfully removed from this Container.
      *
      * @return {this} This Container instance.
@@ -9649,8 +9941,8 @@ var Container = new Class({
      *
      * @param {string} property - The property that must exist on the Game Object.
      * @param {any} value - The value to get the property to.
-     * @param {integer} [startIndex=0] - An optional start index to search from.
-     * @param {integer} [endIndex=Container.length] - An optional end index to search up to (but not included)
+     * @param {number} [startIndex=0] - An optional start index to search from.
+     * @param {number} [endIndex=Container.length] - An optional end index to search up to (but not included)
      *
      * @return {this} This Container instance.
      */
@@ -9762,7 +10054,7 @@ var Container = new Class({
      * them from physics bodies if not accounted for in your code.
      *
      * @method Phaser.GameObjects.Container#setScrollFactor
-     * @since 3.0.0
+     * @since 3.4.0
      *
      * @param {number} x - The horizontal scroll factor of this Game Object.
      * @param {number} [y=x] - The vertical scroll factor of this Game Object. If not set it will use the `x` value.
@@ -9791,7 +10083,7 @@ var Container = new Class({
      * The number of Game Objects inside this Container.
      *
      * @name Phaser.GameObjects.Container#length
-     * @type {integer}
+     * @type {number}
      * @readonly
      * @since 3.4.0
      */
@@ -10120,8 +10412,9 @@ module.exports = {
 var ContainerWebGLRenderer = function (renderer, container, camera, parentMatrix)
 {
     var children = container.list;
+    var childCount = children.length;
 
-    if (children.length === 0)
+    if (childCount === 0)
     {
         return;
     }
@@ -10141,6 +10434,8 @@ var ContainerWebGLRenderer = function (renderer, container, camera, parentMatrix
         transformMatrix.applyITRS(container.x, container.y, container.rotation, container.scaleX, container.scaleY);
     }
 
+    renderer.pipelines.preBatch(container);
+
     var containerHasBlendMode = (container.blendMode !== -1);
 
     if (!containerHasBlendMode)
@@ -10153,9 +10448,6 @@ var ContainerWebGLRenderer = function (renderer, container, camera, parentMatrix
 
     var scrollFactorX = container.scrollFactorX;
     var scrollFactorY = container.scrollFactorY;
-
-    var list = children;
-    var childCount = children.length;
 
     for (var i = 0; i < childCount; i++)
     {
@@ -10212,7 +10504,7 @@ var ContainerWebGLRenderer = function (renderer, container, camera, parentMatrix
             renderer.currentType = type;
         }
 
-        renderer.nextTypeMatch = (i < childCount - 1) ? (list[i + 1].type === renderer.currentType) : false;
+        renderer.nextTypeMatch = (i < childCount - 1) ? (children[i + 1].type === renderer.currentType) : false;
 
         //  Set parent values
         child.setScrollFactor(childScrollFactorX * scrollFactorX, childScrollFactorY * scrollFactorY);
@@ -10235,6 +10527,8 @@ var ContainerWebGLRenderer = function (renderer, container, camera, parentMatrix
 
         renderer.newType = false;
     }
+
+    renderer.pipelines.postBatch(container);
 };
 
 module.exports = ContainerWebGLRenderer;
@@ -10397,8 +10691,8 @@ module.exports = 'complete';
  * @since 3.20.0
  * 
  * @param {Phaser.GameObjects.Video} video - The Video Game Object which raised the event.
- * @param {integer} width - The width of the video.
- * @param {integer} height - The height of the video.
+ * @param {number} width - The width of the video.
+ * @param {number} height - The height of the video.
  */
 module.exports = 'created';
 
@@ -10717,7 +11011,7 @@ var GEOM_CONST = {
      * A Circle Geometry object type.
      * 
      * @name Phaser.Geom.CIRCLE
-     * @type {integer}
+     * @type {number}
      * @since 3.19.0
      */
     CIRCLE: 0,
@@ -10726,7 +11020,7 @@ var GEOM_CONST = {
      * An Ellipse Geometry object type.
      * 
      * @name Phaser.Geom.ELLIPSE
-     * @type {integer}
+     * @type {number}
      * @since 3.19.0
      */
     ELLIPSE: 1,
@@ -10735,7 +11029,7 @@ var GEOM_CONST = {
      * A Line Geometry object type.
      * 
      * @name Phaser.Geom.LINE
-     * @type {integer}
+     * @type {number}
      * @since 3.19.0
      */
     LINE: 2,
@@ -10744,7 +11038,7 @@ var GEOM_CONST = {
      * A Point Geometry object type.
      * 
      * @name Phaser.Geom.POINT
-     * @type {integer}
+     * @type {number}
      * @since 3.19.0
      */
     POINT: 3,
@@ -10753,7 +11047,7 @@ var GEOM_CONST = {
      * A Polygon Geometry object type.
      * 
      * @name Phaser.Geom.POLYGON
-     * @type {integer}
+     * @type {number}
      * @since 3.19.0
      */
     POLYGON: 4,
@@ -10762,7 +11056,7 @@ var GEOM_CONST = {
      * A Rectangle Geometry object type.
      * 
      * @name Phaser.Geom.RECTANGLE
-     * @type {integer}
+     * @type {number}
      * @since 3.19.0
      */
     RECTANGLE: 5,
@@ -10771,7 +11065,7 @@ var GEOM_CONST = {
      * A Triangle Geometry object type.
      * 
      * @name Phaser.Geom.TRIANGLE
-     * @type {integer}
+     * @type {number}
      * @since 3.19.0
      */
     TRIANGLE: 6
@@ -10857,7 +11151,7 @@ var Point = __webpack_require__(/*! ../point/Point */ "../../../src/geom/point/P
  * @generic {Phaser.Geom.Point[]} O - [out,$return]
  *
  * @param {Phaser.Geom.Line} line - The line.
- * @param {integer} quantity - The number of points to place on the line. Set to `0` to use `stepRate` instead.
+ * @param {number} quantity - The number of points to place on the line. Set to `0` to use `stepRate` instead.
  * @param {number} [stepRate] - The distance between each point on the line. When set, `quantity` is implied and should be set to `0`.
  * @param {(array|Phaser.Geom.Point[])} [out] - An optional array of Points, or point-like objects, to store the coordinates of the points on the line.
  *
@@ -10980,7 +11274,7 @@ var Line = new Class({
          * Used for fast type comparisons.
          *
          * @name Phaser.Geom.Line#type
-         * @type {integer}
+         * @type {number}
          * @readonly
          * @since 3.19.0
          */
@@ -11054,8 +11348,8 @@ var Line = new Class({
      *
      * @generic {Phaser.Geom.Point[]} O - [output,$return]
      *
-     * @param {integer} quantity - The number of points to place on the line. Set to `0` to use `stepRate` instead.
-     * @param {integer} [stepRate] - The distance between each point on the line. When set, `quantity` is implied and should be set to `0`.
+     * @param {number} quantity - The number of points to place on the line. Set to `0` to use `stepRate` instead.
+     * @param {number} [stepRate] - The distance between each point on the line. When set, `quantity` is implied and should be set to `0`.
      * @param {(array|Phaser.Geom.Point[])} [output] - An optional array of Points, or point-like objects, to store the coordinates of the points on the line.
      *
      * @return {(array|Phaser.Geom.Point[])} An array of Points, or point-like objects, containing the coordinates of the points on the line.
@@ -11359,7 +11653,7 @@ var Point = new Class({
          * Used for fast type comparisons.
          *
          * @name Phaser.Geom.Point#type
-         * @type {integer}
+         * @type {number}
          * @readonly
          * @since 3.19.0
          */
@@ -11570,7 +11864,7 @@ var Perimeter = __webpack_require__(/*! ./Perimeter */ "../../../src/geom/rectan
  *
  * @param {Phaser.Geom.Rectangle} rectangle - The Rectangle object to get the points from.
  * @param {number} step - Step between points. Used to calculate the number of points to return when quantity is falsey. Ignored if quantity is positive.
- * @param {integer} quantity - The number of evenly spaced points from the rectangles perimeter to return. If falsey, step param will be used to calculate the number of points.
+ * @param {number} quantity - The number of evenly spaced points from the rectangles perimeter to return. If falsey, step param will be used to calculate the number of points.
  * @param {(array|Phaser.Geom.Point[])} [out] - An optional array to store the points in.
  *
  * @return {(array|Phaser.Geom.Point[])} An array of Points from the perimeter of the rectangle.
@@ -11727,7 +12021,7 @@ var Rectangle = new Class({
          * Used for fast type comparisons.
          *
          * @name Phaser.Geom.Rectangle#type
-         * @type {integer}
+         * @type {number}
          * @readonly
          * @since 3.19.0
          */
@@ -11820,7 +12114,7 @@ var Rectangle = new Class({
      *
      * @generic {Phaser.Geom.Point[]} O - [output,$return]
      *
-     * @param {integer} quantity - The number of points to return. Set to `false` or 0 to return an arbitrary number of points (`perimeter / stepRate`) evenly spaced around the Rectangle based on the `stepRate`.
+     * @param {number} quantity - The number of points to return. Set to `false` or 0 to return an arbitrary number of points (`perimeter / stepRate`) evenly spaced around the Rectangle based on the `stepRate`.
      * @param {number} [stepRate] - If `quantity` is 0, determines the normalized distance between each returned point.
      * @param {(array|Phaser.Geom.Point[])} [output] - An array to which to append the points.
      *
@@ -12389,7 +12683,7 @@ var File = new Class({
          * The current state of the file. One of the FILE_CONST values.
          *
          * @name Phaser.Loader.File#state
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.state = (typeof(this.url) === 'function') ? CONST.FILE_POPULATED : CONST.FILE_PENDING;
@@ -13047,7 +13341,7 @@ var MultiFile = new Class({
          * The current index being used by multi-file loaders to avoid key clashes.
          *
          * @name Phaser.Loader.MultiFile#multiKeyIndex
-         * @type {integer}
+         * @type {number}
          * @private
          * @since 3.20.0
          */
@@ -13076,7 +13370,7 @@ var MultiFile = new Class({
          * The number of files to load.
          *
          * @name Phaser.Loader.MultiFile#pending
-         * @type {integer}
+         * @type {number}
          * @since 3.7.0
          */
 
@@ -13086,7 +13380,7 @@ var MultiFile = new Class({
          * The number of files that failed to load.
          *
          * @name Phaser.Loader.MultiFile#failed
-         * @type {integer}
+         * @type {number}
          * @default 0
          * @since 3.7.0
          */
@@ -13326,7 +13620,7 @@ module.exports = XHRLoader;
  * @param {boolean} [async=true] - Should the XHR request use async or not?
  * @param {string} [user=''] - Optional username for the XHR request.
  * @param {string} [password=''] - Optional password for the XHR request.
- * @param {integer} [timeout=0] - Optional XHR timeout value.
+ * @param {number} [timeout=0] - Optional XHR timeout value.
  * @param {boolean} [withCredentials=false] - Optional XHR withCredentials value.
  *
  * @return {Phaser.Types.Loader.XHRSettingsObject} The XHRSettings object as used by the Loader.
@@ -13397,7 +13691,7 @@ var FILE_CONST = {
      * The Loader is idle.
      * 
      * @name Phaser.Loader.LOADER_IDLE
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     LOADER_IDLE: 0,
@@ -13406,7 +13700,7 @@ var FILE_CONST = {
      * The Loader is actively loading.
      * 
      * @name Phaser.Loader.LOADER_LOADING
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     LOADER_LOADING: 1,
@@ -13415,7 +13709,7 @@ var FILE_CONST = {
      * The Loader is processing files is has loaded.
      * 
      * @name Phaser.Loader.LOADER_PROCESSING
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     LOADER_PROCESSING: 2,
@@ -13424,7 +13718,7 @@ var FILE_CONST = {
      * The Loader has completed loading and processing.
      * 
      * @name Phaser.Loader.LOADER_COMPLETE
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     LOADER_COMPLETE: 3,
@@ -13433,7 +13727,7 @@ var FILE_CONST = {
      * The Loader is shutting down.
      * 
      * @name Phaser.Loader.LOADER_SHUTDOWN
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     LOADER_SHUTDOWN: 4,
@@ -13442,7 +13736,7 @@ var FILE_CONST = {
      * The Loader has been destroyed.
      * 
      * @name Phaser.Loader.LOADER_DESTROYED
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     LOADER_DESTROYED: 5,
@@ -13451,7 +13745,7 @@ var FILE_CONST = {
      * File is in the load queue but not yet started
      * 
      * @name Phaser.Loader.FILE_PENDING
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     FILE_PENDING: 10,
@@ -13460,7 +13754,7 @@ var FILE_CONST = {
      * File has been started to load by the loader (onLoad called)
      * 
      * @name Phaser.Loader.FILE_LOADING
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     FILE_LOADING: 11,
@@ -13469,7 +13763,7 @@ var FILE_CONST = {
      * File has loaded successfully, awaiting processing    
      * 
      * @name Phaser.Loader.FILE_LOADED
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     FILE_LOADED: 12,
@@ -13478,7 +13772,7 @@ var FILE_CONST = {
      * File failed to load
      * 
      * @name Phaser.Loader.FILE_FAILED
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     FILE_FAILED: 13,
@@ -13487,7 +13781,7 @@ var FILE_CONST = {
      * File is being processed (onProcess callback)
      * 
      * @name Phaser.Loader.FILE_PROCESSING
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     FILE_PROCESSING: 14,
@@ -13496,7 +13790,7 @@ var FILE_CONST = {
      * The File has errored somehow during processing.
      * 
      * @name Phaser.Loader.FILE_ERRORED
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     FILE_ERRORED: 16,
@@ -13505,7 +13799,7 @@ var FILE_CONST = {
      * File has finished processing.
      * 
      * @name Phaser.Loader.FILE_COMPLETE
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     FILE_COMPLETE: 17,
@@ -13514,7 +13808,7 @@ var FILE_CONST = {
      * File has been destroyed
      * 
      * @name Phaser.Loader.FILE_DESTROYED
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     FILE_DESTROYED: 18,
@@ -13523,7 +13817,7 @@ var FILE_CONST = {
      * File was populated from local data and doesn't need an HTTP request
      * 
      * @name Phaser.Loader.FILE_POPULATED
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     FILE_POPULATED: 19
@@ -13595,8 +13889,8 @@ module.exports = 'addfile';
  * @since 3.0.0
  * 
  * @param {Phaser.Loader.LoaderPlugin} loader - A reference to the Loader Plugin that dispatched this event.
- * @param {integer} totalComplete - The total number of files that successfully loaded.
- * @param {integer} totalFailed - The total number of files that failed to load.
+ * @param {number} totalComplete - The total number of files that successfully loaded.
+ * @param {number} totalFailed - The total number of files that failed to load.
  */
 module.exports = 'complete';
 
@@ -14713,10 +15007,10 @@ module.exports = Bernstein;
  * @function Phaser.Math.Between
  * @since 3.0.0
  *
- * @param {integer} min - The minimum value.
- * @param {integer} max - The maximum value.
+ * @param {number} min - The minimum value.
+ * @param {number} max - The maximum value.
  *
- * @return {integer} The random integer.
+ * @return {number} The random integer.
  */
 var Between = function (min, max)
 {
@@ -14793,7 +15087,7 @@ module.exports = CatmullRom;
  *
  * @param {number} value - The value to round.
  * @param {number} [place=0] - The place to round to.
- * @param {integer} [base=10] - The base to round in. Default is 10 for decimal.
+ * @param {number} [base=10] - The base to round in. Default is 10 for decimal.
  *
  * @return {number} The rounded value.
  */
@@ -14868,7 +15162,7 @@ var CONST = __webpack_require__(/*! ./const */ "../../../src/math/const.js");
  * @function Phaser.Math.DegToRad
  * @since 3.0.0
  *
- * @param {integer} degrees - The angle (in degrees) to convert to radians.
+ * @param {number} degrees - The angle (in degrees) to convert to radians.
  *
  * @return {number} The given angle converted to radians.
  */
@@ -15305,8 +15599,8 @@ module.exports = FloatBetween;
  * @since 3.0.0
  *
  * @param {number} value - The value to round.
- * @param {integer} [place=0] - The place to round to.
- * @param {integer} [base=10] - The base to round in. Default is 10 for decimal.
+ * @param {number} [place=0] - The place to round to.
+ * @param {number} [base=10] - The base to round in. Default is 10 for decimal.
  *
  * @return {number} The rounded value.
  */
@@ -15384,7 +15678,7 @@ module.exports = FromPercent;
  * @since 3.0.0
  *
  * @param {number} distance - The distance.
- * @param {integer} time - The time, in seconds.
+ * @param {number} time - The time, in seconds.
  *
  * @return {number} The speed, in distance per ms.
  *
@@ -19114,7 +19408,7 @@ var CONST = __webpack_require__(/*! ./const */ "../../../src/math/const.js");
  *
  * @param {number} radians - The angle in radians to convert ot degrees.
  *
- * @return {integer} The given angle converted to degrees.
+ * @return {number} The given angle converted to degrees.
  */
 var RadToDeg = function (radians)
 {
@@ -19558,8 +19852,8 @@ module.exports = RoundAwayFromZero;
  * @since 3.0.0
  *
  * @param {number} value - The value to round.
- * @param {integer} [place=0] - The place to round to. Positive to round the units, negative to round the decimal.
- * @param {integer} [base=10] - The base to round in. Default is 10 for decimal.
+ * @param {number} [place=0] - The place to round to. Positive to round the units, negative to round the decimal.
+ * @param {number} [base=10] - The base to round in. Default is 10 for decimal.
  *
  * @return {number} The rounded value.
  */
@@ -19757,9 +20051,9 @@ var Vector2 = __webpack_require__(/*! ./Vector2 */ "../../../src/math/Vector2.js
  * @function Phaser.Math.ToXY
  * @since 3.19.0
  *
- * @param {integer} index - The position within the grid to get the x/y value for.
- * @param {integer} width - The width of the grid.
- * @param {integer} height - The height of the grid.
+ * @param {number} index - The position within the grid to get the x/y value for.
+ * @param {number} width - The width of the grid.
+ * @param {number} height - The height of the grid.
  * @param {Phaser.Math.Vector2} [out] - An optional Vector2 to store the result in. If not given, a new Vector2 instance will be created.
  *
  * @return {Phaser.Math.Vector2} A Vector2 where the x and y properties contain the given grid index.
@@ -25704,7 +25998,7 @@ module.exports = {
  *
  * @param {number} value - The value.
  *
- * @return {integer} The nearest power of 2 to `value`.
+ * @return {number} The nearest power of 2 to `value`.
  */
 var GetPowerOfTwo = function (value)
 {
@@ -26797,7 +27091,7 @@ module.exports = {
      * Skips the Blend Mode check in the renderer.
      * 
      * @name Phaser.BlendModes.SKIP_CHECK
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26808,7 +27102,7 @@ module.exports = {
      * This is the default setting and draws new shapes on top of the existing canvas content.
      * 
      * @name Phaser.BlendModes.NORMAL
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26819,7 +27113,7 @@ module.exports = {
      * Where both shapes overlap the color is determined by adding color values.
      * 
      * @name Phaser.BlendModes.ADD
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26830,7 +27124,7 @@ module.exports = {
      * The pixels are of the top layer are multiplied with the corresponding pixel of the bottom layer. A darker picture is the result.
      * 
      * @name Phaser.BlendModes.MULTIPLY
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26841,7 +27135,7 @@ module.exports = {
      * The pixels are inverted, multiplied, and inverted again. A lighter picture is the result (opposite of multiply)
      * 
      * @name Phaser.BlendModes.SCREEN
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26852,7 +27146,7 @@ module.exports = {
      * A combination of multiply and screen. Dark parts on the base layer become darker, and light parts become lighter.
      * 
      * @name Phaser.BlendModes.OVERLAY
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26863,7 +27157,7 @@ module.exports = {
      * Retains the darkest pixels of both layers.
      * 
      * @name Phaser.BlendModes.DARKEN
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26874,7 +27168,7 @@ module.exports = {
      * Retains the lightest pixels of both layers.
      * 
      * @name Phaser.BlendModes.LIGHTEN
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26885,7 +27179,7 @@ module.exports = {
      * Divides the bottom layer by the inverted top layer.
      * 
      * @name Phaser.BlendModes.COLOR_DODGE
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26896,7 +27190,7 @@ module.exports = {
      * Divides the inverted bottom layer by the top layer, and then inverts the result.
      * 
      * @name Phaser.BlendModes.COLOR_BURN
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26907,7 +27201,7 @@ module.exports = {
      * A combination of multiply and screen like overlay, but with top and bottom layer swapped.
      * 
      * @name Phaser.BlendModes.HARD_LIGHT
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26918,7 +27212,7 @@ module.exports = {
      * A softer version of hard-light. Pure black or white does not result in pure black or white.
      * 
      * @name Phaser.BlendModes.SOFT_LIGHT
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26929,7 +27223,7 @@ module.exports = {
      * Subtracts the bottom layer from the top layer or the other way round to always get a positive value.
      * 
      * @name Phaser.BlendModes.DIFFERENCE
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26940,7 +27234,7 @@ module.exports = {
      * Like difference, but with lower contrast.
      * 
      * @name Phaser.BlendModes.EXCLUSION
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26951,7 +27245,7 @@ module.exports = {
      * Preserves the luma and chroma of the bottom layer, while adopting the hue of the top layer.
      * 
      * @name Phaser.BlendModes.HUE
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26962,7 +27256,7 @@ module.exports = {
      * Preserves the luma and hue of the bottom layer, while adopting the chroma of the top layer.
      * 
      * @name Phaser.BlendModes.SATURATION
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26973,7 +27267,7 @@ module.exports = {
      * Preserves the luma of the bottom layer, while adopting the hue and chroma of the top layer.
      * 
      * @name Phaser.BlendModes.COLOR
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26984,7 +27278,7 @@ module.exports = {
      * Preserves the hue and chroma of the bottom layer, while adopting the luma of the top layer.
      * 
      * @name Phaser.BlendModes.LUMINOSITY
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -26994,7 +27288,7 @@ module.exports = {
      * Alpha erase blend mode. For Canvas and WebGL.
      * 
      * @name Phaser.BlendModes.ERASE
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27005,7 +27299,7 @@ module.exports = {
      * The new shape is drawn only where both the new shape and the destination canvas overlap. Everything else is made transparent.
      * 
      * @name Phaser.BlendModes.SOURCE_IN
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27016,7 +27310,7 @@ module.exports = {
      * The new shape is drawn where it doesn't overlap the existing canvas content.
      * 
      * @name Phaser.BlendModes.SOURCE_OUT
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27027,7 +27321,7 @@ module.exports = {
      * The new shape is only drawn where it overlaps the existing canvas content.
      * 
      * @name Phaser.BlendModes.SOURCE_ATOP
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27038,7 +27332,7 @@ module.exports = {
      * New shapes are drawn behind the existing canvas content.
      * 
      * @name Phaser.BlendModes.DESTINATION_OVER
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27049,7 +27343,7 @@ module.exports = {
      * The existing canvas content is kept where both the new shape and existing canvas content overlap. Everything else is made transparent.
      * 
      * @name Phaser.BlendModes.DESTINATION_IN
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27060,7 +27354,7 @@ module.exports = {
      * The existing content is kept where it doesn't overlap the new shape.
      * 
      * @name Phaser.BlendModes.DESTINATION_OUT
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27071,7 +27365,7 @@ module.exports = {
      * The existing canvas is only kept where it overlaps the new shape. The new shape is drawn behind the canvas content.
      * 
      * @name Phaser.BlendModes.DESTINATION_ATOP
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27082,7 +27376,7 @@ module.exports = {
      * Where both shapes overlap the color is determined by adding color values.
      * 
      * @name Phaser.BlendModes.LIGHTER
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27093,7 +27387,7 @@ module.exports = {
      * Only the new shape is shown.
      * 
      * @name Phaser.BlendModes.COPY
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
@@ -27104,11 +27398,156 @@ module.exports = {
      * Shapes are made transparent where both overlap and drawn normal everywhere else.
      * 
      * @name Phaser.BlendModes.XOR
-     * @type {integer}
+     * @type {number}
      * @const
      * @since 3.0.0
      */
     XOR: 27
+
+};
+
+
+/***/ }),
+
+/***/ "../../../src/renderer/events/POST_RENDER_EVENT.js":
+/*!*******************************************************************!*\
+  !*** D:/wamp/www/phaser/src/renderer/events/POST_RENDER_EVENT.js ***!
+  \*******************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+/**
+ * The Post-Render Event.
+ *
+ * This event is dispatched by the Renderer when all rendering, for all cameras in all Scenes,
+ * has completed, but before any pending snap shots have been taken.
+ *
+ * @event Phaser.Renderer.Events#POST_RENDER
+ * @since 3.50.0
+ */
+module.exports = 'postrender';
+
+
+/***/ }),
+
+/***/ "../../../src/renderer/events/PRE_RENDER_EVENT.js":
+/*!******************************************************************!*\
+  !*** D:/wamp/www/phaser/src/renderer/events/PRE_RENDER_EVENT.js ***!
+  \******************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+/**
+ * The Pre-Render Event.
+ *
+ * This event is dispatched by the Phaser Renderer. This happens right at the start of the render
+ * process, after the context has been cleared, the scissors enabled (WebGL only) and everything has been
+ * reset ready for the render.
+ *
+ * @event Phaser.Renderer.Events#PRE_RENDER
+ * @since 3.50.0
+ */
+module.exports = 'prerender';
+
+
+/***/ }),
+
+/***/ "../../../src/renderer/events/RENDER_EVENT.js":
+/*!**************************************************************!*\
+  !*** D:/wamp/www/phaser/src/renderer/events/RENDER_EVENT.js ***!
+  \**************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+/**
+ * The Render Event.
+ *
+ * This event is dispatched by the Phaser Renderer for every camera in every Scene.
+ *
+ * It is dispatched before any of the children in the Scene have been rendered.
+ *
+ * @event Phaser.Renderer.Events#RENDER
+ * @since 3.50.0
+ *
+ * @param {Phaser.Scene} scene - The Scene being rendered.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Scene Camera being rendered.
+ */
+module.exports = 'render';
+
+
+/***/ }),
+
+/***/ "../../../src/renderer/events/RESIZE_EVENT.js":
+/*!**************************************************************!*\
+  !*** D:/wamp/www/phaser/src/renderer/events/RESIZE_EVENT.js ***!
+  \**************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+/**
+ * The Renderer Resize Event.
+ *
+ * This event is dispatched by the Phaser Renderer when it is resized, usually as a result
+ * of the Scale Manager resizing.
+ *
+ * @event Phaser.Renderer.Events#RESIZE
+ * @since 3.50.0
+ *
+ * @param {number} width - The new width of the renderer.
+ * @param {number} height - The new height of the renderer.
+ */
+module.exports = 'resize';
+
+
+/***/ }),
+
+/***/ "../../../src/renderer/events/index.js":
+/*!*******************************************************!*\
+  !*** D:/wamp/www/phaser/src/renderer/events/index.js ***!
+  \*******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+/**
+ * @namespace Phaser.Renderer.Events
+ */
+
+module.exports = {
+
+    POST_RENDER: __webpack_require__(/*! ./POST_RENDER_EVENT */ "../../../src/renderer/events/POST_RENDER_EVENT.js"),
+    PRE_RENDER: __webpack_require__(/*! ./PRE_RENDER_EVENT */ "../../../src/renderer/events/PRE_RENDER_EVENT.js"),
+    RENDER: __webpack_require__(/*! ./RENDER_EVENT */ "../../../src/renderer/events/RENDER_EVENT.js"),
+    RESIZE: __webpack_require__(/*! ./RESIZE_EVENT */ "../../../src/renderer/events/RESIZE_EVENT.js")
 
 };
 
@@ -27151,6 +27590,16 @@ var PIPELINE_CONST = {
     LIGHT_PIPELINE: 'Light2D',
 
     /**
+     * The Point Light Pipeline.
+     *
+     * @name Phaser.Renderer.WebGL.Pipelines.POINTLIGHT_PIPELINE
+     * @type {string}
+     * @const
+     * @since 3.50.0
+     */
+    POINTLIGHT_PIPELINE: 'PointLightPipeline',
+
+    /**
      * The Single Texture Pipeline.
      *
      * @name Phaser.Renderer.WebGL.Pipelines.SINGLE_PIPELINE
@@ -27178,8 +27627,37 @@ var PIPELINE_CONST = {
      * @const
      * @since 3.50.0
      */
-    ROPE_PIPELINE: 'RopePipeline'
+    ROPE_PIPELINE: 'RopePipeline',
 
+    /**
+     * The Graphics and Shapes Pipeline.
+     *
+     * @name Phaser.Renderer.WebGL.Pipelines.GRAPHICS_PIPELINE
+     * @type {string}
+     * @const
+     * @since 3.50.0
+     */
+    GRAPHICS_PIPELINE: 'GraphicsPipeline',
+
+    /**
+     * The Post FX Pipeline.
+     *
+     * @name Phaser.Renderer.WebGL.Pipelines.POSTFX_PIPELINE
+     * @type {string}
+     * @const
+     * @since 3.50.0
+     */
+    POSTFX_PIPELINE: 'PostFXPipeline',
+
+    /**
+     * The Utility Pipeline.
+     *
+     * @name Phaser.Renderer.WebGL.Pipelines.UTILITY_PIPELINE
+     * @type {string}
+     * @const
+     * @since 3.50.0
+     */
+    UTILITY_PIPELINE: 'UtilityPipeline'
 };
 
 module.exports = PIPELINE_CONST;
@@ -28091,7 +28569,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.CREATED
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     CREATED: 0,
@@ -28100,7 +28578,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.INIT
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     INIT: 1,
@@ -28109,7 +28587,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.DELAY
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     DELAY: 2,
@@ -28118,7 +28596,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.OFFSET_DELAY
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     OFFSET_DELAY: 3,
@@ -28127,7 +28605,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.PENDING_RENDER
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     PENDING_RENDER: 4,
@@ -28136,7 +28614,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.PLAYING_FORWARD
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     PLAYING_FORWARD: 5,
@@ -28145,7 +28623,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.PLAYING_BACKWARD
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     PLAYING_BACKWARD: 6,
@@ -28154,7 +28632,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.HOLD_DELAY
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     HOLD_DELAY: 7,
@@ -28163,7 +28641,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.REPEAT_DELAY
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     REPEAT_DELAY: 8,
@@ -28172,7 +28650,7 @@ var TWEEN_CONST = {
      * TweenData state.
      * 
      * @name Phaser.Tweens.COMPLETE
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     COMPLETE: 9,
@@ -28183,7 +28661,7 @@ var TWEEN_CONST = {
      * Tween state.
      * 
      * @name Phaser.Tweens.PENDING_ADD
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     PENDING_ADD: 20,
@@ -28192,7 +28670,7 @@ var TWEEN_CONST = {
      * Tween state.
      * 
      * @name Phaser.Tweens.PAUSED
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     PAUSED: 21,
@@ -28201,7 +28679,7 @@ var TWEEN_CONST = {
      * Tween state.
      * 
      * @name Phaser.Tweens.LOOP_DELAY
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     LOOP_DELAY: 22,
@@ -28210,7 +28688,7 @@ var TWEEN_CONST = {
      * Tween state.
      * 
      * @name Phaser.Tweens.ACTIVE
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     ACTIVE: 23,
@@ -28219,7 +28697,7 @@ var TWEEN_CONST = {
      * Tween state.
      * 
      * @name Phaser.Tweens.COMPLETE_DELAY
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     COMPLETE_DELAY: 24,
@@ -28228,7 +28706,7 @@ var TWEEN_CONST = {
      * Tween state.
      * 
      * @name Phaser.Tweens.PENDING_REMOVE
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     PENDING_REMOVE: 25,
@@ -28237,7 +28715,7 @@ var TWEEN_CONST = {
      * Tween state.
      * 
      * @name Phaser.Tweens.REMOVED
-     * @type {integer}
+     * @type {number}
      * @since 3.0.0
      */
     REMOVED: 26
@@ -28328,6 +28806,7 @@ function hasNonConfigurable (obj, k)
  * Extends the given `myClass` object's prototype with the properties of `definition`.
  *
  * @function extend
+ * @ignore
  * @param {Object} ctor The constructor object to mix into.
  * @param {Object} definition A dictionary of functions for the class.
  * @param {boolean} isClassDescriptor Is the definition a class descriptor?
@@ -28379,6 +28858,7 @@ function extend (ctor, definition, isClassDescriptor, extend)
  * Applies the given `mixins` to the prototype of `myClass`.
  *
  * @function mixin
+ * @ignore
  * @param {Object} myClass The constructor object to mix into.
  * @param {Object|Array<Object>} mixins The mixins to apply to the constructor.
  */
@@ -28570,7 +29050,7 @@ module.exports = NOOP;
  *
  * @param {array} array - The array to be added to.
  * @param {any|any[]} item - The item, or array of items, to add to the array. Each item must be unique within the array.
- * @param {integer} [limit] - Optional limit which caps the size of the array.
+ * @param {number} [limit] - Optional limit which caps the size of the array.
  * @param {function} [callback] - A callback to be invoked for each item successfully added to the array.
  * @param {object} [context] - The context in which the callback is invoked.
  *
@@ -28694,8 +29174,8 @@ module.exports = Add;
  *
  * @param {array} array - The array to be added to.
  * @param {any|any[]} item - The item, or array of items, to add to the array.
- * @param {integer} [index=0] - The index in the array where the item will be inserted.
- * @param {integer} [limit] - Optional limit which caps the size of the array.
+ * @param {number} [index=0] - The index in the array where the item will be inserted.
+ * @param {number} [limit] - Optional limit which caps the size of the array.
  * @param {function} [callback] - A callback to be invoked for each item successfully added to the array.
  * @param {object} [context] - The context in which the callback is invoked.
  *
@@ -28856,10 +29336,10 @@ var SafeRange = __webpack_require__(/*! ./SafeRange */ "../../../src/utils/array
  * @param {array} array - The array to search.
  * @param {string} property - The property to test on each array element.
  * @param {*} value - The value to test the property against. Must pass a strict (`===`) comparison check.
- * @param {integer} [startIndex] - An optional start index to search from.
- * @param {integer} [endIndex] - An optional end index to search to.
+ * @param {number} [startIndex] - An optional start index to search from.
+ * @param {number} [endIndex] - An optional end index to search to.
  *
- * @return {integer} The total number of elements with properties matching the given value.
+ * @return {number} The total number of elements with properties matching the given value.
  */
 var CountAllMatching = function (array, property, value, startIndex, endIndex)
 {
@@ -28964,8 +29444,8 @@ var SafeRange = __webpack_require__(/*! ./SafeRange */ "../../../src/utils/array
  * @param {array} array - The array to search.
  * @param {function} callback - A callback to be invoked for each item in the array.
  * @param {object} context - The context in which the callback is invoked.
- * @param {integer} startIndex - The start index to search from.
- * @param {integer} endIndex - The end index to search to.
+ * @param {number} startIndex - The start index to search from.
+ * @param {number} endIndex - The end index to search to.
  * @param {...*} [args] - Additional arguments that will be passed to the callback, after the child.
  *
  * @return {array} The input array.
@@ -29122,8 +29602,8 @@ var SafeRange = __webpack_require__(/*! ./SafeRange */ "../../../src/utils/array
  * @param {array} array - The array to search.
  * @param {string} [property] - The property to test on each array element.
  * @param {*} [value] - The value to test the property against. Must pass a strict (`===`) comparison check.
- * @param {integer} [startIndex] - An optional start index to search from.
- * @param {integer} [endIndex] - An optional end index to search to.
+ * @param {number} [startIndex] - An optional start index to search from.
+ * @param {number} [endIndex] - An optional end index to search to.
  *
  * @return {array} All matching elements from the array.
  */
@@ -29188,8 +29668,8 @@ var SafeRange = __webpack_require__(/*! ./SafeRange */ "../../../src/utils/array
  * @param {array} array - The array to search.
  * @param {string} [property] - The property to test on each array element.
  * @param {*} [value] - The value to test the property against. Must pass a strict (`===`) comparison check.
- * @param {integer} [startIndex=0] - An optional start index to search from.
- * @param {integer} [endIndex=array.length] - An optional end index to search up to (but not included)
+ * @param {number} [startIndex=0] - An optional start index to search from.
+ * @param {number} [endIndex=array.length] - An optional end index to search up to (but not included)
  *
  * @return {object} The first matching element from the array, or `null` if no element could be found in the range given.
  */
@@ -29241,8 +29721,8 @@ module.exports = GetFirst;
  * @since 3.0.0
  *
  * @param {array} array - The array to select the random entry from.
- * @param {integer} [startIndex=0] - An optional start index.
- * @param {integer} [length=array.length] - An optional length, the total number of elements (from the startIndex) to choose from.
+ * @param {number} [startIndex=0] - An optional start index.
+ * @param {number} [length=array.length] - An optional length, the total number of elements (from the startIndex) to choose from.
  *
  * @return {*} A random element from the array, or `null` if no element could be found in the range given.
  */
@@ -29330,7 +29810,7 @@ module.exports = MoveDown;
  *
  * @param {array} array - The array.
  * @param {*} item - The element to move.
- * @param {integer} index - The new index that the element will be moved to.
+ * @param {number} index - The new index that the element will be moved to.
  *
  * @return {*} The element that was moved.
  */
@@ -29632,9 +30112,9 @@ function defaultCompare (a, b)
  * @since 3.0.0
  *
  * @param {array} arr - The array to sort.
- * @param {integer} k - The k-th element index.
- * @param {integer} [left=0] - The index of the left part of the range.
- * @param {integer} [right] - The index of the right part of the range.
+ * @param {number} k - The k-th element index.
+ * @param {number} [left=0] - The index of the left part of the range.
+ * @param {number} [right] - The index of the right part of the range.
  * @param {function} [compare] - An optional comparison function. Is passed two elements and should return 0, 1 or -1.
  */
 var QuickSelect = function (arr, k, left, right, compare)
@@ -29874,9 +30354,9 @@ var SpliceOne = __webpack_require__(/*! ./SpliceOne */ "../../../src/utils/array
 
 /**
  * Removes the given item, or array of items, from the array.
- * 
+ *
  * The array is modified in-place.
- * 
+ *
  * You can optionally specify a callback to be invoked for each item successfully removed from the array.
  *
  * @function Phaser.Utils.Array.Remove
@@ -29920,6 +30400,7 @@ var Remove = function (array, item, callback, context)
     //  If we got this far, we have an array of items to remove
 
     var itemLength = item.length - 1;
+    var removed = [];
 
     while (itemLength >= 0)
     {
@@ -29931,21 +30412,18 @@ var Remove = function (array, item, callback, context)
         {
             SpliceOne(array, index);
 
+            removed.push(entry);
+
             if (callback)
             {
                 callback.call(context, entry);
             }
         }
-        else
-        {
-            //  Item wasn't found in the array, so remove it from our return results
-            item.pop();
-        }
 
         itemLength--;
     }
 
-    return item;
+    return removed;
 };
 
 module.exports = Remove;
@@ -29979,7 +30457,7 @@ var SpliceOne = __webpack_require__(/*! ./SpliceOne */ "../../../src/utils/array
  * @since 3.4.0
  *
  * @param {array} array - The array to be modified.
- * @param {integer} index - The array index to remove the item from. The index must be in bounds or it will throw an error.
+ * @param {number} index - The array index to remove the item from. The index must be in bounds or it will throw an error.
  * @param {function} [callback] - A callback to be invoked for the item removed from the array.
  * @param {object} [context] - The context in which the callback is invoked.
  *
@@ -30035,8 +30513,8 @@ var SafeRange = __webpack_require__(/*! ./SafeRange */ "../../../src/utils/array
  * @since 3.4.0
  *
  * @param {array} array - The array to be modified.
- * @param {integer} startIndex - The start index to remove from.
- * @param {integer} endIndex - The end index to remove to.
+ * @param {number} startIndex - The start index to remove from.
+ * @param {number} endIndex - The end index to remove to.
  * @param {function} [callback] - A callback to be invoked for the item removed from the array.
  * @param {object} [context] - The context in which the callback is invoked.
  *
@@ -30100,8 +30578,8 @@ var SpliceOne = __webpack_require__(/*! ./SpliceOne */ "../../../src/utils/array
  * @since 3.0.0
  *
  * @param {array} array - The array to removed a random element from.
- * @param {integer} [start=0] - The array index to start the search from.
- * @param {integer} [length=array.length] - Optional restriction on the number of elements to randomly select from.
+ * @param {number} [start=0] - The array index to start the search from.
+ * @param {number} [length=array.length] - Optional restriction on the number of elements to randomly select from.
  *
  * @return {object} The random element that was removed, or `null` if there were no array elements that fell within the given range.
  */
@@ -30190,7 +30668,7 @@ module.exports = Replace;
  * @since 3.0.0
  *
  * @param {array} array - The array to shift to the left. This array is modified in place.
- * @param {integer} [total=1] - The number of times to shift the array.
+ * @param {number} [total=1] - The number of times to shift the array.
  *
  * @return {*} The most recently shifted element.
  */
@@ -30235,7 +30713,7 @@ module.exports = RotateLeft;
  * @since 3.0.0
  *
  * @param {array} array - The array to shift to the right. This array is modified in place.
- * @param {integer} [total=1] - The number of times to shift the array.
+ * @param {number} [total=1] - The number of times to shift the array.
  *
  * @return {*} The most recently shifted element.
  */
@@ -30279,8 +30757,8 @@ module.exports = RotateRight;
  * @since 3.4.0
  *
  * @param {array} array - The array to check.
- * @param {integer} startIndex - The start index.
- * @param {integer} endIndex - The end index.
+ * @param {number} startIndex - The start index.
+ * @param {number} endIndex - The end index.
  * @param {boolean} [throwError=true] - Throw an error if the range is out of bounds.
  *
  * @return {boolean} True if the range is safe, otherwise false.
@@ -30385,8 +30863,8 @@ var SafeRange = __webpack_require__(/*! ./SafeRange */ "../../../src/utils/array
  * @param {array} array - The array to search.
  * @param {string} property - The property to test for on each array element.
  * @param {*} value - The value to set the property to.
- * @param {integer} [startIndex] - An optional start index to search from.
- * @param {integer} [endIndex] - An optional end index to search to.
+ * @param {number} [startIndex] - An optional start index to search from.
+ * @param {number} [endIndex] - An optional end index to search to.
  *
  * @return {array} The input array.
  */
@@ -30526,7 +31004,7 @@ module.exports = SortByDigits;
  * @since 3.0.0
  *
  * @param {array} array - The array to splice from.
- * @param {integer} index - The index of the item which should be spliced.
+ * @param {number} index - The index of the item which should be spliced.
  *
  * @return {*} The item which was spliced (removed).
  */
@@ -31564,6 +32042,60 @@ module.exports = {
 
 /***/ }),
 
+/***/ "../../../src/utils/object/DeepCopy.js":
+/*!*******************************************************!*\
+  !*** D:/wamp/www/phaser/src/utils/object/DeepCopy.js ***!
+  \*******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+/**
+ * Deep Copy the given object or array.
+ *
+ * @function Phaser.Utils.Objects.DeepCopy
+ * @since 3.50.0
+ *
+ * @param {object} obj - The object to deep copy.
+ *
+ * @return {object} A deep copy of the original object.
+ */
+var DeepCopy = function (inObject)
+{
+    var outObject;
+    var value;
+    var key;
+
+    if (typeof inObject !== 'object' || inObject === null)
+    {
+        //  inObject is not an object
+        return inObject;
+    }
+
+    //  Create an array or object to hold the values
+    outObject = Array.isArray(inObject) ? [] : {};
+
+    for (key in inObject)
+    {
+        value = inObject[key];
+
+        //  Recursively (deep) copy for nested objects, including arrays
+        outObject[key] = DeepCopy(value);
+    }
+
+    return outObject;
+};
+
+module.exports = DeepCopy;
+
+
+/***/ }),
+
 /***/ "../../../src/utils/object/Extend.js":
 /*!*****************************************************!*\
   !*** D:/wamp/www/phaser/src/utils/object/Extend.js ***!
@@ -31984,9 +32516,9 @@ module.exports = IsPlainObject;
  * @since 3.0.0
  *
  * @param {string|number|object} str - The target string. `toString()` will be called on the string, which means you can also pass in common data types like numbers.
- * @param {integer} [len=0] - The number of characters to be added.
+ * @param {number} [len=0] - The number of characters to be added.
  * @param {string} [pad=" "] - The string to pad it out with (defaults to a space).
- * @param {integer} [dir=3] - The direction dir = 1 (left), 2 (right), 3 (both).
+ * @param {number} [dir=3] - The direction dir = 1 (left), 2 (right), 3 (both).
  * 
  * @return {string} The padded string.
  */
@@ -33796,7 +34328,7 @@ module.exports = {
  * @private
  *
  * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
- * @param {Phaser.GameObjects.Container} container - The Game Object being rendered in this call.
+ * @param {SpineContainer} container - The Game Object being rendered in this call.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
  */
@@ -33851,7 +34383,7 @@ var SpineContainerWebGLRenderer = function (renderer, container, camera, parentM
     {
         var child = children[i];
 
-        if (child.willRender(camera))
+        if (child.willRender(camera, container))
         {
             var mask = child.mask;
 
@@ -34334,21 +34866,31 @@ var SpineGameObject = new Class({
      * @method SpineGameObject#willRender
      * @since 3.19.0
      *
+     * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+     * @param {SpineContainer} [container] - If this Spine object is in a Spine Container, this is a reference to it.
+     *
      * @return {boolean} `true` if this Game Object should be rendered, otherwise `false`.
      */
-    willRender: function (camera)
+    willRender: function (camera, container)
     {
-        var skeleton = this.skeleton;
+        var GameObjectRenderMask = 15;
 
-        if (!skeleton)
+        var result = (!this.skeleton || !(GameObjectRenderMask !== this.renderFlags || (this.cameraFilter !== 0 && (this.cameraFilter & camera.id))));
+
+        if (!container && !result && this.parentContainer)
         {
-            return false;
+            var plugin = this.plugin;
+            var sceneRenderer = plugin.sceneRenderer;
+
+            if (plugin.gl && sceneRenderer.batcher.isDrawing)
+            {
+                sceneRenderer.end();
+
+                plugin.renderer.pipelines.rebind();
+            }
         }
 
-        var GameObjectRenderMask = 15;
-        var childAlpha = skeleton.color.a;
-
-        return !(GameObjectRenderMask !== this.renderFlags || (this.cameraFilter !== 0 && (this.cameraFilter & camera.id)) || childAlpha === 0);
+        return result;
     },
 
     /**
@@ -35827,10 +36369,12 @@ module.exports = SpineGameObjectCanvasRenderer;
 
 var renderWebGL = __webpack_require__(/*! ../../../../src/utils/NOOP */ "../../../src/utils/NOOP.js");
 var renderCanvas = __webpack_require__(/*! ../../../../src/utils/NOOP */ "../../../src/utils/NOOP.js");
+var renderDirect = __webpack_require__(/*! ../../../../src/utils/NOOP */ "../../../src/utils/NOOP.js");
 
 if (true)
 {
     renderWebGL = __webpack_require__(/*! ./SpineGameObjectWebGLRenderer */ "./gameobject/SpineGameObjectWebGLRenderer.js");
+    renderDirect = __webpack_require__(/*! ./SpineGameObjectWebGLDirect */ "./gameobject/SpineGameObjectWebGLDirect.js");
 }
 
 if (true)
@@ -35841,9 +36385,152 @@ if (true)
 module.exports = {
 
     renderWebGL: renderWebGL,
-    renderCanvas: renderCanvas
+    renderCanvas: renderCanvas,
+    renderDirect: renderDirect
 
 };
+
+
+/***/ }),
+
+/***/ "./gameobject/SpineGameObjectWebGLDirect.js":
+/*!**************************************************!*\
+  !*** ./gameobject/SpineGameObjectWebGLDirect.js ***!
+  \**************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2020 Photon Storm Ltd.
+ * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
+ */
+
+var Clamp = __webpack_require__(/*! ../../../../src/math/Clamp */ "../../../src/math/Clamp.js");
+var CounterClockwise = __webpack_require__(/*! ../../../../src/math/angle/CounterClockwise */ "../../../src/math/angle/CounterClockwise.js");
+var GetCalcMatrix = __webpack_require__(/*! ../../../../src/gameobjects/GetCalcMatrix */ "../../../src/gameobjects/GetCalcMatrix.js");
+var RadToDeg = __webpack_require__(/*! ../../../../src/math/RadToDeg */ "../../../src/math/RadToDeg.js");
+var Wrap = __webpack_require__(/*! ../../../../src/math/Wrap */ "../../../src/math/Wrap.js");
+
+/**
+ * Directly renders this Game Object with the WebGL Renderer to the given Camera.
+ * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
+ * This method should not be called directly. It is a utility function of the Render module.
+ *
+ * @method SpineGameObject#renderDirect
+ * @since 3.50.0
+ * @private
+ *
+ * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
+ * @param {SpineGameObject} src - The Game Object being rendered in this call.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+ * @param {SpineContainer} [container] - If this Spine object is in a Spine Container, this is a reference to it.
+ */
+var SpineGameObjectWebGLDirect = function (renderer, src, camera, parentMatrix, container)
+{
+    var plugin = src.plugin;
+    var skeleton = src.skeleton;
+    var sceneRenderer = plugin.sceneRenderer;
+
+    //  flush + clear previous pipeline if this is a new type
+    renderer.pipelines.clear();
+
+    sceneRenderer.begin();
+
+    var scrollFactorX = src.scrollFactorX;
+    var scrollFactorY = src.scrollFactorY;
+    var alpha = skeleton.color.a;
+
+    if (container)
+    {
+        src.scrollFactorX = container.scrollFactorX;
+        src.scrollFactorY = container.scrollFactorY;
+
+        skeleton.color.a = Clamp(alpha * container.alpha, 0, 1);
+    }
+
+    var calcMatrix = GetCalcMatrix(src, camera, parentMatrix).calc;
+
+    var viewportHeight = renderer.height;
+
+    skeleton.x = calcMatrix.tx;
+    skeleton.y = viewportHeight - calcMatrix.ty;
+
+    skeleton.scaleX = calcMatrix.scaleX;
+    skeleton.scaleY = calcMatrix.scaleY;
+
+    if (src.scaleX < 0)
+    {
+        skeleton.scaleX *= -1;
+
+        //  -180 degrees to account for the difference in Spine vs. Phaser rotation when inversely scaled
+        src.root.rotation = Wrap(RadToDeg(calcMatrix.rotationNormalized) - 180, 0, 360);
+    }
+    else
+    {
+        //  +90 degrees to account for the difference in Spine vs. Phaser rotation
+        src.root.rotation = Wrap(RadToDeg(CounterClockwise(calcMatrix.rotationNormalized)) + 90, 0, 360);
+    }
+
+    if (src.scaleY < 0)
+    {
+        skeleton.scaleY *= -1;
+
+        if (src.scaleX < 0)
+        {
+            src.root.rotation -= (RadToDeg(calcMatrix.rotationNormalized) * 2);
+        }
+        else
+        {
+            src.root.rotation += (RadToDeg(calcMatrix.rotationNormalized) * 2);
+        }
+    }
+
+    /*
+    if (renderer.currentFramebuffer !== null)
+    {
+        skeleton.y = calcMatrix.ty;
+        skeleton.scaleY *= -1;
+    }
+    */
+
+    skeleton.updateWorldTransform();
+
+    //  Draw the current skeleton
+
+    sceneRenderer.drawSkeleton(skeleton, src.preMultipliedAlpha);
+
+    if (container)
+    {
+        src.scrollFactorX = scrollFactorX;
+        src.scrollFactorY = scrollFactorY;
+        skeleton.color.a = alpha;
+    }
+
+    if (plugin.drawDebug || src.drawDebug)
+    {
+        //  Because if we don't, the bones render positions are completely wrong (*sigh*)
+        var oldX = skeleton.x;
+        var oldY = skeleton.y;
+
+        skeleton.x = 0;
+        skeleton.y = 0;
+
+        sceneRenderer.drawSkeletonDebug(skeleton, src.preMultipliedAlpha);
+
+        skeleton.x = oldX;
+        skeleton.y = oldY;
+    }
+
+    //  The next object in the display list is not a Spine Game Object or Spine Container, so we end the batch
+    sceneRenderer.end();
+
+    //  And rebind the previous pipeline
+    renderer.pipelines.rebind();
+};
+
+module.exports = SpineGameObjectWebGLDirect;
 
 
 /***/ }),
@@ -35880,6 +36567,7 @@ var Wrap = __webpack_require__(/*! ../../../../src/math/Wrap */ "../../../src/ma
  * @param {SpineGameObject} src - The Game Object being rendered in this call.
  * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
  * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+ * @param {SpineContainer} [container] - If this Spine object is in a Spine Container, this is a reference to it.
  */
 var SpineGameObjectWebGLRenderer = function (renderer, src, camera, parentMatrix, container)
 {
@@ -35944,15 +36632,18 @@ var SpineGameObjectWebGLRenderer = function (renderer, src, camera, parentMatrix
         }
     }
 
-    if (camera.renderToTexture || renderer.currentFramebuffer !== null)
+    /*
+    if (renderer.currentFramebuffer !== null)
     {
         skeleton.y = calcMatrix.ty;
         skeleton.scaleY *= -1;
     }
+    */
 
     skeleton.updateWorldTransform();
 
     //  Draw the current skeleton
+
     sceneRenderer.drawSkeleton(skeleton, src.preMultipliedAlpha);
 
     if (container)
@@ -39576,15 +40267,35 @@ var spine;
             path = this.pathPrefix + path;
             if (!this.queueAsset(clientId, textureLoader, path))
                 return;
-            var img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = function (ev) {
-                _this.rawAssets[path] = img;
-            };
-            img.onerror = function (ev) {
-                _this.errors[path] = "Couldn't load image " + path;
-            };
-            img.src = path;
+            var isBrowser = !!(typeof window !== 'undefined' && typeof navigator !== 'undefined' && window.document);
+            var isWebWorker = !isBrowser && typeof importScripts !== 'undefined';
+            if (isWebWorker) {
+                var options = { mode: "cors" };
+                fetch(path, options).then(function (response) {
+                    if (!response.ok) {
+                        _this.errors[path] = "Couldn't load image " + path;
+                    }
+                    return response.blob();
+                }).then(function (blob) {
+                    return createImageBitmap(blob, {
+                        premultiplyAlpha: 'none',
+                        colorSpaceConversion: 'none'
+                    });
+                }).then(function (bitmap) {
+                    _this.rawAssets[path] = bitmap;
+                });
+            }
+            else {
+                var img_1 = new Image();
+                img_1.crossOrigin = "anonymous";
+                img_1.onload = function (ev) {
+                    _this.rawAssets[path] = img_1;
+                };
+                img_1.onerror = function (ev) {
+                    _this.errors[path] = "Couldn't load image " + path;
+                };
+                img_1.src = path;
+            }
         };
         SharedAssetManager.prototype.get = function (clientId, path) {
             path = this.pathPrefix + path;
@@ -39594,6 +40305,8 @@ var spine;
             return clientAssets.assets[path];
         };
         SharedAssetManager.prototype.updateClientAssets = function (clientAssets) {
+            var isBrowser = !!(typeof window !== 'undefined' && typeof navigator !== 'undefined' && window.document);
+            var isWebWorker = !isBrowser && typeof importScripts !== 'undefined';
             for (var i = 0; i < clientAssets.toLoad.length; i++) {
                 var path = clientAssets.toLoad[i];
                 var asset = clientAssets.assets[path];
@@ -39601,11 +40314,21 @@ var spine;
                     var rawAsset = this.rawAssets[path];
                     if (rawAsset === null || rawAsset === undefined)
                         continue;
-                    if (rawAsset instanceof HTMLImageElement) {
-                        clientAssets.assets[path] = clientAssets.textureLoader(rawAsset);
+                    if (isWebWorker) {
+                        if (rawAsset instanceof ImageBitmap) {
+                            clientAssets.assets[path] = clientAssets.textureLoader(rawAsset);
+                        }
+                        else {
+                            clientAssets.assets[path] = rawAsset;
+                        }
                     }
                     else {
-                        clientAssets.assets[path] = rawAsset;
+                        if (rawAsset instanceof HTMLImageElement) {
+                            clientAssets.assets[path] = clientAssets.textureLoader(rawAsset);
+                        }
+                        else {
+                            clientAssets.assets[path] = rawAsset;
+                        }
                     }
                 }
             }
@@ -43753,7 +44476,7 @@ var spine;
             return _this;
         }
         BoundingBoxAttachment.prototype.copy = function () {
-            var copy = new BoundingBoxAttachment(name);
+            var copy = new BoundingBoxAttachment(this.name);
             this.copyTo(copy);
             copy.color.setFromColor(this.color);
             return copy;
@@ -43772,7 +44495,7 @@ var spine;
             return _this;
         }
         ClippingAttachment.prototype.copy = function () {
-            var copy = new ClippingAttachment(name);
+            var copy = new ClippingAttachment(this.name);
             this.copyTo(copy);
             copy.endSlot = this.endSlot;
             copy.color.setFromColor(this.color);
@@ -43916,7 +44639,7 @@ var spine;
             return _this;
         }
         PathAttachment.prototype.copy = function () {
-            var copy = new PathAttachment(name);
+            var copy = new PathAttachment(this.name);
             this.copyTo(copy);
             copy.lengths = new Array(this.lengths.length);
             spine.Utils.arrayCopy(this.lengths, 0, copy.lengths, 0, this.lengths.length);
@@ -43950,7 +44673,7 @@ var spine;
             return Math.atan2(y, x) * spine.MathUtils.radDeg;
         };
         PointAttachment.prototype.copy = function () {
-            var copy = new PointAttachment(name);
+            var copy = new PointAttachment(this.name);
             copy.x = this.x;
             copy.y = this.y;
             copy.rotation = this.rotation;
@@ -46710,30 +47433,32 @@ var spine;
     (function (webgl) {
         var ManagedWebGLRenderingContext = (function () {
             function ManagedWebGLRenderingContext(canvasOrContext, contextConfig) {
-                var _this = this;
                 if (contextConfig === void 0) { contextConfig = { alpha: "true" }; }
                 this.restorables = new Array();
-                if (canvasOrContext instanceof HTMLCanvasElement) {
-                    var canvas_1 = canvasOrContext;
-                    this.gl = (canvas_1.getContext("webgl2", contextConfig) || canvas_1.getContext("webgl", contextConfig));
-                    this.canvas = canvas_1;
-                    canvas_1.addEventListener("webglcontextlost", function (e) {
-                        var event = e;
-                        if (e) {
-                            e.preventDefault();
-                        }
-                    });
-                    canvas_1.addEventListener("webglcontextrestored", function (e) {
-                        for (var i = 0, n = _this.restorables.length; i < n; i++) {
-                            _this.restorables[i].restore();
-                        }
-                    });
+                if (canvasOrContext instanceof HTMLCanvasElement || canvasOrContext instanceof EventTarget) {
+                    this.setupCanvas(canvasOrContext, contextConfig);
                 }
                 else {
                     this.gl = canvasOrContext;
                     this.canvas = this.gl.canvas;
                 }
             }
+            ManagedWebGLRenderingContext.prototype.setupCanvas = function (canvas, contextConfig) {
+                var _this = this;
+                this.gl = (canvas.getContext("webgl2", contextConfig) || canvas.getContext("webgl", contextConfig));
+                this.canvas = canvas;
+                canvas.addEventListener("webglcontextlost", function (e) {
+                    var event = e;
+                    if (e) {
+                        e.preventDefault();
+                    }
+                });
+                canvas.addEventListener("webglcontextrestored", function (e) {
+                    for (var i = 0, n = _this.restorables.length; i < n; i++) {
+                        _this.restorables[i].restore();
+                    }
+                });
+            };
             ManagedWebGLRenderingContext.prototype.addRestorable = function (restorable) {
                 this.restorables.push(restorable);
             };

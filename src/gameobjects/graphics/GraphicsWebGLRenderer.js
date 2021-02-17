@@ -47,7 +47,11 @@ var GraphicsWebGLRenderer = function (renderer, src, camera, parentMatrix)
         return;
     }
 
-    var pipeline = renderer.pipelines.set(this.pipeline, src);
+    camera.addToRenderList(src);
+
+    var pipeline = renderer.pipelines.set(src.pipeline, src);
+
+    renderer.pipelines.preBatch(src);
 
     var calcMatrix = GetCalcMatrix(src, camera, parentMatrix).calc;
 
@@ -338,6 +342,8 @@ var GraphicsWebGLRenderer = function (renderer, src, camera, parentMatrix)
             }
         }
     }
+
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = GraphicsWebGLRenderer;

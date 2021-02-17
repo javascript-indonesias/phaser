@@ -4,7 +4,7 @@
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
-var CONST = require('./const');
+var CONST = require('./const/ORIENTATION_CONST');
 var Class = require('../utils/Class');
 var Components = require('../gameobjects/components');
 var Rectangle = require('../geom/rectangle');
@@ -25,15 +25,15 @@ var Rectangle = require('../geom/rectangle');
  * @extends Phaser.GameObjects.Components.Visible
  *
  * @param {Phaser.Tilemaps.LayerData} layer - The LayerData object in the Tilemap that this tile belongs to.
- * @param {integer} index - The unique index of this tile within the map.
- * @param {integer} x - The x coordinate of this tile in tile coordinates.
- * @param {integer} y - The y coordinate of this tile in tile coordinates.
- * @param {integer} width - Width of the tile in pixels.
- * @param {integer} height - Height of the tile in pixels.
- * @param {integer} baseWidth - The base width a tile in the map (in pixels). Tiled maps support
+ * @param {number} index - The unique index of this tile within the map.
+ * @param {number} x - The x coordinate of this tile in tile coordinates.
+ * @param {number} y - The y coordinate of this tile in tile coordinates.
+ * @param {number} width - Width of the tile in pixels.
+ * @param {number} height - Height of the tile in pixels.
+ * @param {number} baseWidth - The base width a tile in the map (in pixels). Tiled maps support
  * multiple tileset sizes within one map, but they are still placed at intervals of the base
  * tile width.
- * @param {integer} baseHeight - The base height of the tile in pixels (in pixels). Tiled maps
+ * @param {number} baseHeight - The base height of the tile in pixels (in pixels). Tiled maps
  * support multiple tileset sizes within one map, but they are still placed at intervals of the
  * base tile height.
  */
@@ -63,7 +63,7 @@ var Tile = new Class({
          * represents a blank tile.
          *
          * @name Phaser.Tilemaps.Tile#index
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.index = index;
@@ -72,7 +72,7 @@ var Tile = new Class({
          * The x map coordinate of this tile in tile units.
          *
          * @name Phaser.Tilemaps.Tile#x
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.x = x;
@@ -81,7 +81,7 @@ var Tile = new Class({
          * The y map coordinate of this tile in tile units.
          *
          * @name Phaser.Tilemaps.Tile#y
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.y = y;
@@ -90,7 +90,7 @@ var Tile = new Class({
          * The width of the tile in pixels.
          *
          * @name Phaser.Tilemaps.Tile#width
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.width = width;
@@ -99,17 +99,39 @@ var Tile = new Class({
          * The height of the tile in pixels.
          *
          * @name Phaser.Tilemaps.Tile#height
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.height = height;
+
+        /**
+         * The right of the tile in pixels.
+         *
+         * Set in the `updatePixelXY` method.
+         *
+         * @name Phaser.Tilemaps.Tile#right
+         * @type {number}
+         * @since 3.50.0
+         */
+        this.right;
+
+        /**
+         * The bottom of the tile in pixels.
+         *
+         * Set in the `updatePixelXY` method.
+         *
+         * @name Phaser.Tilemaps.Tile#bottom
+         * @type {number}
+         * @since 3.50.0
+         */
+        this.bottom;
 
         /**
          * The maps base width of a tile in pixels. Tiled maps support multiple tileset sizes
          * within one map, but they are still placed at intervals of the base tile size.
          *
          * @name Phaser.Tilemaps.Tile#baseWidth
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.baseWidth = (baseWidth !== undefined) ? baseWidth : width;
@@ -119,7 +141,7 @@ var Tile = new Class({
          * within one map, but they are still placed at intervals of the base tile size.
          *
          * @name Phaser.Tilemaps.Tile#baseHeight
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.baseHeight = (baseHeight !== undefined) ? baseHeight : height;
@@ -169,6 +191,9 @@ var Tile = new Class({
         /**
          * Whether the tile should collide with any object on the left side.
          *
+         * This property is used by Arcade Physics only, however, you can also use it
+         * in your own checks.
+         *
          * @name Phaser.Tilemaps.Tile#collideLeft
          * @type {boolean}
          * @since 3.0.0
@@ -177,6 +202,9 @@ var Tile = new Class({
 
         /**
          * Whether the tile should collide with any object on the right side.
+         *
+         * This property is used by Arcade Physics only, however, you can also use it
+         * in your own checks.
          *
          * @name Phaser.Tilemaps.Tile#collideRight
          * @type {boolean}
@@ -187,6 +215,9 @@ var Tile = new Class({
         /**
          * Whether the tile should collide with any object on the top side.
          *
+         * This property is used by Arcade Physics only, however, you can also use it
+         * in your own checks.
+         *
          * @name Phaser.Tilemaps.Tile#collideUp
          * @type {boolean}
          * @since 3.0.0
@@ -195,6 +226,9 @@ var Tile = new Class({
 
         /**
          * Whether the tile should collide with any object on the bottom side.
+         *
+         * This property is used by Arcade Physics only, however, you can also use it
+         * in your own checks.
          *
          * @name Phaser.Tilemaps.Tile#collideDown
          * @type {boolean}
@@ -245,7 +279,7 @@ var Tile = new Class({
          * @type {function}
          * @since 3.0.0
          */
-        this.collisionCallback = null;
+        this.collisionCallback = undefined;
 
         /**
          * The context in which the collision callback will be called.
@@ -675,10 +709,10 @@ var Tile = new Class({
      * @method Phaser.Tilemaps.Tile#setSize
      * @since 3.0.0
      *
-     * @param {integer} tileWidth - The width of the tile in pixels.
-     * @param {integer} tileHeight - The height of the tile in pixels.
-     * @param {integer} baseWidth - The base width a tile in the map (in pixels).
-     * @param {integer} baseHeight - The base height of the tile in pixels (in pixels).
+     * @param {number} tileWidth - The width of the tile in pixels.
+     * @param {number} tileHeight - The height of the tile in pixels.
+     * @param {number} baseWidth - The base width a tile in the map (in pixels).
+     * @param {number} baseHeight - The base height of the tile in pixels (in pixels).
      *
      * @return {this} This Tile object instance.
      */
@@ -737,6 +771,9 @@ var Tile = new Class({
             this.pixelY = this.y * rowHeight;
         }
 
+        this.right = this.pixelX + this.baseWidth;
+        this.bottom = this.pixelY + this.baseHeight;
+
         return this;
     },
 
@@ -765,7 +802,7 @@ var Tile = new Class({
 
         get: function ()
         {
-            return (this.collideLeft || this.collideRight || this.collideUp || this.collideDown || this.collisionCallback);
+            return (this.collideLeft || this.collideRight || this.collideUp || this.collideDown || (this.collisionCallback !== undefined));
         }
 
     },

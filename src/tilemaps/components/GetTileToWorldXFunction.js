@@ -4,7 +4,7 @@
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
-var CONST = require('../const');
+var CONST = require('../const/ORIENTATION_CONST');
 var NOOP = require('../../utils/NOOP');
 var TileToWorldX = require('./TileToWorldX');
 
@@ -16,7 +16,7 @@ var TileToWorldX = require('./TileToWorldX');
  *
  * @param {number} orientation - The Tilemap orientation constant.
  *
- * @return {Phaser.Tilemaps.Components.TileToWorldX)} The function to use to translate tiles for the given map type.
+ * @return {function} The function to use to translate tiles for the given map type.
  */
 var GetTileToWorldXFunction = function (orientation)
 {

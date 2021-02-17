@@ -22,20 +22,25 @@ var Utils = require('../../renderer/webgl/Utils');
  */
 var RenderTextureWebGLRenderer = function (renderer, src, camera, parentMatrix)
 {
-    var frame = src.frame;
-    var width = frame.width;
-    var height = frame.height;
+    camera.addToRenderList(src);
+
     var cameraAlpha = camera.alpha;
+
+    var renderTarget = src.renderTarget;
+    var width = renderTarget.width;
+    var height = renderTarget.height;
 
     var getTint = Utils.getTintAppendFloatAlpha;
 
     var pipeline = renderer.pipelines.set(src.pipeline);
 
-    var textureUnit = pipeline.setTexture2D(src.glTexture);
+    var textureUnit = pipeline.setTexture2D(renderTarget.texture);
 
-    src.pipeline.batchTexture(
+    renderer.pipelines.preBatch(src);
+
+    pipeline.batchTexture(
         src,
-        src.glTexture,
+        renderTarget.texture,
         width, height,
         src.x, src.y,
         width, height,
@@ -57,9 +62,9 @@ var RenderTextureWebGLRenderer = function (renderer, src, camera, parentMatrix)
         textureUnit
     );
 
-    renderer.flush();
     renderer.resetTextures();
-    renderer.currentProgram = null;
+
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = RenderTextureWebGLRenderer;

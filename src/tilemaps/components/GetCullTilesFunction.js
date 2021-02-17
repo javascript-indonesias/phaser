@@ -4,7 +4,7 @@
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
-var CONST = require('../const');
+var CONST = require('../const/ORIENTATION_CONST');
 var CullTiles = require('./CullTiles');
 var HexagonalCullTiles = require('./HexagonalCullTiles');
 var IsometricCullTiles = require('./IsometricCullTiles');
@@ -19,7 +19,7 @@ var StaggeredCullTiles = require('./StaggeredCullTiles');
  *
  * @param {number} orientation - The Tilemap orientation constant.
  *
- * @return {(Phaser.Tilemaps.Components.CullTiles|Phaser.Tilemaps.Components.StaggeredCullTiles|Phaser.Tilemaps.Components.HexagonalCullTiles|Phaser.Tilemaps.Components.IsometricCullTiles)} The function to use to cull tiles for the given map type.
+ * @return {function} The function to use to cull tiles for the given map type.
  */
 var GetCullTilesFunction = function (orientation)
 {

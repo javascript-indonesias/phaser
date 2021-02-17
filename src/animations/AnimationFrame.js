@@ -21,8 +21,8 @@ var Class = require('../utils/Class');
  * @since 3.0.0
  *
  * @param {string} textureKey - The key of the Texture this AnimationFrame uses.
- * @param {(string|integer)} textureFrame - The key of the Frame within the Texture that this AnimationFrame uses.
- * @param {integer} index - The index of this AnimationFrame within the Animation sequence.
+ * @param {(string|number)} textureFrame - The key of the Frame within the Texture that this AnimationFrame uses.
+ * @param {number} index - The index of this AnimationFrame within the Animation sequence.
  * @param {Phaser.Textures.Frame} frame - A reference to the Texture Frame this AnimationFrame uses for rendering.
  * @param {boolean} [isKeyFrame=false] - Is this Frame a Keyframe within the Animation?
  */
@@ -47,7 +47,7 @@ var AnimationFrame = new Class({
          * The key of the Frame within the Texture that this AnimationFrame uses.
          *
          * @name Phaser.Animations.AnimationFrame#textureFrame
-         * @type {(string|integer)}
+         * @type {(string|number)}
          * @since 3.0.0
          */
         this.textureFrame = textureFrame;
@@ -56,7 +56,7 @@ var AnimationFrame = new Class({
          * The index of this AnimationFrame within the Animation sequence.
          *
          * @name Phaser.Animations.AnimationFrame#index
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.index = index;

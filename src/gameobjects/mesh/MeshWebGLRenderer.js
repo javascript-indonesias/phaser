@@ -30,6 +30,8 @@ var MeshWebGLRenderer = function (renderer, src, camera, parentMatrix)
         return;
     }
 
+    camera.addToRenderList(src);
+
     var pipeline = renderer.pipelines.set(src.pipeline, src);
 
     var calcMatrix = GetCalcMatrix(src, camera, parentMatrix).calc;
@@ -60,6 +62,8 @@ var MeshWebGLRenderer = function (renderer, src, camera, parentMatrix)
     var alpha = camera.alpha * src.alpha;
 
     var totalFacesRendered = 0;
+
+    renderer.pipelines.preBatch(src);
 
     for (var i = 0; i < totalFaces; i++)
     {
@@ -95,6 +99,8 @@ var MeshWebGLRenderer = function (renderer, src, camera, parentMatrix)
     {
         debugCallback.call(src, src, debugFaces);
     }
+
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = MeshWebGLRenderer;

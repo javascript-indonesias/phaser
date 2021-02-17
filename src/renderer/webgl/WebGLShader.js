@@ -10,7 +10,17 @@ var WEBGL_CONST = require('./const');
 
 /**
  * @classdesc
- * TODO
+ * Instances of the WebGLShader class belong to the WebGL Pipeline classes. When the pipeline is
+ * created it will create an instance of this class for each one of its shaders, as defined in
+ * the pipeline configuration.
+ *
+ * This class encapsulates everything needed to manage a shader in a pipeline, including the
+ * shader attributes and uniforms, as well as lots of handy methods such as `set2f`, for setting
+ * uniform values on this shader.
+ *
+ * Typically, you do not create an instance of this class directly, as it works in unison with
+ * the pipeline to which it belongs. You can gain access to this class via a pipeline's `shaders`
+ * array, post-creation.
  *
  * @class WebGLShader
  * @memberof Phaser.Renderer.WebGL
@@ -22,13 +32,12 @@ var WEBGL_CONST = require('./const');
  * @param {string} vertexShader - The vertex shader source code as a single string.
  * @param {string} fragmentShader - The fragment shader source code as a single string.
  * @param {Phaser.Types.Renderer.WebGL.WebGLPipelineAttributesConfig[]} attributes - An array of attributes.
- * @param {string[]} [uniforms] - An array of shader uniform names that will be looked-up to get the locations for.
  */
 var WebGLShader = new Class({
 
     initialize:
 
-    function WebGLShader (pipeline, name, vertexShader, fragmentShader, attributes, uniforms)
+    function WebGLShader (pipeline, name, vertexShader, fragmentShader, attributes)
     {
         /**
          * A reference to the WebGLPipeline that owns this Shader.
@@ -90,7 +99,7 @@ var WebGLShader = new Class({
          * The amount of vertex attribute components of 32 bit length.
          *
          * @name Phaser.Renderer.WebGL.WebGLShader#vertexComponentCount
-         * @type {integer}
+         * @type {number}
          * @since 3.50.0
          */
         this.vertexComponentCount = 0;
@@ -113,18 +122,18 @@ var WebGLShader = new Class({
          * This is calculated automatically during the `createAttributes` method.
          *
          * @name Phaser.Renderer.WebGL.WebGLShader#vertexSize
-         * @type {integer}
+         * @type {number}
          * @readonly
          * @since 3.50.0
          */
         this.vertexSize = 0;
 
         /**
-         * The uniforms that this shader requires, as set via the configuration object.
+         * The active uniforms that this shader has.
          *
-         * This is an object that maps the uniform names to their WebGL location.
+         * This is an object that maps the uniform names to their WebGL location and cached values.
          *
-         * It is populated with their locations via the `setUniformLocations` method.
+         * It is populated automatically via the `createUniforms` method.
          *
          * @name Phaser.Renderer.WebGL.WebGLShader#uniforms
          * @type {Phaser.Types.Renderer.WebGL.WebGLPipelineUniformsConfig}
@@ -133,11 +142,7 @@ var WebGLShader = new Class({
         this.uniforms = {};
 
         this.createAttributes(attributes);
-
-        if (uniforms)
-        {
-            this.setUniformLocations(uniforms);
-        }
+        this.createUniforms();
     },
 
     /**
@@ -168,7 +173,7 @@ var WebGLShader = new Class({
             var element = attributes[i];
 
             var name = element.name;
-            var size = element.size; // i.e. 1 for a float, 2 for a vec2, 4 for a vec4, etc
+            var size = GetFastValue(element, 'size', 1); // i.e. 1 for a float, 2 for a vec2, 4 for a vec4, etc
             var glType = GetFastValue(element, 'type', WEBGL_CONST.FLOAT);
             var type = glType.enum; // The GLenum
             var typeSize = glType.size; // The size in bytes of the type
@@ -231,6 +236,25 @@ var WebGLShader = new Class({
         {
             this.setAttribPointers();
         }
+
+        return this;
+    },
+
+    /**
+     * Sets the program this shader uses as being the active shader in the WebGL Renderer.
+     *
+     * Then resets all of the attribute pointers.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLShader#rebind
+     * @since 3.50.0
+     *
+     * @return {this} This WebGLShader instance.
+     */
+    rebind: function ()
+    {
+        this.renderer.setProgram(this.program);
+
+        this.setAttribPointers(true);
 
         return this;
     },
@@ -306,38 +330,83 @@ var WebGLShader = new Class({
      * Sets up the `WebGLShader.uniforms` object, populating it with the names
      * and locations of the shader uniforms this shader requires.
      *
+     * It works by first calling `gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS)` to
+     * find out how many active uniforms this shader has. It then iterates through them,
+     * calling `gl.getActiveUniform` to get the WebGL Active Info from each one. Finally,
+     * the name and location are stored in the local array.
+     *
      * This method is called automatically when this class is created.
      *
-     * @method Phaser.Renderer.WebGL.WebGLShader#setUniformLocations
+     * @method Phaser.Renderer.WebGL.WebGLShader#createUniforms
      * @since 3.50.0
-     *
-     * @param {string[]} uniformNames - An array of the uniform names to get the locations for.
      *
      * @return {this} This WebGLShader instance.
      */
-    setUniformLocations: function (uniformNames)
+    createUniforms: function ()
     {
         var gl = this.gl;
         var program = this.program;
         var uniforms = this.uniforms;
 
-        for (var i = 0; i < uniformNames.length; i++)
+        var i;
+        var name;
+        var location;
+
+        //  Look-up all active uniforms
+
+        var totalUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+
+        for (i = 0; i < totalUniforms; i++)
         {
-            var name = uniformNames[i];
+            var info = gl.getActiveUniform(program, i);
 
-            var location = gl.getUniformLocation(program, name);
-
-            if (location !== null)
+            if (info)
             {
-                uniforms[name] =
+                name = info.name;
+
+                location = gl.getUniformLocation(program, name);
+
+                if (location !== null)
                 {
-                    name: name,
-                    location: location,
-                    value1: null,
-                    value2: null,
-                    value3: null,
-                    value4: null
-                };
+                    uniforms[name] =
+                    {
+                        name: name,
+                        location: location,
+                        value1: null,
+                        value2: null,
+                        value3: null,
+                        value4: null
+                    };
+                }
+
+                //  If the uniform name contains [] for an array struct,
+                //  we'll add an entry for the non-struct name as well.
+                //  Such as uMainSampler[12] = uMainSampler
+
+                var struct = name.indexOf('[');
+
+                if (struct > 0)
+                {
+                    name = name.substr(0, struct);
+
+                    if (!uniforms.hasOwnProperty(name))
+                    {
+                        location = gl.getUniformLocation(program, name);
+
+                        if (location !== null)
+                        {
+                            uniforms[name] =
+                            {
+                                name: name,
+                                location: location,
+                                value1: null,
+                                value2: null,
+                                value3: null,
+                                value4: null
+                            };
+                        }
+                    }
+                }
             }
         }
 
@@ -357,6 +426,31 @@ var WebGLShader = new Class({
     hasUniform: function (name)
     {
         return this.uniforms.hasOwnProperty(name);
+    },
+
+    /**
+     * Resets the cached values of the given uniform.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLShader#resetUniform
+     * @since 3.50.0
+     *
+     * @param {string} name - The name of the uniform to reset.
+     *
+     * @return {this} This WebGLShader instance.
+     */
+    resetUniform: function (name)
+    {
+        var uniform = this.uniforms[name];
+
+        if (uniform)
+        {
+            uniform.value1 = null;
+            uniform.value2 = null;
+            uniform.value3 = null;
+            uniform.value4 = null;
+        }
+
+        return this;
     },
 
     /**
@@ -826,7 +920,7 @@ var WebGLShader = new Class({
      * @since 3.50.0
      *
      * @param {string} name - The name of the uniform to set.
-     * @param {integer} x - The new value of the `int` uniform.
+     * @param {number} x - The new value of the `int` uniform.
      *
      * @return {this} This WebGLShader instance.
      */
@@ -848,8 +942,8 @@ var WebGLShader = new Class({
      * @since 3.50.0
      *
      * @param {string} name - The name of the uniform to set.
-     * @param {integer} x - The new X component of the `ivec2` uniform.
-     * @param {integer} y - The new Y component of the `ivec2` uniform.
+     * @param {number} x - The new X component of the `ivec2` uniform.
+     * @param {number} y - The new Y component of the `ivec2` uniform.
      *
      * @return {this} This WebGLShader instance.
      */
@@ -871,9 +965,9 @@ var WebGLShader = new Class({
      * @since 3.50.0
      *
      * @param {string} name - The name of the uniform to set.
-     * @param {integer} x - The new X component of the `ivec3` uniform.
-     * @param {integer} y - The new Y component of the `ivec3` uniform.
-     * @param {integer} z - The new Z component of the `ivec3` uniform.
+     * @param {number} x - The new X component of the `ivec3` uniform.
+     * @param {number} y - The new Y component of the `ivec3` uniform.
+     * @param {number} z - The new Z component of the `ivec3` uniform.
      *
      * @return {this} This WebGLShader instance.
      */
@@ -895,10 +989,10 @@ var WebGLShader = new Class({
      * @since 3.50.0
      *
      * @param {string} name - The name of the uniform to set.
-     * @param {integer} x - X component of the uniform
-     * @param {integer} y - Y component of the uniform
-     * @param {integer} z - Z component of the uniform
-     * @param {integer} w - W component of the uniform
+     * @param {number} x - X component of the uniform
+     * @param {number} y - Y component of the uniform
+     * @param {number} z - Z component of the uniform
+     * @param {number} w - W component of the uniform
      *
      * @return {this} This WebGLShader instance.
      */

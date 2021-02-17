@@ -18,6 +18,7 @@ var GameObjects = {
     UpdateList: require('./UpdateList'),
 
     Components: require('./components'),
+    GetCalcMatrix: require('./GetCalcMatrix'),
 
     BuildGameObject: require('./BuildGameObject'),
     BuildGameObjectAnimation: require('./BuildGameObjectAnimation'),
@@ -32,6 +33,7 @@ var GameObjects = {
     Graphics: require('./graphics/Graphics.js'),
     Group: require('./group/Group'),
     Image: require('./image/Image'),
+    Layer: require('./layer/Layer'),
     Particles: require('./particles'),
     PathFollower: require('./pathfollower/PathFollower'),
     RenderTexture: require('./rendertexture/RenderTexture'),
@@ -74,6 +76,7 @@ var GameObjects = {
         Graphics: require('./graphics/GraphicsFactory'),
         Group: require('./group/GroupFactory'),
         Image: require('./image/ImageFactory'),
+        Layer: require('./layer/LayerFactory'),
         Particles: require('./particles/ParticleManagerFactory'),
         PathFollower: require('./pathfollower/PathFollowerFactory'),
         RenderTexture: require('./rendertexture/RenderTextureFactory'),
@@ -106,6 +109,7 @@ var GameObjects = {
         Graphics: require('./graphics/GraphicsCreator'),
         Group: require('./group/GroupCreator'),
         Image: require('./image/ImageCreator'),
+        Layer: require('./layer/LayerCreator'),
         Particles: require('./particles/ParticleManagerCreator'),
         RenderTexture: require('./rendertexture/RenderTextureCreator'),
         Rope: require('./rope/RopeCreator'),
@@ -119,17 +123,20 @@ var GameObjects = {
 
 };
 
+//  WebGL only Game Objects
 if (typeof WEBGL_RENDERER)
 {
-    //  WebGL only Game Objects
     GameObjects.Shader = require('./shader/Shader');
     GameObjects.Mesh = require('./mesh/Mesh');
+    GameObjects.PointLight = require('./pointlight/PointLight');
 
     GameObjects.Factories.Shader = require('./shader/ShaderFactory');
     GameObjects.Factories.Mesh = require('./mesh/MeshFactory');
+    GameObjects.Factories.PointLight = require('./pointlight/PointLightFactory');
 
     GameObjects.Creators.Shader = require('./shader/ShaderCreator');
     GameObjects.Creators.Mesh = require('./mesh/MeshCreator');
+    GameObjects.Creators.PointLight = require('./pointlight/PointLightCreator');
 
     GameObjects.Light = require('./lights/Light');
     GameObjects.LightsManager = require('./lights/LightsManager');

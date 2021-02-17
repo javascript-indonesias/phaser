@@ -26,14 +26,19 @@ var TileSpriteWebGLRenderer = function (renderer, src, camera, parentMatrix)
 
     var width = src.width;
     var height = src.height;
+
     if (width === 0 || height === 0)
     {
         return;
     }
 
+    camera.addToRenderList(src);
+
+    renderer.pipelines.preBatch(src);
+
     var getTint = Utils.getTintAppendFloatAlpha;
 
-    var pipeline = renderer.pipelines.set(this.pipeline, src);
+    var pipeline = renderer.pipelines.set(src.pipeline, src);
 
     var textureUnit = pipeline.setTexture2D(src.fillPattern, src);
 
@@ -61,6 +66,8 @@ var TileSpriteWebGLRenderer = function (renderer, src, camera, parentMatrix)
         false,
         textureUnit
     );
+
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = TileSpriteWebGLRenderer;

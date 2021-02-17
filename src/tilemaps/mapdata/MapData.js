@@ -5,7 +5,7 @@
  */
 
 var Class = require('../../utils/Class');
-var CONST = require('../const');
+var CONST = require('../const/ORIENTATION_CONST');
 var GetFastValue = require('../../utils/object/GetFastValue');
 
 /**
@@ -105,7 +105,7 @@ var MapData = new Class({
          * The format of the map data.
          *
          * @name Phaser.Tilemaps.MapData#format
-         * @type {integer}
+         * @type {number}
          * @since 3.0.0
          */
         this.format = GetFastValue(config, 'format', null);
@@ -114,7 +114,7 @@ var MapData = new Class({
          * The orientation of the map data (i.e. orthogonal, isometric, hexagonal), default 'orthogonal'.
          *
          * @name Phaser.Tilemaps.MapData#orientation
-         * @type {Phaser.Types.Tilemaps.TilemapOrientationType}
+         * @type {Phaser.Tilemaps.OrientationType}
          * @since 3.50.0
          */
         this.orientation = GetFastValue(config, 'orientation', CONST.ORTHOGONAL);
@@ -219,7 +219,7 @@ var MapData = new Class({
          * Only used for hexagonal orientation Tilemaps.
          *
          * @name Phaser.Tilemaps.MapData#hexSideLength
-         * @type {integer}
+         * @type {number}
          * @since 3.50.0
          */
         this.hexSideLength = GetFastValue(config, 'hexSideLength', 0);

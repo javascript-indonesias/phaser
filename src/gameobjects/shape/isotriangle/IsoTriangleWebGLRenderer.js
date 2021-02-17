@@ -23,7 +23,9 @@ var Utils = require('../../../renderer/webgl/Utils');
  */
 var IsoTriangleWebGLRenderer = function (renderer, src, camera, parentMatrix)
 {
-    var pipeline = renderer.pipelines.set(this.pipeline);
+    camera.addToRenderList(src);
+
+    var pipeline = renderer.pipelines.set(src.pipeline);
 
     var result = GetCalcMatrix(src, camera, parentMatrix);
 
@@ -43,6 +45,8 @@ var IsoTriangleWebGLRenderer = function (renderer, src, camera, parentMatrix)
     {
         return;
     }
+
+    renderer.pipelines.preBatch(src);
 
     var tint;
 
@@ -139,6 +143,8 @@ var IsoTriangleWebGLRenderer = function (renderer, src, camera, parentMatrix)
 
         pipeline.batchTri(x0, y0, x1, y1, x2, y2, tint, tint, tint);
     }
+
+    renderer.pipelines.postBatch(src);
 };
 
 module.exports = IsoTriangleWebGLRenderer;

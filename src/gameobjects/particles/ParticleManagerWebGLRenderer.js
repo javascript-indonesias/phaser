@@ -36,7 +36,7 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, camera, p
         return;
     }
 
-    var pipeline = renderer.pipelines.set(this.pipeline);
+    var pipeline = renderer.pipelines.set(emitterManager.pipeline);
 
     var camMatrix = tempMatrix1;
     var calcMatrix = tempMatrix2;
@@ -62,6 +62,8 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, camera, p
 
     var textureUnit = pipeline.setGameObject(emitterManager, emitterManager.defaultFrame);
 
+    renderer.pipelines.preBatch(emitterManager);
+
     for (var e = 0; e < emittersLength; e++)
     {
         var emitter = emitters[e];
@@ -73,8 +75,7 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, camera, p
             continue;
         }
 
-        var followX = (emitter.follow) ? emitter.follow.x + emitter.followOffset.x : 0;
-        var followY = (emitter.follow) ? emitter.follow.y + emitter.followOffset.y : 0;
+        camera.addToRenderList(emitter);
 
         var scrollFactorX = emitter.scrollFactorX;
         var scrollFactorY = emitter.scrollFactorY;
@@ -85,7 +86,7 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, camera, p
         {
             emitter.mask.preRenderWebGL(renderer, emitter, camera);
 
-            // pipeline.setTexture2D(texture, 0);
+            renderer.pipelines.set(emitterManager.pipeline);
         }
 
         var tintEffect = 0;
@@ -105,7 +106,7 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, camera, p
 
             camMatrix.copyFrom(camera.matrix);
 
-            camMatrix.multiplyWithOffset(managerMatrix, followX + -camera.scrollX * scrollFactorX, followY + -camera.scrollY * scrollFactorY);
+            camMatrix.multiplyWithOffset(managerMatrix, -camera.scrollX * scrollFactorX, -camera.scrollY * scrollFactorY);
 
             //  Undo the camera scroll
             particleMatrix.e = particle.x;
@@ -141,10 +142,10 @@ var ParticleManagerWebGLRenderer = function (renderer, emitterManager, camera, p
         if (emitter.mask)
         {
             emitter.mask.postRenderWebGL(renderer, camera);
-
-            // pipeline.setTexture2D(texture, 0);
         }
     }
+
+    renderer.pipelines.postBatch(emitterManager);
 };
 
 module.exports = ParticleManagerWebGLRenderer;

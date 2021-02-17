@@ -4,7 +4,7 @@
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
-var CONST = require('../const');
+var CONST = require('../const/ORIENTATION_CONST');
 var HexagonalWorldToTileY = require('./HexagonalWorldToTileY');
 var NOOP = require('../../utils/NOOP');
 var StaggeredWorldToTileY = require('./StaggeredWorldToTileY');
@@ -18,7 +18,7 @@ var WorldToTileY = require('./WorldToTileY');
  *
  * @param {number} orientation - The Tilemap orientation constant.
  *
- * @return {(Phaser.Tilemaps.Components.WorldToTileY|Phaser.Tilemaps.Components.HexagonalWorldToTileY|Phaser.Tilemaps.Components.StaggeredWorldToTileY)} The function to use to translate tiles for the given map type.
+ * @return {function} The function to use to translate tiles for the given map type.
  */
 var GetWorldToTileYFunction = function (orientation)
 {

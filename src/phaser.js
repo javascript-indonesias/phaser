@@ -4,8 +4,6 @@
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
-require('./polyfills');
-
 var CONST = require('./const');
 var Extend = require('./utils/object/Extend');
 
@@ -51,11 +49,6 @@ var Phaser = {
 };
 
 //  Merge in the optional plugins and WebGL only features
-
-if (typeof FEATURE_3D)
-{
-    Phaser.Layer3D = require('./layer3d');
-}
 
 if (typeof FEATURE_SOUND)
 {
