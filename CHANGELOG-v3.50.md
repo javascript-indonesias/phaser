@@ -1,4 +1,32 @@
-## Version 3.53.0 - Anastasia - in development
+## Version 3.54.0 - Futaro - in dev
+
+### Updates
+
+* When the Scene-owned Input Plugin is shutdown (i.e. via a call to `Scene.stop`) it will now _remove_ any `Key` objects that the plugin created, not just reset them. This is a quality-of-life breaking change from how it worked previously (thanks @veleek)
+* Thanks to a TS Parser update by @krotovic the JSDocs can now define `@this` tags. Fix #4669.
+* The `Scenes.Systems.install` method has been removed. It's no longer required and would throw an error if called. Fix #5580 (thanks @Trissolo)
+* The `WebAudioSoundManager.onFocus` method will now test to see if the state of the `AudioContext` is `interrupted`, as happens on iOS when leaving the page, and then resumes the context. Fix #5390 #5156 #4790 (thanks @SBCGames @micsun-al @AdamXA)
+
+### Bug Fixes
+
+* Adding a Game Object to a Container that already existed in another Container would leave a copy of it on the Display List. Fix #5618 (thanks Kromah @mariogarranz)
+* Fixed missing `backgroundColor` property in GameConfig. Fix #5597 (thanks @eli-s-r)
+* BitmapText wouldn't render correctly with the Canvas Renderer when the texture came from a Texture Atlas. Fix #5545 (thanks @vforsh)
+* #5504 had broken DOM Elements being able to be clicked due to an oversight of the DOM Container. DOM Elements now correctly pick-up the default pointer events handler. Fix #5594 (thanks @pizkaz)
+* The `RGBToString` function will no longer return CSS strings with decimal places if the input contained them (thanks @neil-h)
+* Objects added to a `SpineContainer` were also added to the base Display List, causing them to appear twice. Fix #5599 (thanks @spayton)
+
+### Examples, Documentation and TypeScript
+
+My thanks to the following for helping with the Phaser 3 Examples, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
+
+@samme @masterT @krotovic @Kvisaz
+
+## Version 3.53.1 - Anastasia - 8th March 2021
+
+* Fixed an issue where Container children were not removed from the display list properly.
+
+## Version 3.53.0 - Anastasia - 8th March 2021
 
 ### New Features
 
@@ -8,6 +36,22 @@
 * `GameObjects.Shape.setDisplaySize` is a new method that helps setting the display width and height of a Shape object in a chainable way. Fix #5526 (thanks @samme)
 * `Tilemaps.Parsers.Tiled.ParseTilesets` has been updated so it now retains the `type` field information that can be optionally specified within Tiled. This is useful when creating objects from tiles and tile variants (thanks @lackhand)
 * `Tilemaps.Parsers.Tiled.ParseWangsets` is a new function that will parse the Wangset information from Tiled map data, if present, and retain it so you can access the data (thanks @lackhand)
+* `WebGLPipeline.glReset` is a new boolean property that keeps track of when the GL Context was last reset by the Pipeline Manager. It then redirects calls to `bind` to `rebind` instead to restore the pipeline state.
+
+### Display List Updates
+
+* `GameObject.addToDisplayList` is a new method that allows you to add a Game Object to the given Display List. If no Display List is given, it will default to the Scene Display List. A Game Object can only exist on one Display List at any given time, but may move freely between them.
+* `GameObject.addToUpdateList` is a new method that adds the Game Object to the Update List belonging to the Scene. When a Game Object is added to the Update List it will have its `preUpdate` method called every game frame.
+* `GameObject.removeFromDisplayList` is a new method that removes the Game Object from the Display List it is currently on.
+* `GameObject.removeFromUpdateList` is a new method that removes the Game Object from the Scenes Update List.
+* `GameObject.destroy` will now call the new `removeFromDisplayList` and `removeFromUpdateList` methods.
+* `DisplayList.addChildCallback` will now use the new `addToDisplayList` and `removeFromDisplayList` Game Object methods.
+* `Container.addHandler` will now use the new `addToDisplayList` and `removeFromDisplayList` Game Object methods.
+* `Layer.addChildCallback` and `removeChildCallback` will now use the new `addToDisplayList` and `removeFromDisplayList` Game Object methods.
+* `Group` now listens for the `ADDED_TO_SCENE` and `REMOVED_FROM_SCENE` methods and adds and removes itself from the Update List accordingly.
+* `Group.add` and `create` now uses the new `addToDisplayList` and `addToUpdateList` Game Object methods.
+* `Group.remove` now uses the new `removeFromDisplayList` and `removeFromUpdateList` Game Object methods.
+* `Group.destroy` has a new optional boolean parameter `removeFromScene`, which will remove all Group children from the Scene if specified.
 
 ### Updates
 
@@ -37,6 +81,14 @@
 * `LineCurve.getTangent` can now take an output vector to receive the tangent value (thanks @samme)
 * `DOMElementCSSRenderer` no longer sets the `pointerEvents` style attribute to `auto`. This is the default value anyway and it now means you can override it from your code by setting the `pointer-events` attribute directly. Fix #5470 (thanks @hayatae @endel)
 * `SceneManager.loadComplete` will no longer try to unlock the Sound Manager, preventing `AudioContext was not allowed to start` console warnings after each Scene finishes loading.
+* `WebGLRenderer.deleteTexture` will now run `resetTextures(true)` first, incase the requested texture to be deleted is currently bound. Previously, it would delete the texture and then reset them.
+* If `TextureSource.destroy` has a WebGL Texture it will tell the WebGL Renderer to reset the textures first, before deleting its texture.
+* `Cameras.Controls.FixedKeyControl.minZoom` is a new configurable property that sets the minimum camera zoom. Default to 0.001 (thanks @samme)
+* `Cameras.Controls.FixedKeyControl.maxZoom` is a new configurable property that sets the maximum camera zoom. Default to 1000 (thanks @samme)
+* `Cameras.Controls.SmoothedKeyControl.minZoom` is a new configurable property that sets the minimum camera zoom. Default to 0.001 (thanks @samme)
+* `Cameras.Controls.SmoothedKeyControl.maxZoom` is a new configurable property that sets the maximum camera zoom. Default to 1000 (thanks @samme)
+* The `WebGLPipeline.rebind` method now accepts an optional parameter `currentShader`. If provided it will set the current shader to be this after the pipeline reset is complete.
+* The `PipelineManager.rebind` method will now flag all pipelines as `glReset = true`, so they know to fully rebind the next time they are invoked.
 
 ### Bug Fixes
 
@@ -52,13 +104,20 @@
 * Destroying a Text Game Object when using the HEADLESS renderer would cause an `Uncaught TypeError`. Fix #5558 (thanks @mattjennings)
 * The `Actions.PlayAnimation` arguments have been updated to match the new animation system introduced in Phaser 3.50. It will now take either a string-key, or a play animation configuration object, and the `startFrame` parameter has been replaced with `ignoreIfPlaying`. The function will also only call `play` if the Game Object has an animation component, meaning you can now supply this action with a mixed-content array without errors. Fix #5555 (thanks @xuxucode)
 * `RenderTarget.resize` will now `Math.floor` the scaled width and height as well as ensure they're not <= 0 which causes  `Framebuffer status: Incomplete Attachment` errors. Fix #5563 #5478 (thanks @orjandh @venarius)
+* `Matter.Components.Sleep.setToSleep` and `setAwake` were documented as returning `this`, however they didn't return anything. Both now `return this` correctly. Fix #5567 (thanks @micsun-al)
+* The Particle position would be wrong when set to follow a Sprite using the Canvas Renderer. Fix #5457 (thanks @samme)
+* Fixed a conditional bug in Arcade Physics `ProcessX` when Body2 is Immovable and Body1 is not.
+* The Spine Plugin would throw an error while unloading and restarting the game. Fix #5477 (thanks @ayamomiji @Pong420)
+* The Spine Plugin would cause all textures to render as blue if a Spine object followed any Game Object using the Graphics Pipeline on the display list, due to the gl context restoration not being properly handled. Fix #5493 #5449 (thanks @EmilSV @FloodGames)
+* Spine Game Objects and Containers will now add themselves to the Camera render list, fixing issues where input didn't work if depth was used or they were overlapped with another interactive Game Object.
+* Calling `Group.destroy` would cause a runtime error if `Group.runChildUpdate` had been set. Fix #5576 (thanks @samme)
+* Moving a Sprite from a Container or Layer to the Scene would fail without first resetting the display list. Fix #5535 (thanks @malahaas @samme @tringcooler)
 
 ### Examples, Documentation and TypeScript
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
 
-@edemaine @xuxucode @schontz @kaktus42
-
+@edemaine @xuxucode @schontz @kaktus42 @Nero0 @samme
 
 ## Version 3.52.0 - Crusch - 14th January 2021
 
