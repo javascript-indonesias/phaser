@@ -28,7 +28,7 @@ Grab the source and join the fun!
 
 <div align="center"><img src="https://phaser.io/images/github/news.jpg"></div>
 
-> 24th May 2021
+> 27th May 2021
 
 After 13 beta releases, over 200 resolved issues, thousands of lines of new code and the culmination of over 6 months incredibly hard work, Phaser 3.50 was finally released in December 2020 and we're continuing with updates into 2021 with this new 3.55 release. 3.55 focuses mostly on fixing issues, but also addresses a performance issue with mixing Sprites and Graphics objects together.
 
@@ -56,6 +56,8 @@ Rich - [@photonstorm](https://twitter.com/photonstorm)
 
 ![boogie](https://www.phaser.io/images/spacedancer.gif)
 
+[![](https://www.phaser.io/images/github/twilioquest838.png)](https://www.twilio.com/blog/unlock-your-power-to-teach-with-twilioquest?utm_source=github&utm_medium=banner&utm_campaign=phaser)
+
 ![Support Phaser](https://phaser.io/images/github/div-support-phaser.png "Support Phaser")
 
 Because Phaser is an open source project, we cannot charge for it in the same way as traditional retail software. What's more, we don't ever want to. After all, it's built on, and was born from, open web standards. It's part of our manifesto that the core framework will always be free, even if you use it commercially, as many of you do.
@@ -73,19 +75,19 @@ We use [Patreon](https://www.patreon.com/photonstorm) to manage the backing and 
 Extra special thanks to the following companies whose support makes Phaser possible:
 
 * [Cerebral Fix](https://cerebralfix.com)
-* [CrossInstall](https://crossinstall.com)
+* [MoPub](https://www.mopub.com/en)
 * [Facebook](https://www.facebook.com)
 * [Game Distribution](https://gamedistribution.com)
 * [GameCommerce](https://www.gamecommerce.com)
 * [Mozilla](https://www.mozilla.org)
 * [Texture Packer](https://www.codeandweb.com/texturepacker/tutorials/how-to-create-sprite-sheets-for-phaser3?utm_source=ad&utm_medium=banner&utm_campaign=phaser-2018-10-16)
-* [Twilio](https://www.twilio.com)
+* [TwilioQuest](https://www.twilio.com/blog/unlock-your-power-to-teach-with-twilioquest?utm_source=github&utm_medium=banner&utm_campaign=phaser)
 * [Poki](https://developers.poki.com/)
 * [CrazyGames](https://www.crazygames.com)
 * [Lagged](https://www.lagged.com)
 * [Nakama](https://heroiclabs.com/phaserjs/)
 
-![Sponsors](https://phaser.io/images/github/sponsors-2020-12.png "Our Awesome Sponsors")
+![Sponsors](https://phaser.io/images/github/sponsors-2021-08.png "Our Awesome Sponsors")
 
 ![Phaser Newsletter](https://phaser.io/images/github/div-newsletter.png "Phaser Newsletter")
 
@@ -119,13 +121,13 @@ npm install phaser
 [Phaser is on jsDelivr](https://www.jsdelivr.com/package/npm/phaser) which is a "super-fast CDN for developers". Include the following in your html:
 
 ```html
-<script src="//cdn.jsdelivr.net/npm/phaser@3.55.0/dist/phaser.js"></script>
+<script src="//cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 ```
 
 or the minified version:
 
 ```html
-<script src="//cdn.jsdelivr.net/npm/phaser@3.55.0/dist/phaser.min.js"></script>
+<script src="//cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
 ```
 
 ### API Documentation
@@ -195,7 +197,7 @@ Create an `index.html` page locally and paste the following code into it:
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.0/dist/phaser-arcade-physics.min.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser-arcade-physics.min.js"></script> 
 </head>
 <body>
 
@@ -347,8 +349,8 @@ All rights reserved.
 
 "Above all, video games are meant to be just one thing: fun. Fun for everyone." - Satoru Iwata
 
-[get-js]: https://github.com/photonstorm/phaser/releases/download/v3.55.0/phaser.js
-[get-minjs]: https://github.com/photonstorm/phaser/releases/download/v3.55.0/phaser.min.js
+[get-js]: https://github.com/photonstorm/phaser/releases/download/v3.55.2/phaser.js
+[get-minjs]: https://github.com/photonstorm/phaser/releases/download/v3.55.2/phaser.min.js
 [clone-http]: https://github.com/photonstorm/phaser.git
 [clone-ssh]: git@github.com:photonstorm/phaser.git
 [clone-ghwin]: github-windows://openRepo/https://github.com/photonstorm/phaser

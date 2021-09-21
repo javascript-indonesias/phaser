@@ -1,6 +1,64 @@
-## Version 3.56.0 - Mike - in dev
+## Version 3.60.0 - Miku - in development
+
+### New Features
+
+* `ScaleManager.getViewPort` is a new method that will return a Rectangle geometry object that matches the visible area of the screen (thanks @rexrainbow)
+* When starting a Scene and using an invalid key, Phaser will now raise a console warning informing you of this, instead of silently failing. Fix #5811 (thanks @ubershmekel)
+* `GameObjects.Layer.addToDisplayList` and `removeFromDisplayList` are new methods that allows for you to now add a Layer as a child of another Layer. Fix #5799 (thanks @samme)
+* `GameObjects.Video.loadURL` has a new optional 4th parameter `crossOrigin`. This allows you to specify a cross origin request type when loading the video cross-domain (thanks @rmartell)
+
+### Updates
+
+* When you try to use a frame that is missing on the Texture, it will now give the key of the Texture in the console warning (thanks @samme)
+* The `Display.Masks.BitmapMask` `destroy` method will now remove the context-lost event handler.
+* The `hitArea` parameter of the `GameObjects.Zone.setDropZone` method is now optional and if not given it will try to create a hit area based on the size of the Zone Game Object (thanks @rexrainbow)
+* `BitmapMask.scene` is a new property that allows the Bitmap Mask to reference the Scene it was created in.
+* The `DOMElement.preUpdate` method has been removed. If you overrode this method, please now see `preRender` instead.
+* `DOMElement.preRender` is a new method that will check parent visibility and improve its behavior, responding to the parent even if the Scene is paused or the element is inactive. Dom Elements are also no longer added to the Scene Update List. Fix #5816 (thanks @prakol16 @samme)
+* 
+
+### Bug Fixes
+
+* `Animation.createFromAseprite` would calculate an incorrect frame duration if the frames didn't all have the same speed.
+* The URL scheme `capacitor://` has been added to the protocol check to prevent malformed double-urls in some environments (thanks @consolenaut)
+* Removed `Config.domBehindCanvas` property as it's never used internally. Fix #5749 (thanks @iamallenchang)
+* `dispatchTweenEvent` would overwrite one of the callback's parameters. This fix ensures that `Tween.setCallback` now works consistently. Fix #5753 (thanks @andrei-pmbcn @samme)
+* The context restore event handler is now turned off when a Game Object is destroyed. This helps avoid memory leakage from Text and TileSprite Game Objects, especially if you consistently destroy and recreate your Game instance in a single-page app (thanks @rollinsafary-inomma @rexrainbow @samme)
+* When the device does not support WebGL, creating a game with the renderer type set to `Phaser.WEBGL` will now fail with an error. Previously, it would fall back to Canvas. Now it will not fall back to Canvas. If you require that feature, use the AUTO render type. Fix #5583 (thanks @samme)
+* The `Tilemap.createFromObjects` method will now correctly place both tiles and other objects. Previously, it made the assumption that the origin was 0x1 for all objects, but Tiled only uses this for tiles and uses 0x0 for its other objects. It now handles both. Fix #5789 (thanks @samme)
+* The `CanvasRenderer.snapshotCanvas` method used an incorrect reference to the canvas, causing the operation to fail. It will now snapshot a canvas correctly. Fix #5792 (thanks @rollinsafary-inomma @samme)
+* The `Tilemap.tileToWorldY` method incorrectly had the parameter `tileX`. It will worked, but didn't make sense. It is now `tileY` (thanks @mayacoda)
+* The `Tilemap.convertTilemapLayer` method would fail for _isometric tilemaps_ by not setting the physic body alignment properly. It will now call `getBounds` correctly, allowing for use on non-orthagonal maps. Fix #5764 (thanks @mayacoda)
+
+### Examples, Documentation and TypeScript
+
+My thanks to the following for helping with the Phaser 3 Examples, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
+
+@necrokot Golen @Pythux @samme @danfoster @eltociear
 
 
+
+
+
+## Version 3.55.2 - Ichika - 27th May 2021
+
+### Bug Fixes
+
+* Fixed an issue in `FillPathWebGL`, `IsoBoxWebGLRenderer` and `IsoTriangleWebGLRenderer` functions which caused the filled versions of most Shape Game Objects to pick-up the texture of the previous object on the display list. Fix #5720 (thanks @samme)
+
+## Version 3.55.1 - Ichika - 26th May 2021
+
+### New Features
+
+* The `GameObject.destroy` method has a new `fromScene` parameter, set automatically by Phaser. Fix #5716 (thanks @rexrainbow)
+* The Game Object `DESTROY` event is now set the new `fromScene` boolean as the 2nd parameter, allowing you to determine what invoked the event (either user code or a Scene change). Fix #5716 (thanks @rexrainbow)
+
+### Bug Fixes
+
+* Fixed an issue with the TypeScript defs not recognising the Game Object Config properly. Fix #5713 (thanks @vforsh)
+* Fixed an issue in the `FillPathWebGL` function which caused the filled versions of the Arc, Circle, Ellipse, Polygon and Star Shapes to not render. Fix #5712 (thanks @rexrainbow)
+* Fixed rendering parameters in `IsoBox` and `IsoTriangle` Game Objects that stopped them from rendering correctly.
+* Added the missing `WebGLPipelineUniformsConfig` type def. Fix #5718 (thanks @PhaserEditor2D)
 
 ## Version 3.55.0 - Ichika - 24th May 2021
 
