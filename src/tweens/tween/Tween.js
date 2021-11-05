@@ -238,7 +238,7 @@ var Tween = new Class({
          * @private
          * @since 3.0.0
          */
-        this._pausedState = TWEEN_CONST.INIT;
+        this._pausedState = TWEEN_CONST.PENDING_ADD;
 
         /**
          * Does the Tween start off paused? (if so it needs to be started with Tween.play)
@@ -504,6 +504,10 @@ var Tween = new Class({
         else if (this.state === TWEEN_CONST.PENDING_ADD)
         {
             return this;
+        }
+        else if (this.state === TWEEN_CONST.PENDING_REMOVE)
+        {
+            this.parent.reset(this);
         }
         else
         {

@@ -381,10 +381,25 @@ var Clock = new Class({
                 {
                     event.repeatCount--;
 
+                    // Very short delay
+                    if (remainder >= event.delay)
+                    {
+                        while ((remainder >= event.delay) && (event.repeatCount > 0))
+                        {
+                            if (event.callback)
+                            {
+                                event.callback.apply(event.callbackScope, event.args);
+                            }
+
+                            remainder -= event.delay;
+                            event.repeatCount--;
+                        }
+                    }
+
                     event.elapsed = remainder;
                     event.hasDispatched = false;
                 }
-                else
+                else if (event.hasDispatched)
                 {
                     this._pendingRemoval.push(event);
                 }
