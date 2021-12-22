@@ -44,11 +44,11 @@ var HTML5AudioSound = new Class({
          * @private
          * @since 3.0.0
          */
-        this.tags = manager.game.cache.audio.get(key);
+        this.tags = manager.cache.get(key);
 
         if (!this.tags)
         {
-            throw new Error('There is no audio asset with key "' + key + '" in the audio cache');
+            throw new Error('Audio cache missing "' + key + '"');
         }
 
         /**
@@ -92,6 +92,8 @@ var HTML5AudioSound = new Class({
         this.totalDuration = this.tags[0].duration;
 
         BaseSound.call(this, manager, key, config);
+
+        console.log('HTML5AudioSound created', this.tags);
     },
 
     /**
@@ -112,21 +114,26 @@ var HTML5AudioSound = new Class({
     {
         if (this.manager.isLocked(this, 'play', [ markerName, config ]))
         {
+            console.log('HAS.play 1');
             return false;
         }
 
         if (!BaseSound.prototype.play.call(this, markerName, config))
         {
+            console.log('HAS.play 2');
             return false;
         }
 
         //  \/\/\/ isPlaying = true, isPaused = false \/\/\/
         if (!this.pickAndPlayAudioTag())
         {
+            console.log('HAS.play 3');
             return false;
         }
 
         this.emit(Events.PLAY, this);
+
+        console.log('HAS.play 4');
 
         return true;
     },

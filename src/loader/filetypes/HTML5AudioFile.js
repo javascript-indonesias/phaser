@@ -5,6 +5,7 @@
  */
 
 var Class = require('../../utils/Class');
+var CONST = require('../const');
 var Events = require('../events');
 var File = require('../File');
 var GetFastValue = require('../../utils/object/GetFastValue');
@@ -16,7 +17,7 @@ var IsPlainObject = require('../../utils/object/IsPlainObject');
  * A single Audio File suitable for loading by the Loader.
  *
  * These are created when you use the Phaser.Loader.LoaderPlugin#audio method and are not typically created directly.
- * 
+ *
  * For documentation about what all the arguments and configuration options mean please see Phaser.Loader.LoaderPlugin#audio.
  *
  * @class HTML5AudioFile
@@ -58,7 +59,8 @@ var HTML5AudioFile = new Class({
         File.call(this, loader, fileConfig);
 
         //  New properties specific to this class
-        this.locked = 'ontouchstart' in window;
+        this.soundManager = loader.systems.sound;
+        this.locked = this.soundManager.locked;
         this.loaded = false;
         this.filesLoaded = 0;
         this.filesTotal = 0;
@@ -107,6 +109,8 @@ var HTML5AudioFile = new Class({
      * @method Phaser.Loader.FileTypes.HTML5AudioFile#onProgress
      * @fires Phaser.Loader.Events#FILE_PROGRESS
      * @since 3.0.0
+     *
+     * @param {ProgressEvent} event - The DOM ProgressEvent.
      */
     onProgress: function (event)
     {
@@ -123,7 +127,11 @@ var HTML5AudioFile = new Class({
 
         if (this.filesLoaded === this.filesTotal)
         {
-            this.onLoad();
+            var success = !(event.target && event.target.status !== 200);
+
+            this.state = CONST.FILE_LOADED;
+
+            this.loader.nextFile(this, success);
         }
     },
 
@@ -148,26 +156,25 @@ var HTML5AudioFile = new Class({
         for (var i = 0; i < instances; i++)
         {
             var audio = new Audio();
+            var dataset = audio.dataset;
 
-            if (!audio.dataset)
-            {
-                audio.dataset = {};
-            }
-
-            audio.dataset.name = this.key + ('0' + i).slice(-2);
-            audio.dataset.used = 'false';
+            dataset.name = this.key + '-' + i.toString();
+            dataset.used = 'false';
 
             if (this.locked)
             {
-                audio.dataset.locked = 'true';
+                dataset.locked = 'true';
+                console.log('HTML5AudioFile:', dataset.name, 'locked');
             }
             else
             {
-                audio.dataset.locked = 'false';
+                dataset.locked = 'false';
 
                 audio.preload = 'auto';
                 audio.oncanplaythrough = this.onProgress.bind(this);
                 audio.onerror = this.onError.bind(this);
+
+                console.log('HTML5AudioFile:', dataset.name, 'unlocked');
             }
 
             this.data.push(audio);
@@ -176,19 +183,19 @@ var HTML5AudioFile = new Class({
         for (i = 0; i < this.data.length; i++)
         {
             audio = this.data[i];
+
             audio.src = GetURL(this, this.loader.baseURL);
 
             if (!this.locked)
             {
                 audio.load();
+                console.log('HTML5AudioFile:', dataset.name, 'load called');
             }
         }
 
         if (this.locked)
         {
-            //  This is super-dangerous but works. Race condition potential high.
-            //  Is there another way?
-            setTimeout(this.onLoad.bind(this));
+            this.loader.nextFile(this, true);
         }
     }
 

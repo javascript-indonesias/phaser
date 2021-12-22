@@ -504,10 +504,7 @@ var GameObject = new Class({
      */
     disableInteractive: function ()
     {
-        if (this.input)
-        {
-            this.input.enabled = false;
-        }
+        this.scene.sys.input.disable(this);
 
         return this;
     },
@@ -614,7 +611,9 @@ var GameObject = new Class({
      */
     willRender: function (camera)
     {
-        return !(GameObject.RENDER_MASK !== this.renderFlags || (this.cameraFilter !== 0 && (this.cameraFilter & camera.id)));
+        var listWillRender = (this.displayList && this.displayList.active) ? this.displayList.willRender(camera) : true;
+
+        return !(!listWillRender || GameObject.RENDER_MASK !== this.renderFlags || (this.cameraFilter !== 0 && (this.cameraFilter & camera.id)));
     },
 
     /**
