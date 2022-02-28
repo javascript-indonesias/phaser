@@ -46,6 +46,21 @@ Development of this feature was kindly sponsored by Club Penguin Rewritten (http
 * The `WebGL.Utils.parseFragmentShaderMaxTextures` function no longer supports the `%forloop%` declaration.
 * The internal WebGL Utils function `GenerateSrc` has been removed as it's no longer required internally.
 
+### New Features - Matter Physics v0.18
+
+We have updated the version of Matter Physics to the latest v0.18 release. This is a big jump and brings with it quite a few internal changes to Matter. The following are the differences we have identified in this release:
+
+* Up to ~40% performance improvement (on average measured over all examples, in Node on a Mac Air M1)
+* Replaces `Matter.Grid` with a faster and more efficient broadphase in `Matter.Detector`.
+* Reduced memory usage and garbage collection.
+* Resolves issues in `Matter.SAT` related to collision reuse.
+* Removes performance issues from `Matter.Grid`.
+* Improved collision accuracy.
+* `MatterPhysics.collision` is a new reference to the `Collision` module, which now handles all Matter collision events.
+* `MatterPhysics.grid` has been removed as this is now handled by the `Collision` module.
+* `MatterPhysics.sat` has been removed as this is now handled by the `Collision` module.
+* The `Matter.Body.previousPositionImpulse` property has been removed as it's no longer used.
+
 ### New Features
 
 * `ScaleManager.getViewPort` is a new method that will return a Rectangle geometry object that matches the visible area of the screen (thanks @rexrainbow)
@@ -186,6 +201,14 @@ The following are API-breaking, in that a new optional parameter has been insert
 * `CanvasSnapshot` will now skip the `drawImage` call in canvas if the frame width or height are zero.
 * `TextureManager.getBase64` will now skip the `drawImage` call in canvas if the frame width or height are zero.
 * `TilemapLayerCanvasRenderer` will now skip the `drawImage` call in canvas if the frame width or height are zero.
+* Audio will now unlock properly again on iOS14 and above in Safari. Fix #5696 (thanks @laineus)
+* Drawing Game Objects to a Render Texture in WebGL would skip their blend modes. This is now applied correctly. Fix #5565 #5996 (thanks @sjb933 @danarcher)
+* Loading a Script File Type will now default the 'type' property to 'script' when a type is not provided. Fix #5994 (thanks @samme @ItsGravix)
+* Using `RenderTexture.fill` in CANVAS mode only would produce a nearly always black color due to float conversion (thanks @andymikulski)
+* If you Paused or Stopped a Scene that was in a preload state, it would still call 'create' after the Scene had shutdown (thanks @samme)
+* BitmapText rendering wouldn't correctly apply per-character kerning offsets. These are now implemented during rendering (thanks @arbassic)
+* Child Spine objects inside Containers wouldn't correctly inherit the parent Containers alpha. Fix #5853 (thanks @spayton)
+* The DisplayList will now enter a while loop until all Game Objects are destroyed, rather than cache the list length. This prevents "cannot read property 'destroy' of undefined" errors in Scenes. Fix #5520 (thanks @schontz @astei)
 
 ### Examples, Documentation and TypeScript
 
