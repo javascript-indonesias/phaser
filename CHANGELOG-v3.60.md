@@ -90,6 +90,10 @@ We have updated the version of Matter Physics to the latest v0.18 release. This 
 * `Mesh.clearTint` is a new method that will clear the tint from all vertices of a Mesh (thanks @rexrainbow)
 * You can now use dot notation as the datakey when defining a Loader Pack File (thanks @rexrainbow)
 * `Vector2.project` is a new method that will project the vector onto the given vector (thanks @samme)
+* Experimental feature: The `TilemapLayer` now has the `Mask` component - meaning you can apply a mask to tilemaps (thanks @samme)
+* `TilemapLayer.setTint` is a new method that allows you to set the tint color of all tiles in the given area, optionally based on the filtering search options. This is a WebGL only feature.
+* `RenderTexture.setIsSpriteTexture` is a new method that allows you to flag a Render Texture as being used as the source for Sprite Game Object textures. You can also toggle the new boolean property `isSpriteTexture` as well. Doing this ensures that images drawn to the Render Texture are correctly inverted for rendering in WebGL. Not doing so can cause inverted frames. If you use this method, you must use it before drawing anything to the Render Texture. Fix #6057 #6017 (thanks @andymikulski @Grandnainconnu)
+* `UtilityPipeline.blitFrame` has a new optional boolean parameter `flipY` which, if set, will invert the source Render Target while drawing it to the destination Render Target.
 
 ### Geom Updates
 
@@ -147,6 +151,17 @@ The following are API-breaking, in that a new optional parameter has been insert
 * The Particle 'moveTo' calculations have been simplied and made more efficient (thanks @samme)
 * The `Key.reset` method no longer resets the `Key.enabled` or `Key.preventDefault` booleans back to `true` again, but only resets the state of the Key. Fix #6098 (thanks @descodifica)
 * When setting the Input Debug Hit Area color it was previously fixed to the value given when created. The value is now taken from the object directly, meaning you can set `gameObject.hitAreaDebug.strokeColor` in real-time (thanks @spayton)
+* You can now have a particle frequency smaller than the delta step, which would previously lead to inconsistencies in emission rates (thanks @samme)
+* The `Light` Game Object now has the `Origin` and `Transform` components, along with 4 new properties: `width`, `height`, `displayWidth` and `displayHeight`. This allows you to add a Light to a Container, or enable it for physics. Fix #6126 (thanks @jcoppage)
+* The `Transform` Component has a new boolean read-only property `hasTransformComponent` which is set to `true` by default.
+* The Arcade Physics `World.enableBody` method will now only create and add a `Body` to an object if it has the Transform component, tested by checking the `hasTransformComponent` property. Without the Transform component, creating a Body would error with NaN values, causing the rest of the bodies in the world to fail.
+* `ProcessQueue.isActive` is a new method that tests if the given object is in the active list, or not.
+* `ProcessQueue.isPending` is a new method that tests if the given object is in the pending insertion list, or not.
+* `ProcessQueue.isDestroying` is a new method that tests if the given object is pending destruction, or not.
+* `ProcessQueue.add` will no longer place the item into the pending list if it's already active or pending.
+* `ProcessQueue.remove` will check if the item is in the pending list, and simply remove it, rather than destroying it.
+* `Container.addHandler` will now call `GameObject.addedToScene`.
+* `Container.removeHandler` will now call `GameObject.removedFromScene`.
 
 ### Bug Fixes
 
@@ -231,6 +246,11 @@ The following are API-breaking, in that a new optional parameter has been insert
 * The `TilemapLayer.getTilesWithinShape` method would not return valid results when used with a Line geometry object. Fix #5640 (thanks @hrecker @samme)
 * Modified the way Phaser uses `require` statements in order to fix an issue in Google's closure-compiler when variables are re-assigned to new values (thanks @TJ09)
 * When creating a `MatterTileBody` from an isometric tile the tiles top value would be incorrect. The `getTop` method has been fixed to address this (thanks @adamazmil)
+* Sprites created directly (not via the Game Object Factory) which are then added to a Container would fail to play their animations, because they were not added to the Scene Update List. Fix #5817 #5818 #6052 (thanks @prakol16 @adomas-sk)
+* Game Objects that were created and destroyed (or moved to Containers) in the same frame were not correctly removed from the UpdateList. Fix #5803 (thanks @samme)
+* `Container.removeHandler` now specifies the context for `Events.DESTROY`, fixing an issue where objects moved from one container, to another, then destroyed, would cause `sys` reference errors. Fix 5846 (thanks @sreadixl)
+* `Container.removeAll` (which is also called when a Container is destroyed) will now directly destroy the children, if the given parameter is set, rather than doing it after removing them via the event handler. This fixes an issue where nested Containers would add destroyed children back to the Scene as part of their shutdown process. Fix #6078 (thanks @BenoitFreslon)
+* The `DisplayList.addChildCallback` method will now check to see if the child has a parent container, and if it does, remove it from there before adding it to the Scene Display List. Fix #6091 (thanks @michalfialadev)
 
 ### Examples, Documentation and TypeScript
 
