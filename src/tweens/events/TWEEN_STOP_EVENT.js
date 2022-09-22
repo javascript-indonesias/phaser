@@ -22,9 +22,10 @@
  * ```
  *
  * @event Phaser.Tweens.Events#TWEEN_STOP
+ * @type {string}
  * @since 3.24.0
  *
  * @param {Phaser.Tweens.Tween} tween - A reference to the Tween instance that emitted the event.
- * @param {any[]} targets - An array of references to the target/s the Tween is operating on.
+ * @param {(any|any[])} targets - The targets of the Tween. If this Tween has multiple targets this will be an array of the targets.
  */
 module.exports = 'stop';

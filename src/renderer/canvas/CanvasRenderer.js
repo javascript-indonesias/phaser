@@ -114,7 +114,8 @@ var CanvasRenderer = new Class({
 
         var contextOptions = {
             alpha: game.config.transparent,
-            desynchronized: game.config.desynchronized
+            desynchronized: game.config.desynchronized,
+            willReadFrequently: false
         };
 
         /**
@@ -811,7 +812,7 @@ var CanvasRenderer = new Class({
 
         ctx.globalAlpha = alpha;
 
-        ctx.imageSmoothingEnabled = !(!this.antialias || frame.source.scaleMode);
+        ctx.imageSmoothingEnabled = !frame.source.scaleMode;
 
         if (sprite.mask)
         {

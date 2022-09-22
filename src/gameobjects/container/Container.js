@@ -937,12 +937,15 @@ var Container = new Class({
         {
             for (var i = 0; i < list.length; i++)
             {
-                list[i].off(Events.DESTROY, this.remove, this);
+                if (list[i] && list[i].scene)
+                {
+                    list[i].off(Events.DESTROY, this.remove, this);
 
-                list[i].destroy();
+                    list[i].destroy();
+                }
             }
 
-            list = [];
+            this.list = [];
         }
         else
         {

@@ -88,7 +88,7 @@ var TextureManager = new Class({
          * @private
          * @since 3.0.0
          */
-        this._tempCanvas = CanvasPool.create2D(this, 1, 1);
+        this._tempCanvas = CanvasPool.create2D(this);
 
         /**
          * The context of the temporary canvas element made to save an pixel data in getPixel() and getPixelAlpha() method.
@@ -98,7 +98,7 @@ var TextureManager = new Class({
          * @private
          * @since 3.0.0
          */
-        this._tempContext = this._tempCanvas.getContext('2d');
+        this._tempContext = this._tempCanvas.getContext('2d', { willReadFrequently: true });
 
         /**
          * An counting value used for emitting 'ready' event after all of managers in game is loaded.
@@ -159,6 +159,7 @@ var TextureManager = new Class({
 
     /**
      * Checks the given texture key and throws a console.warn if the key is already in use, then returns false.
+     *
      * If you wish to avoid the console.warn then use `TextureManager.exists` instead.
      *
      * @method Phaser.Textures.TextureManager#checkKey
@@ -219,6 +220,7 @@ var TextureManager = new Class({
             key.destroy();
 
             this.emit(Events.REMOVE, key.key);
+            this.emit(Events.REMOVE_KEY + key.key);
         }
 
         return this;
@@ -282,7 +284,7 @@ var TextureManager = new Class({
                 Parser.Image(texture, 0);
 
                 _this.emit(Events.ADD, key, texture);
-
+                _this.emit(Events.ADD_KEY + key, texture);
                 _this.emit(Events.LOAD, key, texture);
             };
 
@@ -383,6 +385,7 @@ var TextureManager = new Class({
             }
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -423,6 +426,7 @@ var TextureManager = new Class({
             texture.add('__BASE', 0, 0, 0, width, height);
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -473,6 +477,7 @@ var TextureManager = new Class({
             }
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -502,6 +507,7 @@ var TextureManager = new Class({
             texture.add('__BASE', 0, 0, 0, renderTexture.width, renderTexture.height);
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -629,6 +635,7 @@ var TextureManager = new Class({
             this.list[key] = texture;
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -709,6 +716,7 @@ var TextureManager = new Class({
             }
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -756,6 +764,7 @@ var TextureManager = new Class({
             }
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -792,6 +801,7 @@ var TextureManager = new Class({
             }
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -828,6 +838,7 @@ var TextureManager = new Class({
             }
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -837,32 +848,45 @@ var TextureManager = new Class({
      * Adds a Sprite Sheet to this Texture Manager.
      *
      * In Phaser terminology a Sprite Sheet is a texture containing different frames, but each frame is the exact
-     * same size and cannot be trimmed or rotated.
+     * same size and cannot be trimmed or rotated. This is different to a Texture Atlas, created by tools such as
+     * Texture Packer, and more akin with the fixed-frame exports you get from apps like Aseprite or old arcade
+     * games.
+     *
+     * As of Phaser 3.60 you can use this method to add a sprite sheet to an existing Phaser Texture.
      *
      * @method Phaser.Textures.TextureManager#addSpriteSheet
      * @fires Phaser.Textures.Events#ADD
      * @since 3.0.0
      *
-     * @param {string} key - The unique string-based key of the Texture.
-     * @param {HTMLImageElement} source - The source Image element.
+     * @param {string} key - The unique string-based key of the Texture. Give an empty string if you provide a Phaser Texture as the 2nd argument.
+     * @param {(HTMLImageElement|Phaser.Textures.Texture)} source - The source Image element, or a Phaser Texture.
      * @param {Phaser.Types.Textures.SpriteSheetConfig} config - The configuration object for this Sprite Sheet.
      *
-     * @return {?Phaser.Textures.Texture} The Texture that was created, or `null` if the key is already in use.
+     * @return {?Phaser.Textures.Texture} The Texture that was created or updated, or `null` if the key is already in use.
      */
     addSpriteSheet: function (key, source, config)
     {
         var texture = null;
 
-        if (this.checkKey(key))
+        if (source instanceof Texture)
+        {
+            key = texture.key;
+            texture = source;
+        }
+        else if (this.checkKey(key))
         {
             texture = this.create(key, source);
+        }
 
+        if (texture)
+        {
             var width = texture.source[0].width;
             var height = texture.source[0].height;
 
             Parser.SpriteSheet(texture, 0, 0, 0, width, height, config);
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
         }
 
         return texture;
@@ -916,6 +940,7 @@ var TextureManager = new Class({
             }
 
             this.emit(Events.ADD, key, texture);
+            this.emit(Events.ADD_KEY + key, texture);
 
             return texture;
         }
@@ -1037,7 +1062,7 @@ var TextureManager = new Class({
 
     /**
      * Returns an array with all of the keys of all Textures in this Texture Manager.
-     * The output array will exclude the `__DEFAULT` and `__MISSING` keys.
+     * The output array will exclude the `__DEFAULT`, `__MISSING`, and `__WHITE` keys.
      *
      * @method Phaser.Textures.TextureManager#getTextureKeys
      * @since 3.0.0
@@ -1050,7 +1075,7 @@ var TextureManager = new Class({
 
         for (var key in this.list)
         {
-            if (key !== '__DEFAULT' && key !== '__MISSING')
+            if (key !== '__DEFAULT' && key !== '__MISSING' && key !== '__WHITE')
             {
                 output.push(key);
             }

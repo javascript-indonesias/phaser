@@ -33,7 +33,7 @@ var UUID = require('../../utils/string/UUID');
  * to the Render Texture.
  *
  * If you are planning on using this Render Texture as a base texture for Sprite
- * Game Objects, then you should set `RenderTexture.isSpriteTexture = true` _before_
+ * Game Objects, then you should call `RenderTexture.setIsSpriteTexture()` _before_
  * calling any `draw` methods, otherwise you will get inverted frames in WebGL.
  *
  * @class RenderTexture
@@ -197,13 +197,16 @@ var RenderTexture = new Class({
         /**
          * Is this Render Texture being used as the base texture for a Sprite Game Object?
          *
-         * If so, you should enable this property _prior_ to drawing to it, so that it correctly
+         * To enable this, call `RenderTexture.setIsSpriteTexture(true)`.
+         *
+         * You should do this _before_ drawing to this RenderTexture, so that it correctly
          * inverses the frames for WebGL rendering. Not doing so will result in inverted frames.
          *
-         * You can also toggle this property at run-time. It it used in the `endDraw` method.
+         * This property is used in the `endDraw` method.
          *
          * @name Phaser.GameObjects.RenderTexture#isSpriteTexture
          * @type {boolean}
+         * @readonly
          * @since 3.60.0
          */
         this.isSpriteTexture = false;
@@ -289,7 +292,7 @@ var RenderTexture = new Class({
 
             this.renderTarget = new RenderTarget(renderer, width, height, 1, 0, false);
 
-            this.setFlipY(true);
+            this.setFlipY(this.isSpriteTexture);
         }
         else if (renderer.type === CONST.CANVAS)
         {
@@ -341,6 +344,8 @@ var RenderTexture = new Class({
     setIsSpriteTexture: function (value)
     {
         this.isSpriteTexture = value;
+
+        this.setFlipY(value);
 
         return this;
     },
@@ -784,7 +789,7 @@ var RenderTexture = new Class({
      * @since 3.12.0
      *
      * @param {string} key - The key of the texture to be used, as stored in the Texture Manager.
-     * @param {(string|number)} [frame] - The name or index of the frame within the Texture.
+     * @param {(string|number)} [frame] - The name or index of the frame within the Texture. Set to `null` to skip this argument if not required.
      * @param {number} [x=0] - The x position to draw the frame at.
      * @param {number} [y=0] - The y position to draw the frame at.
      * @param {number} [alpha] - The alpha to use. If not specified it uses the `globalAlpha` property.
@@ -797,6 +802,65 @@ var RenderTexture = new Class({
         this.beginDraw();
         this.batchDrawFrame(key, frame, x, y, alpha, tint);
         this.endDraw();
+
+        return this;
+    },
+
+    /**
+     * Takes the given Texture Frame and draws it to this Render Texture
+     * as a fill pattern, i.e. in a grid-layout based on the frame dimensions.
+     *
+     * Textures are referenced by their string-based keys, as stored in the Texture Manager.
+     *
+     * ```javascript
+     * var rt = this.add.renderTexture(0, 0, 800, 600);
+     * rt.fillFrame(key, frame);
+     * ```
+     *
+     * You can optionally provide a position, alpha and tint value to apply to the frames
+     * before they are drawn. The position controls the offset of the first frame to be drawn
+     * and can be negative if required.
+     *
+     * Calling this method will cause a batch flush, so if you've got a stack of things to draw
+     * in a tight loop, try using the `draw` method instead.
+     *
+     * If you are planning on using this Render Texture as a base texture for Sprite
+     * Game Objects, then you should set `RenderTexture.isSpriteTexture = true` before
+     * calling this method, otherwise you will get inverted frames in WebGL.
+     *
+     * @method Phaser.GameObjects.RenderTexture#fillFrame
+     * @since 3.60.0
+     *
+     * @param {string} key - The key of the texture to be used, as stored in the Texture Manager.
+     * @param {(string|number)} [frame] - The name or index of the frame within the Texture. Set to `null` to skip this argument if not required.
+     * @param {number} [x=0] - The x position to start drawing the frames from (can be negative to offset).
+     * @param {number} [y=0] - The y position to start drawing the frames from (can be negative to offset).
+     * @param {number} [alpha] - The alpha to use. If not specified it uses the `globalAlpha` property.
+     * @param {number} [tint] - WebGL only. The tint color to use. If not specified it uses the `globalTint` property.
+     *
+     * @return {this} This Render Texture instance.
+     */
+    fillFrame: function (key, frame, x, y, alpha, tint)
+    {
+        if (x === undefined) { x = 0; }
+        if (y === undefined) { y = 0; }
+
+        var textureFrame = this.textureManager.getFrame(key, frame);
+
+        if (textureFrame)
+        {
+            this.beginDraw();
+
+            for (var sy = y; sy < this.height; sy += textureFrame.height)
+            {
+                for (var sx = x; sx < this.width; sx += textureFrame.width)
+                {
+                    this.batchDrawFrame(key, frame, sx, sy, alpha, tint);
+                }
+            }
+
+            this.endDraw();
+        }
 
         return this;
     },

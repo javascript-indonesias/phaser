@@ -67,7 +67,8 @@ var WebGLRenderer = new Class({
             stencil: true,
             failIfMajorPerformanceCaveat: gameConfig.failIfMajorPerformanceCaveat,
             powerPreference: gameConfig.powerPreference,
-            preserveDrawingBuffer: gameConfig.preserveDrawingBuffer
+            preserveDrawingBuffer: gameConfig.preserveDrawingBuffer,
+            willReadFrequently: false
         };
 
         /**
@@ -1579,6 +1580,7 @@ var WebGLRenderer = new Class({
             gl.bindTexture(gl.TEXTURE_2D, texture);
 
             this.textureZero = texture;
+            this.isTextureClean = false;
         }
     },
 
@@ -2176,7 +2178,7 @@ var WebGLRenderer = new Class({
                 36061: 'Framebuffer Unsupported'
             };
 
-            throw new Error('Framebuffer status: ' + errors[complete]);
+            throw new Error('Framebuffer status: ' + (errors[complete] || complete));
         }
 
         framebuffer.renderTexture = renderTexture;

@@ -177,6 +177,16 @@ var Config = new Class({
          */
         this.autoFocus = GetValue(config, 'autoFocus', true);
 
+        /**
+         * @const {(number|boolean)} Phaser.Core.Config#stableSort - `true` or `1` = Use the built-in StableSort (needed for older browsers), `false` or `0` = Rely on ES2019 Array.sort being stable (modern browsers only), or `-1` = Try and determine this automatically based on browser inspection (not guaranteed to work, errs on side of caution).
+         */
+        this.stableSort = GetValue(config, 'stableSort', -1);
+
+        if (this.stableSort === -1 && Device.browser.es2019)
+        {
+            this.stableSort = 0;
+        }
+
         //  DOM Element Container
 
         /**
