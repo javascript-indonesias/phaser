@@ -26,8 +26,6 @@ Phaser 3.60 contains support for Compressed Textures. It can parse both KTX and 
 
 Compressed Textures are loaded using the new `this.load.texture` method, which takes a texture configuration object that maps the formats to the files. The browser will then download the first file in the object that it knows it can support. You can also provide Texture Atlas JSON data, or Multi Atlas JSON data, too, so you can use compressed texture atlases. Currently, Texture Packer is the best tool for creating these type of files.
 
-Development of this feature was kindly sponsored by Club Penguin Rewritten (https://cprewritten.net).
-
 * `TextureSoure.compressionAlgorithm` is now populated with the compression format used by the texture.
 * `Types.Textures.CompressedTextureData` is the new compressed texture configuration object type.
 * `TextureManager.addCompressedTexture` is a new method that will add a compressed texture, and optionally atlas data into the Texture Manager and return a `Texture` object than any Sprite can use.
@@ -45,6 +43,15 @@ Development of this feature was kindly sponsored by Club Penguin Rewritten (http
 * The `WebGL.Utils.checkShaderMax` function will no longer use a massive if/else glsl shader check and will instead rely on the value given in `gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)`.
 * The `WebGL.Utils.parseFragmentShaderMaxTextures` function no longer supports the `%forloop%` declaration.
 * The internal WebGL Utils function `GenerateSrc` has been removed as it's no longer required internally.
+* Previously, the Multi Tint methods `batchSprite`, `batchTexture`, `batchTextureFrame` and `batchFillRect` would all make heavy use of the `TransformMatrix.getXRound` and `getYRound` methods, which in turn called `getX` and `getY` and applied optional rounding to them. This is all now handled by one single function (`setQuad`) with no branching, meaning rendering one single sprite has cut down 16 function calls and 48 getters to just 1 function.
+
+### Updated - Lights Pipeline
+
+* The Light Pipeline no longer creates up to `maxLights` copies of the Light shader on boot. Previously it would then pick which shader to use, based on the number of visible lights in the Scene. Now, the number of lights is passed to the shader and branches accordingly. This means rather than compiling _n_ shaders on boot, it now only ever needs to create one.
+* You can now have no lights in a Scene, but the Scene will still be impacted by the ambient light. Previously, you always needed at least 1 light to trigger ambient light (thanks jstnldrs)
+* The `Light.frag` shader now uses a new `uLightCount` uniform to know when to stop iterating through the max lights.
+* The `LightPipeline.LIGHT_COUNT` constant has been removed as it's not used internally.
+* The `LightPipeline` previous created a global level temporary vec2 for calculations. This is now part of the class as the new `tempVec2` property.
 
 ### Removed - Graphics Pipeline
 
@@ -139,13 +146,14 @@ The following are further updates within the Tween system:
 
 ### New Features
 
+* `TextureManager.parseFrame` is a new method that will return a Texture Frame instance from the given argument, which can be a string, array, object or Texture instance.
 * `GameConfig.stableSort` is a new optional property that will control if the internal depth sorting routine uses our own StableSort function, or the built-in browser Array.sort one. Only modern browsers have a _stable_ Array.sort implementation, which Phaser requires. Older ones need to use our function instead. Set to 1 to use the legacy version, 0 to use the ES2019 version or -1 to have Phaser try and detect which is best for the browser (thanks @JernejHabjan)
 * `Device.es2019` is a new boolean that will do a basic browser type + version detection to see if it supports ES2019 features natively, such as stable array sorting.
-* The `TextureManager.addSpriteSheet` method will now allow you to pass in a Phaser Texture as the 2nd parameter. This allows you to add sprite sheet data to textures that came from external sources, such as SVG files or canvas elements.
+* All of the following Texture Manager methods will now allow you to pass in a Phaser Texture as the `source` parameter: `addSpriteSheet`, `addAtlas`, `addAtlasJSONArray`, `addAtlasJSONHash`, `addAtlasXML` and `addAtlasUnity`. This allows you to add sprite sheet or atlas data to existing textures, or textures that came from external sources, such as SVG files, canvas elements or Dynamic Textures.
 * `Game.pause` is a new method that will pause the entire game and all Phaser systems.
 * `Game.resume` is a new method that will resume the entire game and resume all of Phaser's systems.
-* `RenderTexture.fillFrame` is a new method that will take a given texture and draw it to the Render Texture as a fill-pattern. You can control the offset, alpha and tint of the draw (thanks xlapiz)
-* `ScaleManager.getViewPort` is a new method that will return a Rectangle geometry object that matches the visible area of the screen (thanks @rexrainbow)
+* `RenderTexture.repeat` is a new method that will take a given texture and draw it to the Render Texture as a fill-pattern. You can control the offset, width, height, alpha and tint of the draw (thanks xlapiz)
+* `ScaleManager.getViewPort` is a new method that will return a Rectangle geometry object that matches the visible area of the screen, or the given Camera instance (thanks @rexrainbow)
 * When starting a Scene and using an invalid key, Phaser will now raise a console warning informing you of this, instead of silently failing. Fix #5811 (thanks @ubershmekel)
 * `GameObjects.Layer.addToDisplayList` and `removeFromDisplayList` are new methods that allows for you to now add a Layer as a child of another Layer. Fix #5799 (thanks @samme)
 * `GameObjects.Video.loadURL` has a new optional 4th parameter `crossOrigin`. This allows you to specify a cross origin request type when loading the video cross-domain (thanks @rmartell)
@@ -202,6 +210,15 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Updates
 
+* `Camera.preRender` will now apply `Math.floor` instead of `Math.round` to the values, keeping it consistent with the Renderer when following a sprite.
+* When rendering a Sprite with a Camera set to `roundPixels` it will now run `Math.floor` on the Matrix position, preventing you from noticing 'jitters' as much when Camera following sprites in heavily zoomed Camera systems.
+* `TransformMatrix.setQuad` is a new method that will perform the 8 calculations required to create the vertice positions from the matrix and the given values. The result is stored in the new `TransformMatrix.quad` Float32Array, which is also returned from this method.
+* `TransformMatrix.multiply` now directly updates the Float32Array, leading to 6 less getter invocations.
+* The `CameraManager.getVisibleChildren` method now uses the native Array filter function, rather than a for loop. This should improve performance in some cases (thanks @JernejHabjan)
+* `SceneManager.systemScene` is a new property that is set during the game boot and is a system Scene reference that plugins and managers can use, that lives outside of the Scene list.
+* `RenderTexture.isDrawing` is a new read-only flag that tells if the Render Texture is currently batch drawing, or not.
+* The `TextureManager.get` methof can now accept a `Frame` instance as its parameter, which will return the frames parent Texture.
+* The `GameObject.setFrame` method can now accept a `Frame` instance as its parameter, which will also automatically update the Texture the Game Object is using.
 * `Device.safariVersion` is now set to the version of Safari running, previously it was always undefined.
 * When you try to use a frame that is missing on the Texture, it will now give the key of the Texture in the console warning (thanks @samme)
 * The `Display.Masks.BitmapMask` `destroy` method will now remove the context-lost event handler.
@@ -268,6 +285,8 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Bug Fixes
 
+* If you create a repeating or looping `TimerEvent` with a `delay` of zero it will now throw a runtime error as it would lead to an infinite loop. Fix #6225 (thanks @JernejHabjan)
+* The `endFrame` and `startFrame` properties of the `SpriteSheet` parser wouldn't correctly apply themselves, the Texture would still end up with all of the frames. It will now start at the given `startFrame` so that is frame zero and end at `endFrame`, regardless how many other frames are in the sheet.
 * Destroying a `WebAudioSound` in the same game step as destroying the Game itself would cause an error when trying to disconnect already disconnected Web Audio nodes. `WebAudioSound` will now bail out of its destroy sequence if it's already pending removal.
 * `Animation.createFromAseprite` would calculate an incorrect frame duration if the frames didn't all have the same speed.
 * The URL scheme `capacitor://` has been added to the protocol check to prevent malformed double-urls in some environments (thanks @consolenaut)
@@ -363,4 +382,4 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 My thanks to the following for helping with the Phaser 3 Examples, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
 
-@necrokot Golen @Pythux @samme @danfoster @eltociear @sylvainpolletvillard @hanzooo @etherealmachine @DeweyHur @twoco @austinlyon @Arcanorum OmniOwl @EsteFilipe @PhaserEditor2D @Fake @jonasrundberg @xmahle @arosemena @monteiz @VanaMartin @lolimay @201flaviosilva @orjandh @florestankorp
+@necrokot Golen @Pythux @samme @danfoster @eltociear @sylvainpolletvillard @hanzooo @etherealmachine @DeweyHur @twoco @austinlyon @Arcanorum OmniOwl @EsteFilipe @PhaserEditor2D @Fake @jonasrundberg @xmahle @arosemena @monteiz @VanaMartin @lolimay @201flaviosilva @orjandh @florestankorp @YeloPartyHat @hacheraw @kootoopas @joegaffey @rgk @ubershmekel @Nero0 @xuxucode @Smirnov48 

@@ -486,7 +486,7 @@ var Tween = new Class({
             {
                 this.update(delta);
 
-            } while (this.totalProgress <= toPosition);
+            } while (this.totalProgress < toPosition);
 
             this.isSeeking = false;
         }
@@ -676,7 +676,7 @@ var Tween = new Class({
 
             if (handler)
             {
-                handler.func.apply(handler.scope, [ this, this.targets ].concat(handler.params));
+                handler.func.apply(this.callbackScope, [ this, this.targets ].concat(handler.params));
             }
         }
     },
