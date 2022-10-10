@@ -37,7 +37,7 @@ var Utils = require('../renderer/webgl/Utils');
  * Because this is a standard Texture within Phaser, you can add frames to it, meaning you can use it
  * to generate sprite sheets, texture atlases or tile sets.
  *
- * Under WebGL, a FrameBuffer, which is what this Dynamic Texture uses internally, cannot be anti-aliased.
+ * Under WebGL1, a FrameBuffer, which is what this Dynamic Texture uses internally, cannot be anti-aliased.
  * This means that when drawing objects such as Shapes or Graphics instances to this texture, they may appear
  * to be drawn with no aliasing around the edges. This is a technical limitation of WebGL1. To get around it,
  * create your shape as a texture in an art package, then draw that to this texture.
@@ -178,7 +178,7 @@ var DynamicTexture = new Class({
          * @type {Phaser.Cameras.Scene2D.BaseCamera}
          * @since 3.12.0
          */
-        this.camera = new Camera(0, 0, width, height).setScene(manager.game.scene.systemScene);
+        this.camera = new Camera(0, 0, width, height).setScene(manager.game.scene.systemScene, false);
 
         /**
          * The Render Target that belongs to this Dynamic Texture.
@@ -366,6 +366,7 @@ var DynamicTexture = new Class({
 
             renderer.setContext(ctx);
 
+            ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
             ctx.fillRect(x, y, width, height);
 
@@ -1062,8 +1063,6 @@ var DynamicTexture = new Class({
         {
             if (this.renderTarget)
             {
-                tint = (tint >> 16) + (tint & 0xff00) + ((tint & 0xff) << 16);
-
                 this.pipeline.batchTextureFrame(textureFrame, x, y, tint, alpha, this.camera.matrix, null);
             }
             else
@@ -1362,8 +1361,6 @@ var DynamicTexture = new Class({
 
         if (renderTarget)
         {
-            tint = (tint >> 16) + (tint & 0xff00) + ((tint & 0xff) << 16);
-
             this.pipeline.batchTextureFrame(textureFrame, x, y, tint, alpha, matrix, null);
         }
         else
@@ -1484,6 +1481,42 @@ var DynamicTexture = new Class({
     snapshotPixel: function (x, y, callback)
     {
         return this.snapshotArea(x, y, 1, 1, callback);
+    },
+
+    /**
+     * Renders this Dynamic Texture onto the Stamp Game Object as a BitmapMask.
+     *
+     * @method Phaser.Textures.DynamicTexture#renderWebGL
+     * @since 3.60.0
+     *
+     * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
+     * @param {Phaser.GameObjects.Image} src - The Game Object being rendered in this call.
+     * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+     * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+     */
+    renderWebGL: function (renderer, src, camera, parentMatrix)
+    {
+        var stamp = this.manager.resetStamp();
+
+        stamp.setTexture(this);
+        stamp.setOrigin(0);
+
+        stamp.renderWebGL(renderer, stamp, camera, parentMatrix);
+    },
+
+    /**
+     * This is a NOOP method. Bitmap Masks are not supported by the Canvas Renderer.
+     *
+     * @method Phaser.Textures.DynamicTexture#renderCanvas
+     * @since 3.60.0
+     *
+     * @param {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)} renderer - The Canvas Renderer which would be rendered to.
+     * @param {Phaser.GameObjects.GameObject} mask - The masked Game Object which would be rendered.
+     * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera to render to.
+     */
+    renderCanvas: function ()
+    {
+        // NOOP
     },
 
     /**

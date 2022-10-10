@@ -237,7 +237,7 @@ var Tween = new Class({
      */
     hasTarget: function (target)
     {
-        return (this.targets.indexOf(target) !== -1);
+        return (this.targets && this.targets.indexOf(target) !== -1);
     },
 
     /**
@@ -594,10 +594,14 @@ var Tween = new Class({
         if (this.isLoopDelayed())
         {
             this.updateLoopCountdown(delta);
+
+            return false;
         }
         else if (this.isCompleteDelayed())
         {
             this.updateCompleteDelay(delta);
+
+            return false;
         }
         else if (!this.hasStarted && !this.isSeeking)
         {

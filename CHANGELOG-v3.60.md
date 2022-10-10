@@ -36,16 +36,61 @@ Compressed Textures are loaded using the new `this.load.texture` method, which t
 * `WebGLRenderer.getCompressedTextures` is a new method that will populate the `WebGLRenderer.compression` object and return its value. This is called automatically when the renderer boots.
 * `WebGLRenderer.getCompressedTextureName` is a new method that will return a compressed texture format GLenum based on the given format.
 
-### New Features - Multi Tint Pipeline
+### New Features - Vastly Improved Mobile Performance and WebGL Pipeline Changes
+
+
+
+#### WebGL Renderer Updates
+
+Due to all of the changes with how WebGL texture batching works a lot of mostly internal methods and properties have been removed. This is the complete list:
+
+* The `WebGLRenderer.currentActiveTexture` property has been removed.
+* The `WebGLRenderer.startActiveTexture` property has been removed.
+* The `WebGLRenderer.tempTextures` property has been removed.
+* The `WebGLRenderer.textureZero` property has been removed.
+* The `WebGLRenderer.normalTexture` property has been removed.
+* The `WebGLRenderer.textueFlush` property has been removed.
+* The `WebGLRenderer.isTextureClean` property has been removed.
+* The `WebGLRenderer.setBlankTexture` method has been removed.
+* The `WebGLRenderer.setTextureSource` method has been removed.
+* The `WebGLRenderer.isNewNormalMap` method has been removed.
+* The `WebGLRenderer.setTextureZero` method has been removed.
+* The `WebGLRenderer.clearTextureZero` method has been removed.
+* The `WebGLRenderer.setNormalMap` method has been removed.
+* The `WebGLRenderer.clearNormalMap` method has been removed.
+* The `WebGLRenderer.unbindTextures` method has been removed.
+* The `WebGLRenderer.resetTextures` method has been removed.
+* The `WebGLRenderer.setTexture2D` method has been removed.
+* The `WebGLRenderer.pushFramebuffer` method has had the `resetTextures` argument removed.
+* The `WebGLRenderer.setFramebuffer` method has had the `resetTextures` argument removed.
+* The `WebGLRenderer.popFramebuffer` method has had the `resetTextures` argument removed.
+* The `WebGLRenderer.deleteTexture` method has had the `reset` argument removed.
+* The `Textures.TextureSource.glIndex` property has been removed.
+* The `Textures.TextureSource.glIndexCounter` property has been removed.
+
+Previously, `WebGLRenderer.whiteTexture` and `WebGLRenderer.blankTexture` had a data-type of `WebGLTexture` but they were actually `Phaser.Textures.Frame` instances. This has now been corrected and the two properties are now actually `WebGLTexture` instances, not Frames. If your code relies on this mistake being present, please adapt it.
+
+#### Mobile Pipeline
+
+* The Mobile Pipeline is a new pipeline that extends the Multi Tint pipeline, but uses customized shaders and a single-bound texture specifically for mobile GPUs. This should restore mobile performance back to the levels it was around v3.22, before Multi Tint improved it all for desktop at the expense of mobile.
+* `shaders/Mobile.vert` and `shaders/Mobile.frag` are the two shaders used for the Mobile Pipeline.
+* `PipelineManager#MOBILE_PIPELINE` is a new constant-style reference to the Mobile Pipeline instance.
+* `autoMobilePipeline` is a new Game Configuration boolean that toggles if the Mobile Pipeline should be automatically deployed, or not. By default it is enabled, but you can set it to `false` to force use of the Multi Tint pipeline (or if you need more advanced conditions to check when to enable it)
+* `defaultPipeline` is a new Game Configuration property that allows you to set the default Game Object Pipeline. This is set to Multi Tint as standard, but you can set it to your own pipeline from this value.
+* `PipelineManager.default` is a new propery that is used by most Game Objects to determine which pipeline they will init with.
+* `PipelineManager.setDefaultPipeline` is a new method that allows you to change the default Game Object pipeline. You could use this to allow for more fine-grained conditional control over when to use Multi or Mobile (or another pipeline)
+* The `PipelineManager.boot` method is now passed the default pipeline and auto mobile setting from the Game Config.
+
+#### Multi Tint Pipeline
 
 * If you have a customised Multi Tint Pipeline fragment shader that uses the `%forloop%` declaration, you should update it to follow the new format defined in `Multi.frag`. This new shader uses a function called `getSampler` instead. Please see the shader code and update your own shaders accordingly. You can also see the documentation for the MultiPipeline for details.
-* The `Multi.frag` shader now uses a `highp` precision instead of `mediump`.
+* The `Multi.frag` shader now uses a `highp` precision, or `mediump` if the device doesn't support it (thanks @arbassic)
 * The `WebGL.Utils.checkShaderMax` function will no longer use a massive if/else glsl shader check and will instead rely on the value given in `gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)`.
 * The `WebGL.Utils.parseFragmentShaderMaxTextures` function no longer supports the `%forloop%` declaration.
 * The internal WebGL Utils function `GenerateSrc` has been removed as it's no longer required internally.
 * Previously, the Multi Tint methods `batchSprite`, `batchTexture`, `batchTextureFrame` and `batchFillRect` would all make heavy use of the `TransformMatrix.getXRound` and `getYRound` methods, which in turn called `getX` and `getY` and applied optional rounding to them. This is all now handled by one single function (`setQuad`) with no branching, meaning rendering one single sprite has cut down 16 function calls and 48 getters to just 1 function.
 
-### Updated - Lights Pipeline
+#### Lights Pipeline
 
 * The Light Pipeline no longer creates up to `maxLights` copies of the Light shader on boot. Previously it would then pick which shader to use, based on the number of visible lights in the Scene. Now, the number of lights is passed to the shader and branches accordingly. This means rather than compiling _n_ shaders on boot, it now only ever needs to create one.
 * You can now have no lights in a Scene, but the Scene will still be impacted by the ambient light. Previously, you always needed at least 1 light to trigger ambient light (thanks jstnldrs)
@@ -53,7 +98,7 @@ Compressed Textures are loaded using the new `this.load.texture` method, which t
 * The `LightPipeline.LIGHT_COUNT` constant has been removed as it's not used internally.
 * The `LightPipeline` previous created a global level temporary vec2 for calculations. This is now part of the class as the new `tempVec2` property.
 
-### Removed - Graphics Pipeline
+#### Removed - Graphics Pipeline
 
 The WebGL Graphics Pipeline has been removed. This pipeline wasn't used in v3.55, as all Graphics rendering is handled by the MultiTint pipeline, for better batching support. No Phaser Game Objects use the Graphics pipeline any longer, so to save space it has been removed and is no longer installed by the Pipeline Manager.
 
@@ -126,6 +171,85 @@ The following are further updates within the Tween system:
 * The internal `Tween.calcDuration` method has been removed. This is now handled as part of the `initTweenData` call.
 * Fixed a bug where setting `repeat` and `hold` would cause the Tween to include one final hold before marking itself as complete. It now completes as soon as the final repeat concludes, not after an addition hold.
 
+### New Features - Dynamic Textures and Render Textures
+
+A Dynamic Texture is a special texture that allows you to draw textures, frames and most kind of Game Objects directly to it.
+
+You can take many complex objects and draw them to this one texture, which can then be used as the base texture for other Game Objects, such as Sprites. Should you then update this texture, all Game Objects using it will instantly be updated as well, reflecting the changes immediately.
+
+It's a powerful way to generate dynamic textures at run-time that are WebGL friendly and don't invoke expensive GPU uploads on each change.
+
+Before Phaser 3.60 this was known as a Render Texture. Dynamic Textures have been optimized and also offer the following new features and updates. All of these are also available to the new Render Texture, via the `texture` property:
+
+* `TextureManager.addDynamicTexture(key, width, height)` is a new method that will create a Dynamic Texture and store it in the Texture Manager, available globally for use by any Game Object.
+* Unlike the old Render Texture, Dynamic Texture extends the native `Phaser.Texture` class, meaning you can use it for any texture based object and also call all of the native Texture methods, such as the ability to add frames to it, use it as the backing source for a sprite sheet or atlas, and more.
+* Dynamic Textures no longer create both Render Targets _and_ Canvas objects, only the one that they require based on the renderer. This means Render Textures and Dynamic Textures now use 50% less memory under WebGL and don't create Canvas DOM elements.
+* You can now directly use a Dynamic Texture as a Bitmap Mask.
+* Game Objects that have a mask will now reflect this when drawn to a Dynamic Texture.
+* `DynamicTexture.isDrawing` is a new boolean that allows you to tell if a batch draw has been started and is in process.
+* `DynamicTexture.isSpriteTexture` is a new boolean that informs the texture if it is being used as a backing texture for Sprite Game Objects, or not. If it is (which is the default) then items drawn to the texture are automatically inversed. Doing this ensures that images drawn to the Render Texture are correctly inverted for rendering in WebGL. Not doing so can cause inverted frames. If you use this method, you must use it before drawing anything to the Render Texture. Fix #6057 #6017 (thanks @andymikulski @Grandnainconnu)
+* `DynamicTexture.setIsSpriteTexture` is a new method that allows you to toggle the `isSpriteTexture` property in a chained manner.
+* `DynamicTexture.renderTarget` is a new property that holds an instance of a RenderTarget under WebGL. This encompasses a framebuffer and backing texture, rather than having them split.
+* `DynamicTexture.stamp` is a new method that takes a given texture key and then stamps it at the x/y coordinates provided. You can also pass in a config object that gives a lot more control, such as alpha, tint, angle, scale and origin of the stamp. This is a much cleaner way of stamping a texture to the DynamicTexture without having to first turn it into a Game Object.
+* `DynamicTexture.repeat` is a new method that will take a given texture and draw it to the Dynamic Texture as a fill-pattern. You can control the offset, width, height, alpha and tint of the draw (thanks xlapiz)
+* `batchGameObject` now splits based on the renderer, allowing us to combine lots of the rendering code together, saving space.
+* The `snapshot` and `snapshotPixel` methods now use the `snapshotArea` method to reduce code and filesize.
+* The `snapshotPixel` function, used by the Canvas and WebGL Renderers and the RenderTexture would mistakenly divide the alpha value. These values now return correctly (thanks @samme)
+* `DynamicTexture.batchTextureFrame` will now skip the `drawImage` call in canvas if the frame width or height are zero. Fix #5951 (thanks @Hoshinokoe)
+* Using `DynamicTexture.fill` in CANVAS mode only would produce a nearly always black color due to float conversion (thanks @andymikulski)
+* Using `DynamicTexture.fill` in CANVAS mode only, after using the `erase` method, wouldn't reset the global composite operation correctly, resulting in fills. Fix #6124 (thanks @mateuszkmiecik)
+* Drawing a frame via `draw`, `drawFrame` or `batchDrawFrame` and specifying a `tint` value would inverse the Red and Blue channels. These are now handled properly. Fix #5509 (thanks @anthonygood)
+
+Due to the creation of the Dynamic Texture class, we have completely revamped the old Render Texture Game Object. This is now a combination of a Dynamic Texture and an Image Game Object, that uses the Dynamic Texture to display itself with.
+
+In versions of Phaser before 3.60 a Render Texture was the only way you could create a texture like this, that had the ability to be drawn on. But in 3.60 we split the core functions out to the Dynamic Texture class as it made a lot more sense for them to reside in there. As a result, the Render Texture is now a light-weight shim that sits on-top of an Image Game Object and offers proxy methods to the features available from a Dynamic Texture.
+
+Render Texture breaking changes:
+
+* Render Textures used to be able to take `key` and `frame` arguments in their constructors, which would take the texture from the Texture Manager and use that instance, instead of creating a new one. Because Dynamic Textures are always stored in the Texture Manager from the beginning, there is no need to specify these arguments. You can just get it from the Texture Manager by using its key.
+
+* The following `RenderTexture` properties have changed:
+
+* `renderer` is now available via `texture.renderer`.
+* `textureManager` has been removed.
+* `globalTint` has been removed.
+* `globalAlpha` has been removed.
+* `canvas` is now available via `texture.canvas`.
+* `context` is now available via `texture.context`.
+* `dirty` is now available via `texture.dirty`.
+* `camera` is now available via `texture.camera`.
+* `renderTarget` is now available via `texture.renderTarget`.
+
+* The following `RenderTexture` methods have changed:
+
+* `drawGameObject` has been removed, this is now handled by the batch methods.
+* `resize` has been renamed. Use `setSize(width, height)` instead.
+* `setGlobalTint` has been removed as it's no longer used internally.
+* `setGlobalAlpha` has been removed as it's no longer used internally.
+* `batchGameObjectWebGL` has been removed, now handled by `batchGameObject`.
+* `batchGameObjectCanvas` has been removed, now handled by `batchGameObject`.
+
+**When should you use a Render Texture vs. a Dynamic Texture?**
+
+You should use a Dynamic Texture if the texture is going to be used by multiple Game Objects, or you want to use it across multiple Scenes, because textures are globally stored.
+
+You should use a Dynamic Texture if the texture isn't going to be displayed in-game, but is instead going to be used for something like a mask or shader.
+
+You should use a Render Texture if you need to display the texture in-game on a single Game Object, as it provides the convenience of wrapping an Image and Dynamic Texture together for you.
+
+### Bitmap Mask Updates
+
+There are breaking changes from previous versions of Phaser.
+
+* Previously, every unique Bitmap Mask would create two full renderer sized framebuffers and two corresponding WebGL textures for them. The Bitmap Mask would listen for resize events from the renderer and then re-create these framebuffers accordingly. However, as the Bitmap Mask pipeline would clear and re-render these framebuffers every single frame it made no sense to have them use such large amounts of GPU memory. As of 3.60, the WebGL Renderer creates and manages two RenderTargets which all Bitmap Masks now use. If you previously used multiple Bitmap Masks in your game this change will dramatically reduce memory consumption at no performance cost.
+* The Bitmap Mask constructor is now capable of creating an Image Game Object from the new optional arguments: `x, y, texture, frame` if no masked object is provided.
+* The Bitmap Mask now registers itself with the Game Object Factory. This means you can do `this.add.bitmapMask()` from within a Scene, for easier creation.
+* Due to the change in ownership of the framebuffers, the following properties have been removed from the BitmapMask class: `renderer`, `maskTexture`, `mainTexture`, `dirty`, `mainFramebuffer` and `maskFramebuffer`. The following methods have also been removed: `createMask` and `clearMask`.
+* The `WebGLRenderer` has 2 new properties: `maskSource` and `maskTarget`. These are the new global mask framebuffers.
+* `WebGLRenderer.beginBitmapMask` is a new method that starts the process of using the mask target framebuffer for drawing. This is called by the `BitmapMaskPipeline`.
+* `WebGLRenderer.drawBitmapMask` is a new method that completes the process of rendering using the mask target framebuffer. This is called by the `BitmapMaskPipeline`.
+* The `BitmapMaskPipeline` now hands over most control of the framebuffers to the WebGLRenderer.
+
 ### TimeStep Updates
 
 * You can now enforce an FPS rate on your game by setting the `fps: { limit: 30 }` value in your game config. In this case, it will set an fps rate of 30. This forces Phaser to not run the game step more than 30 times per second (or whatever value you set) and works for both Request Animation Frame and SetTimeOut.
@@ -146,13 +270,15 @@ The following are further updates within the Tween system:
 
 ### New Features
 
+* When using `Group.createMultiple` it will now skip the post-creations options if they are not set in the config object used, or a Game Object constructor. Previously, things like alpha, position, etc would be over-written by the defaults if they weren't given in the config, but now the method will check to see if they are set and only use them if they are. This is a breaking change, but makes it more efficient and flexible (thanks @samme)
+* When running a Scene transition there is a new optional callback `onStart`, which is passed the parameters `fromScene`, `toScene` and `duration` allowing you to consolidate transition logic into a single callback, rather than split across the start and end events (thanks @rexrainbow)
+* `TextureManager.silentWarnings` is a new boolean property that, when set, will prevent the Texture Manager from emiting any warnings or errors to the console in the case of missing texture keys or invalid texture access. The default is to display these warnings, this flag toggles that.
 * `TextureManager.parseFrame` is a new method that will return a Texture Frame instance from the given argument, which can be a string, array, object or Texture instance.
-* `GameConfig.stableSort` is a new optional property that will control if the internal depth sorting routine uses our own StableSort function, or the built-in browser Array.sort one. Only modern browsers have a _stable_ Array.sort implementation, which Phaser requires. Older ones need to use our function instead. Set to 1 to use the legacy version, 0 to use the ES2019 version or -1 to have Phaser try and detect which is best for the browser (thanks @JernejHabjan)
+* `GameConfig.stableSort` and `Device.features.stableSort` is a new property that will control if the internal depth sorting routine uses our own StableSort function, or the built-in browser `Array.sort`. Only modern browsers have a _stable_ `Array.sort` implementation, which Phaser requires. Older ones need to use our function instead. Set to 0 to use the legacy version, 1 to use the ES2019 version or -1 to have Phaser try and detect which is best for the browser (thanks @JernejHabjan)
 * `Device.es2019` is a new boolean that will do a basic browser type + version detection to see if it supports ES2019 features natively, such as stable array sorting.
 * All of the following Texture Manager methods will now allow you to pass in a Phaser Texture as the `source` parameter: `addSpriteSheet`, `addAtlas`, `addAtlasJSONArray`, `addAtlasJSONHash`, `addAtlasXML` and `addAtlasUnity`. This allows you to add sprite sheet or atlas data to existing textures, or textures that came from external sources, such as SVG files, canvas elements or Dynamic Textures.
 * `Game.pause` is a new method that will pause the entire game and all Phaser systems.
 * `Game.resume` is a new method that will resume the entire game and resume all of Phaser's systems.
-* `RenderTexture.repeat` is a new method that will take a given texture and draw it to the Render Texture as a fill-pattern. You can control the offset, width, height, alpha and tint of the draw (thanks xlapiz)
 * `ScaleManager.getViewPort` is a new method that will return a Rectangle geometry object that matches the visible area of the screen, or the given Camera instance (thanks @rexrainbow)
 * When starting a Scene and using an invalid key, Phaser will now raise a console warning informing you of this, instead of silently failing. Fix #5811 (thanks @ubershmekel)
 * `GameObjects.Layer.addToDisplayList` and `removeFromDisplayList` are new methods that allows for you to now add a Layer as a child of another Layer. Fix #5799 (thanks @samme)
@@ -182,7 +308,6 @@ The following are further updates within the Tween system:
 * `Vector2.project` is a new method that will project the vector onto the given vector (thanks @samme)
 * Experimental feature: The `TilemapLayer` now has the `Mask` component - meaning you can apply a mask to tilemaps (thanks @samme)
 * `TilemapLayer.setTint` is a new method that allows you to set the tint color of all tiles in the given area, optionally based on the filtering search options. This is a WebGL only feature.
-* `RenderTexture.setIsSpriteTexture` is a new method that allows you to flag a Render Texture as being used as the source for Sprite Game Object textures. Doing this ensures that images drawn to the Render Texture are correctly inverted for rendering in WebGL. Not doing so can cause inverted frames. If you use this method, you must use it before drawing anything to the Render Texture. Fix #6057 #6017 (thanks @andymikulski @Grandnainconnu)
 * `UtilityPipeline.blitFrame` has a new optional boolean parameter `flipY` which, if set, will invert the source Render Target while drawing it to the destination Render Target.
 * `GameObjects.Polygon.setTo` is a new method that allows you to change the points being used to render a Polygon Shape Game Object. Fix #6151 (thanks @PhaserEditor2D)
 * `maxAliveParticles` is a new Particle Emitter config property that sets the maximum number of _alive_ particles the emitter is allowed to update. When this limit is reached a particle will have to die before another can be spawned.
@@ -210,20 +335,19 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Updates
 
+* The `GetBitmapTextSize` function now includes an extra property in the resulting `BitmapTextCharacter` object called `idx` which is the index of the character within the Bitmap Text, without factoring in any word wrapping (thanks @JaroVDH)
+* `Camera.isSceneCamera` is a new boolean that controls if the Camera belongs to a Scene (the default), or a Texture. You can set this via the `Camera.setScene` method. Once set the `Camera.updateSystem` method is skipped, preventing the WebGL Renderer from setting a scissor every frame.
 * `Camera.preRender` will now apply `Math.floor` instead of `Math.round` to the values, keeping it consistent with the Renderer when following a sprite.
 * When rendering a Sprite with a Camera set to `roundPixels` it will now run `Math.floor` on the Matrix position, preventing you from noticing 'jitters' as much when Camera following sprites in heavily zoomed Camera systems.
 * `TransformMatrix.setQuad` is a new method that will perform the 8 calculations required to create the vertice positions from the matrix and the given values. The result is stored in the new `TransformMatrix.quad` Float32Array, which is also returned from this method.
 * `TransformMatrix.multiply` now directly updates the Float32Array, leading to 6 less getter invocations.
 * The `CameraManager.getVisibleChildren` method now uses the native Array filter function, rather than a for loop. This should improve performance in some cases (thanks @JernejHabjan)
 * `SceneManager.systemScene` is a new property that is set during the game boot and is a system Scene reference that plugins and managers can use, that lives outside of the Scene list.
-* `RenderTexture.isDrawing` is a new read-only flag that tells if the Render Texture is currently batch drawing, or not.
 * The `TextureManager.get` methof can now accept a `Frame` instance as its parameter, which will return the frames parent Texture.
 * The `GameObject.setFrame` method can now accept a `Frame` instance as its parameter, which will also automatically update the Texture the Game Object is using.
 * `Device.safariVersion` is now set to the version of Safari running, previously it was always undefined.
 * When you try to use a frame that is missing on the Texture, it will now give the key of the Texture in the console warning (thanks @samme)
-* The `Display.Masks.BitmapMask` `destroy` method will now remove the context-lost event handler.
 * The `hitArea` parameter of the `GameObjects.Zone.setDropZone` method is now optional and if not given it will try to create a hit area based on the size of the Zone Game Object (thanks @rexrainbow)
-* `BitmapMask.scene` is a new property that allows the Bitmap Mask to reference the Scene it was created in.
 * The `DOMElement.preUpdate` method has been removed. If you overrode this method, please now see `preRender` instead.
 * `DOMElement.preRender` is a new method that will check parent visibility and improve its behavior, responding to the parent even if the Scene is paused or the element is inactive. Dom Elements are also no longer added to the Scene Update List. Fix #5816 (thanks @prakol16 @samme)
 * Phaser 3 is now built with webpack 5 and all related packages have been updated.
@@ -279,12 +403,12 @@ The following are API-breaking, in that a new optional parameter has been insert
 * The `CanvasFeatures` tests and the TextureManager `_tempContext` now specify the `{ willReadFrequently: true }` hint to inform the browser the canvas is to be read from, not composited.
 * When calling `TextureManager.getTextureKeys` it will now exclude the default `__WHITE` texture from the results (thanks @samme)
 * If the WebGL Renderer logs an error, it will now show the error string, or the code if not present in the error map (thanks @zpxp)
-* The `snapshotPixel` function, used by the Canvas and WebGL Renderers and the RenderTexture would mistakenly divide the alpha value. These values now return correctly (thanks @samme)
 * The `NoAudioSoundManager` now has all of the missing methods, such as `removeAll` and `get` to allow it to be a direct replacement for the HTML5 and WebAudio Sound Managers (thanks @orjandh @samme)
 * The `Texture.destroy` method will only destroy sources, dataSources and frames if they exist, protecting against previously destroyed instances.
 
 ### Bug Fixes
 
+* The `Video.loadURL` method wouldn't load the video or emit the `VIDEO_CREATED` event unless `noAudio` was specified. A load event handler has been added to resolve this (thanks @samme)
 * If you create a repeating or looping `TimerEvent` with a `delay` of zero it will now throw a runtime error as it would lead to an infinite loop. Fix #6225 (thanks @JernejHabjan)
 * The `endFrame` and `startFrame` properties of the `SpriteSheet` parser wouldn't correctly apply themselves, the Texture would still end up with all of the frames. It will now start at the given `startFrame` so that is frame zero and end at `endFrame`, regardless how many other frames are in the sheet.
 * Destroying a `WebAudioSound` in the same game step as destroying the Game itself would cause an error when trying to disconnect already disconnected Web Audio nodes. `WebAudioSound` will now bail out of its destroy sequence if it's already pending removal.
@@ -342,7 +466,6 @@ The following are API-breaking, in that a new optional parameter has been insert
 * The `Polygon` Game Object would ignore its `closePath` property when rendering in Canvas. Fix #5983 (thanks @optimumsuave)
 * IE9 Fix: Added 2 missing Typed Array polyfills (thanks @jcyuan)
 * IE9 Fix: CanvasRenderer ignores frames with zero dimensions (thanks @jcyuan)
-* `RenderTexture.batchTextureFrame` will now skip the `drawImage` call in canvas if the frame width or height are zero. Fix #5951 (thanks @Hoshinokoe)
 * `BlitterCanvasRenderer` will now skip the `drawImage` call in canvas if the frame width or height are zero.
 * `ParticleManagerCanvasRenderer` will now skip the `drawImage` call in canvas if the frame width or height are zero.
 * `CanvasSnapshot` will now skip the `drawImage` call in canvas if the frame width or height are zero.
@@ -351,7 +474,6 @@ The following are API-breaking, in that a new optional parameter has been insert
 * Audio will now unlock properly again on iOS14 and above in Safari. Fix #5696 (thanks @laineus)
 * Drawing Game Objects to a Render Texture in WebGL would skip their blend modes. This is now applied correctly. Fix #5565 #5996 (thanks @sjb933 @danarcher)
 * Loading a Script File Type will now default the 'type' property to 'script' when a type is not provided. Fix #5994 (thanks @samme @ItsGravix)
-* Using `RenderTexture.fill` in CANVAS mode only would produce a nearly always black color due to float conversion (thanks @andymikulski)
 * If you Paused or Stopped a Scene that was in a preload state, it would still call 'create' after the Scene had shutdown (thanks @samme)
 * BitmapText rendering wouldn't correctly apply per-character kerning offsets. These are now implemented during rendering (thanks @arbassic)
 * Child Spine objects inside Containers wouldn't correctly inherit the parent Containers alpha. Fix #5853 (thanks @spayton)
@@ -378,8 +500,8 @@ The following are API-breaking, in that a new optional parameter has been insert
 * When destroying the Arcade Physics World it will now destroy the debug Graphics object, had one been created. Previously, these would continue to stack-up should you restart the physics world (thanks @samme)
 * `Graphics.strokeRoundedRect` would incorrectly draw the rectangle if you passed in a radius greater than half of the smaller side. This is now clamped internally (thanks @temajm)
 
-### Examples, Documentation and TypeScript
+### Examples, Documentation, Beta Testing and TypeScript
 
-My thanks to the following for helping with the Phaser 3 Examples, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
+My thanks to the following for helping with the Phaser 3 Examples, Beta Testing, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
 
-@necrokot Golen @Pythux @samme @danfoster @eltociear @sylvainpolletvillard @hanzooo @etherealmachine @DeweyHur @twoco @austinlyon @Arcanorum OmniOwl @EsteFilipe @PhaserEditor2D @Fake @jonasrundberg @xmahle @arosemena @monteiz @VanaMartin @lolimay @201flaviosilva @orjandh @florestankorp @YeloPartyHat @hacheraw @kootoopas @joegaffey @rgk @ubershmekel @Nero0 @xuxucode @Smirnov48 
+@necrokot Golen @Pythux @samme @danfoster @eltociear @sylvainpolletvillard @hanzooo @etherealmachine @DeweyHur @twoco @austinlyon @Arcanorum OmniOwl @EsteFilipe @PhaserEditor2D @Fake @jonasrundberg @xmahle @arosemena @monteiz @VanaMartin @lolimay @201flaviosilva @orjandh @florestankorp @YeloPartyHat @hacheraw @kootoopas @joegaffey @rgk @ubershmekel @Nero0 @xuxucode @Smirnov48 @jerricko @ef4 @michalfialadev @darrylpizarro

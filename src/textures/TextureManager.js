@@ -99,7 +99,8 @@ var TextureManager = new Class({
         this.list = {};
 
         /**
-         * A temporary canvas element. Used to save pixel data during calls to getPixel and getPixelAlpha methods.
+         * The temporary canvas element used to save the pixel data of an arbitrary texture
+         * during the `TextureManager.getPixel` and `getPixelAlpha` methods.
          *
          * @name Phaser.Textures.TextureManager#_tempCanvas
          * @type {HTMLCanvasElement}
@@ -109,7 +110,7 @@ var TextureManager = new Class({
         this._tempCanvas = CanvasPool.create2D(this);
 
         /**
-         * The context of the temporary canvas element.
+         * The 2d context of the `_tempCanvas` element.
          *
          * @name Phaser.Textures.TextureManager#_tempContext
          * @type {CanvasRenderingContext2D}
@@ -119,7 +120,8 @@ var TextureManager = new Class({
         this._tempContext = this._tempCanvas.getContext('2d', { willReadFrequently: true });
 
         /**
-         * A counting value used for emitting the 'READY' event after all textures have loaded into this manager.
+         * An internal tracking value used for emitting the 'READY' event after all of
+         * the managers in the game have booted.
          *
          * @name Phaser.Textures.TextureManager#_pending
          * @type {number}
@@ -151,6 +153,17 @@ var TextureManager = new Class({
          * @since 3.60.0
          */
         this.stampCrop = new Rectangle();
+
+        /**
+         * If this flag is `true` then the Texture Manager will never emit any
+         * warnings to the console log that report missing textures.
+         *
+         * @name Phaser.Textures.TextureManager#silentWarnings
+         * @type {boolean}
+         * @default false
+         * @since 3.60.0
+         */
+        this.silentWarnings = false;
 
         game.events.once(GameEvents.BOOT, this.boot, this);
     },
@@ -216,8 +229,11 @@ var TextureManager = new Class({
     {
         if (this.exists(key))
         {
-            // eslint-disable-next-line no-console
-            console.error('Texture key already in use: ' + key);
+            if (!this.silentWarnings)
+            {
+                // eslint-disable-next-line no-console
+                console.error('Texture key already in use: ' + key);
+            }
 
             return false;
         }
@@ -252,7 +268,11 @@ var TextureManager = new Class({
             }
             else
             {
-                console.warn('No texture found matching key: ' + key);
+                if (!this.silentWarnings)
+                {
+                    console.warn('No texture found matching key: ' + key);
+                }
+
                 return this;
             }
         }
@@ -367,7 +387,10 @@ var TextureManager = new Class({
 
         if (textureFrame && (textureFrame.source.isRenderTexture || textureFrame.source.isGLTexture))
         {
-            console.warn('Cannot getBase64 from WebGL Texture');
+            if (!this.silentWarnings)
+            {
+                console.warn('Cannot getBase64 from WebGL Texture');
+            }
         }
         else if (textureFrame)
         {
@@ -699,13 +722,16 @@ var TextureManager = new Class({
      *
      * See the methods available on the `DynamicTexture` class for more details.
      *
+     * Optionally, you can also pass a Dynamic Texture instance to this method to have
+     * it added to the Texture Manager.
+     *
      * @method Phaser.Textures.TextureManager#addDynamicTexture
      * @fires Phaser.Textures.Events#ADD
      * @since 3.60.0
      *
-     * @param {string} key - The string-based key of this Texture. Must be unique within the Texture Manager.
-     * @param {number} [width=256] - The width of this Dymamic Texture in pixels. Defaults to 256 x 256.
-     * @param {number} [height=256] - The height of this Dymamic Texture in pixels. Defaults to 256 x 256.
+     * @param {(string|Phaser.Textures.DynamicTexture)} key - The string-based key of this Texture. Must be unique within the Texture Manager. Or, a DynamicTexture instance.
+     * @param {number} [width=256] - The width of this Dynamic Texture in pixels. Defaults to 256 x 256. Ignored if an instance is passed as the key.
+     * @param {number} [height=256] - The height of this Dynamic Texture in pixels. Defaults to 256 x 256. Ignored if an instance is passed as the key.
      *
      * @return {?Phaser.Textures.DynamicTexture} The Dynamic Texture that was created, or `null` if the key is already in use.
      */
@@ -713,14 +739,26 @@ var TextureManager = new Class({
     {
         var texture = null;
 
-        if (this.checkKey(key))
+        if (typeof(key) === 'string' && !this.exists(key))
         {
             texture = new DynamicTexture(this, key, width, height);
+        }
+        else
+        {
+            texture = key;
+            key = texture.key;
+        }
 
+        if (this.checkKey(key))
+        {
             this.list[key] = texture;
 
             this.emit(Events.ADD, key, texture);
             this.emit(Events.ADD_KEY + key, texture);
+        }
+        else
+        {
+            texture = null;
         }
 
         return texture;
@@ -1484,7 +1522,7 @@ var TextureManager = new Class({
         stamp.setCrop();
         stamp.setPosition(0);
         stamp.setAngle(0);
-        stamp.setScale(0);
+        stamp.setScale(1);
         stamp.setAlpha(alpha);
         stamp.setTint(tint);
 

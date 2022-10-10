@@ -226,10 +226,8 @@ var MultiPipeline = new Class({
      * Sets the shader program, vertex buffer and other resources.
      * Should only be called when changing pipeline.
      *
-     * @method Phaser.Renderer.WebGL.Pipelines.MultiPipeline#bind
+     * @method Phaser.Renderer.WebGL.Pipelines.MultiPipeline#boot
      * @since 3.50.0
-     *
-     * @return {this} This WebGLPipeline instance.
      */
     boot: function ()
     {
@@ -539,7 +537,8 @@ var MultiPipeline = new Class({
 
         if (textureUnit === undefined)
         {
-            textureUnit = this.renderer.setTexture2D(texture);
+            // textureUnit = this.renderer.setTexture2D(texture);
+            textureUnit = this.setTexture2D(texture);
         }
 
         if (gameObject)
@@ -593,7 +592,7 @@ var MultiPipeline = new Class({
 
         var quad = calcMatrix.setQuad(x, y, x + frame.width, y + frame.height, false);
 
-        var unit = this.renderer.setTextureSource(frame.source);
+        var unit = this.setTexture2D(frame.source.glTexture);
 
         tint = Utils.getTintAppendFloatAlpha(tint, alpha);
 
@@ -951,6 +950,30 @@ var MultiPipeline = new Class({
             prev[3] = trY;
             prev[4] = 1;
         }
+    },
+
+    /**
+     * Destroys all shader instances, removes all object references and nulls all external references.
+     *
+     * @method Phaser.Renderer.WebGL.Pipelines.MultiPipeline#destroy
+     * @fires Phaser.Renderer.WebGL.Pipelines.Events#DESTROY
+     * @since 3.60.0
+     *
+     * @return {this} This WebGLPipeline instance.
+     */
+    destroy: function ()
+    {
+        this._tempMatrix1.destroy();
+        this._tempMatrix2.destroy();
+        this._tempMatrix3.destroy();
+
+        this._tempMatrix1 = null;
+        this._tempMatrix1 = null;
+        this._tempMatrix1 = null;
+
+        WebGLPipeline.prototype.destroy.call(this);
+
+        return this;
     }
 
 });
