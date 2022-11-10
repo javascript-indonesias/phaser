@@ -29,7 +29,7 @@ var TweenFrameData = require('./TweenFrameData');
  * @since 3.0.0
  *
  * @param {Phaser.Tweens.TweenManager} parent - A reference to the Tween Manager that owns this Tween.
- * @param {array} targets - An array of targets to be tweened.
+ * @param {object[]} targets - An array of targets to be tweened.
  */
 var Tween = new Class({
 
@@ -44,6 +44,8 @@ var Tween = new Class({
         /**
          * An array of references to the target/s this Tween is operating on.
          *
+         * This array should not be manipulated outside of this Tween.
+         *
          * @name Phaser.Tweens.Tween#targets
          * @type {object[]}
          * @since 3.0.0
@@ -51,7 +53,11 @@ var Tween = new Class({
         this.targets = targets;
 
         /**
-         * Cached target total (not necessarily the same as the data total)
+         * Cached target total.
+         *
+         * Used internally and should be treated as read-only.
+         *
+         * This is not necessarily the same as the data total.
          *
          * @name Phaser.Tweens.Tween#totalTargets
          * @type {number}
@@ -61,8 +67,10 @@ var Tween = new Class({
 
         /**
          * Is this Tween currently seeking?
+         *
          * This boolean is toggled in the `Tween.seek` method.
-         * When a tween is seeking it will not dispatch any events or callbacks.
+         *
+         * When a tween is seeking, by default it will not dispatch any events or callbacks.
          *
          * @name Phaser.Tweens.Tween#isSeeking
          * @type {boolean}
@@ -72,7 +80,17 @@ var Tween = new Class({
         this.isSeeking = false;
 
         /**
-         * Elapsed time in ms/frames of this run through of the Tween.
+         * Does this Tween loop or repeat infinitely?
+         *
+         * @name Phaser.Tweens.Tween#isInfinite
+         * @type {boolean}
+         * @readonly
+         * @since 3.60.0
+         */
+        this.isInfinite = false;
+
+        /**
+         * Elapsed time in milliseconds of this run through of the Tween.
          *
          * @name Phaser.Tweens.Tween#elapsed
          * @type {number}
@@ -82,7 +100,7 @@ var Tween = new Class({
         this.elapsed = 0;
 
         /**
-         * Total elapsed time in ms/frames of the entire Tween, including looping.
+         * Total elapsed time in milliseconds of the entire Tween, including looping.
          *
          * @name Phaser.Tweens.Tween#totalElapsed
          * @type {number}
@@ -92,7 +110,9 @@ var Tween = new Class({
         this.totalElapsed = 0;
 
         /**
-         * Time in ms/frames for the whole Tween to play through once, excluding loop amounts and loop delays.
+         * Time in milliseconds for the whole Tween to play through once, excluding loop amounts and loop delays.
+         *
+         * This value is set in the `Tween.initTweenData` method and is zero before that point.
          *
          * @name Phaser.Tweens.Tween#duration
          * @type {number}
@@ -112,7 +132,9 @@ var Tween = new Class({
         this.progress = 0;
 
         /**
-         * Time in ms/frames it takes for the Tween to complete a full playthrough (including looping)
+         * Time in milliseconds it takes for the Tween to complete a full playthrough (including looping)
+         *
+         * For an infinite Tween, this value is a very large integer.
          *
          * @name Phaser.Tweens.Tween#totalDuration
          * @type {number}
@@ -122,7 +144,9 @@ var Tween = new Class({
         this.totalDuration = 0;
 
         /**
-         * Value between 0 and 1. The amount through the entire Tween, including looping.
+         * The amount of progress that has been made through the entire Tween, including looping.
+         *
+         * A value between 0 and 1.
          *
          * @name Phaser.Tweens.Tween#totalProgress
          * @type {number}
@@ -130,16 +154,6 @@ var Tween = new Class({
          * @since 3.60.0
          */
         this.totalProgress = 0;
-
-        /**
-         * The delta used in the current update.
-         *
-         * @name Phaser.Tweens.Tween#delta
-         * @type {number}
-         * @default 0
-         * @since 3.60.0
-         */
-        this.delta = 0;
     },
 
     /**
@@ -156,12 +170,12 @@ var Tween = new Class({
      * @param {Phaser.Types.Tweens.GetStartCallback} getStart - What the property will be at the START of the Tween.
      * @param {?Phaser.Types.Tweens.GetActiveCallback} getActive - If not null, is invoked _immediately_ as soon as the TweenData is running, and is set on the target property.
      * @param {function} ease - The ease function this tween uses.
-     * @param {function} delay - Function that returns the time in ms/frames before tween will start.
-     * @param {number} duration - The duration of the tween in ms/frames.
+     * @param {function} delay - Function that returns the time in milliseconds before tween will start.
+     * @param {number} duration - The duration of the tween in milliseconds.
      * @param {boolean} yoyo - Determines whether the tween should return back to its start value after hold has expired.
-     * @param {number} hold - Function that returns the time in ms/frames the tween will pause before repeating or returning to its starting value if yoyo is set to true.
+     * @param {number} hold - Function that returns the time in milliseconds the tween will pause before repeating or returning to its starting value if yoyo is set to true.
      * @param {number} repeat - Function that returns the number of times to repeat the tween. The tween will always run once regardless, so a repeat value of '1' will play the tween twice.
-     * @param {number} repeatDelay - Function that returns the time in ms/frames before the repeat will start.
+     * @param {number} repeatDelay - Function that returns the time in milliseconds before the repeat will start.
      * @param {boolean} flipX - Should toggleFlipX be called when yoyo or repeat happens?
      * @param {boolean} flipY - Should toggleFlipY be called when yoyo or repeat happens?
      * @param {?function} interpolation - The interpolation function to be used for arrays of data. Defaults to 'null'.
@@ -189,11 +203,11 @@ var Tween = new Class({
      * @param {number} targetIndex - The target index within the Tween targets array.
      * @param {string} texture - The texture to set on the target at the end of the tween.
      * @param {string|number} frame - The texture frame to set on the target at the end of the tween.
-     * @param {function} delay - Function that returns the time in ms/frames before tween will start.
-     * @param {number} duration - The duration of the tween in ms/frames.
-     * @param {number} hold - Function that returns the time in ms/frames the tween will pause before repeating or returning to its starting value if yoyo is set to true.
+     * @param {function} delay - Function that returns the time in milliseconds before tween will start.
+     * @param {number} duration - The duration of the tween in milliseconds.
+     * @param {number} hold - Function that returns the time in milliseconds the tween will pause before repeating or returning to its starting value if yoyo is set to true.
      * @param {number} repeat - Function that returns the number of times to repeat the tween. The tween will always run once regardless, so a repeat value of '1' will play the tween twice.
-     * @param {number} repeatDelay - Function that returns the time in ms/frames before the repeat will start.
+     * @param {number} repeatDelay - Function that returns the time in milliseconds before the repeat will start.
      * @param {boolean} flipX - Should toggleFlipX be called when yoyo or repeat happens?
      * @param {boolean} flipY - Should toggleFlipY be called when yoyo or repeat happens?
      *
@@ -211,18 +225,27 @@ var Tween = new Class({
     /**
      * Returns the current value of the specified Tween Data.
      *
+     * If this Tween has been destroyed, it will return `null`.
+     *
      * @method Phaser.Tweens.Tween#getValue
      * @since 3.0.0
      *
      * @param {number} [index=0] - The Tween Data to return the value from.
      *
-     * @return {number} The value of the requested Tween Data.
+     * @return {number} The value of the requested Tween Data, or `null` if this Tween has been destroyed.
      */
     getValue: function (index)
     {
         if (index === undefined) { index = 0; }
 
-        return this.data[index].current;
+        var value = null;
+
+        if (this.data)
+        {
+            value = this.data[index].current;
+        }
+
+        return value;
     },
 
     /**
@@ -241,17 +264,23 @@ var Tween = new Class({
     },
 
     /**
-     * Updates the 'end' value of the given property across all matching targets.
+     * Updates the 'end' value of the given property across all matching targets, as long
+     * as this Tween is currently playing (either forwards or backwards).
      *
-     * Calling this does not adjust the duration of the tween, or the current progress.
+     * Calling this does not adjust the duration of the Tween, or the current progress.
      *
-     * You can optionally tell it to set the 'start' value to be the current value (before the change).
+     * You can optionally tell it to set the 'start' value to be the current value.
+     *
+     * If this Tween is in any other state other than playing then calling this method has no effect.
+     *
+     * Additionally, if the Tween repeats, is reset, or is seeked, it will revert to the original
+     * starting and ending values.
      *
      * @method Phaser.Tweens.Tween#updateTo
      * @since 3.0.0
      *
-     * @param {string} key - The property to set the new value for.
-     * @param {*} value - The new value of the property.
+     * @param {string} key - The property to set the new value for. You cannot update the 'texture' property via this method.
+     * @param {number} value - The new value of the property.
      * @param {boolean} [startToCurrent=false] - Should this change set the start value to be the current value?
      *
      * @return {this} This Tween instance.
@@ -260,17 +289,20 @@ var Tween = new Class({
     {
         if (startToCurrent === undefined) { startToCurrent = false; }
 
-        for (var i = 0; i < this.totalData; i++)
+        if (key !== 'texture' && (this.isPlayingForward() || this.isPlayingBackward()))
         {
-            var tweenData = this.data[i];
-
-            if (tweenData.key === key)
+            for (var i = 0; i < this.totalData; i++)
             {
-                tweenData.end = value;
+                var tweenData = this.data[i];
 
-                if (startToCurrent)
+                if (tweenData.key === key)
                 {
-                    tweenData.start = tweenData.current;
+                    tweenData.end = value;
+
+                    if (startToCurrent)
+                    {
+                        tweenData.start = tweenData.current;
+                    }
                 }
             }
         }
@@ -281,8 +313,7 @@ var Tween = new Class({
     /**
      * Restarts the Tween from the beginning.
      *
-     * You can only restart a Tween that is currently playing. If the Tween has already been stopped, restarting
-     * it will throw an error.
+     * If the Tween has already finished and been destroyed, restarting it will throw an error.
      *
      * If you wish to restart the Tween from a specific point, use the `Tween.seek` method instead.
      *
@@ -307,7 +338,7 @@ var Tween = new Class({
                 break;
 
             case TWEEN_CONST.DESTROYED:
-                console.warn('Cannot restart destroyed Tweens', this);
+                console.warn('Cannot restart destroyed Tween', this);
                 break;
 
             default:
@@ -339,7 +370,7 @@ var Tween = new Class({
             this.progress = 0;
             this.loopCounter--;
 
-            this.resetTweenData(true);
+            this.initTweenData(true);
 
             if (this.loopDelay > 0)
             {
@@ -410,9 +441,8 @@ var Tween = new Class({
             return this;
         }
 
-        if (this.isPendingRemove() || this.isPending())
+        if (this.isPendingRemove() || this.isFinished())
         {
-            //  This makes the tween active as well:
             this.seek();
         }
 
@@ -424,72 +454,88 @@ var Tween = new Class({
     },
 
     /**
-     * Internal method that resets all of the Tween Data, including the progress and elapsed values.
-     *
-     * @method Phaser.Tweens.Tween#resetTweenData
-     * @since 3.0.0
-     *
-     * @param {boolean} resetFromLoop - Has this method been called as part of a loop?
-     */
-    resetTweenData: function (resetFromLoop)
-    {
-        var data = this.data;
-        var total = this.totalData;
-
-        for (var i = 0; i < total; i++)
-        {
-            data[i].reset(resetFromLoop);
-        }
-    },
-
-    /**
      * Seeks to a specific point in the Tween.
      *
-     * **Note:** Be careful when seeking a Tween that repeats or loops forever,
-     * or that has an unusually long total duration, as it's possible to hang the browser.
+     * The given amount is a value in milliseconds that represents how far into the Tween
+     * you wish to seek, based on the start of the Tween.
      *
-     * The given position is a value between 0 and 1 which represents how far through the Tween to seek to.
-     * A value of 0.5 would seek to half-way through the Tween, where-as a value of zero would seek to the start.
-     *
-     * Note that the seek takes the entire duration of the Tween into account, including delays, loops and repeats.
+     * Note that the seek amount takes the entire duration of the Tween into account, including delays, loops and repeats.
      * For example, a Tween that lasts for 2 seconds, but that loops 3 times, would have a total duration of 6 seconds,
-     * so seeking to 0.5 would seek to 3 seconds into the Tween, as that's half-way through its _entire_ duration.
+     * so seeking to 3000 ms would seek to the Tweens half-way point based on its _entire_ duration.
+     *
+     * Prior to Phaser 3.60 this value was given as a number between 0 and 1 and didn't
+     * work for Tweens had an infinite repeat. This new method works for all Tweens.
      *
      * Seeking works by resetting the Tween to its initial values and then iterating through the Tween at `delta`
-     * jumps per step. The longer the Tween, the longer this can take.
+     * jumps per step. The longer the Tween, the longer this can take. If you need more precision you can
+     * reduce the delta value. If you need a faster seek, you can increase it. When the Tween is
+     * reset it will refresh the starting and ending values. If these are coming from a dynamic function,
+     * or a random array, it will be called for each seek.
+     *
+     * While seeking the Tween will _not_ emit any of its events or callbacks unless
+     * the 3rd parameter is set to `true`.
+     *
+     * If this Tween is paused, seeking will not change this fact. It will advance the Tween
+     * to the desired point and then pause it again.
      *
      * @method Phaser.Tweens.Tween#seek
      * @since 3.0.0
      *
-     * @param {number} [toPosition=0] - A value between 0 and 1 which represents the progress point to seek to.
+     * @param {number} [amount=0] - The number of milliseconds to seek into the Tween from the beginning.
      * @param {number} [delta=16.6] - The size of each step when seeking through the Tween. A higher value completes faster but at the cost of less precision.
+     * @param {boolean} [emit=false] - While seeking, should the Tween emit any of its events or callbacks? The default is 'false', i.e. to seek silently.
      *
      * @return {this} This Tween instance.
      */
-    seek: function (toPosition, delta)
+    seek: function (amount, delta, emit)
     {
-        if (toPosition === undefined) { toPosition = 0; }
+        if (amount === undefined) { amount = 0; }
         if (delta === undefined) { delta = 16.6; }
+        if (emit === undefined) { emit = false; }
 
-        if (this.isRemoved() || this.isFinished())
+        if (this.isDestroyed())
         {
-            this.makeActive();
+            console.warn('Cannot seek destroyed Tween', this);
+
+            return this;
         }
+
+        if (!emit)
+        {
+            this.isSeeking = true;
+        }
+
+        this.reset(true);
 
         this.initTweenData(true);
 
-        if (toPosition > 0)
-        {
-            this.isSeeking = true;
+        this.setActiveState();
 
-            do
+        this.dispatchEvent(Events.TWEEN_ACTIVE, 'onActive');
+
+        var isPaused = this.paused;
+
+        this.paused = false;
+
+        if (amount > 0)
+        {
+            var iterations = Math.floor(amount / delta);
+            var remainder = amount - (iterations * delta);
+
+            for (var i = 0; i < iterations; i++)
             {
                 this.update(delta);
+            }
 
-            } while (this.totalProgress < toPosition);
-
-            this.isSeeking = false;
+            if (remainder > 0)
+            {
+                this.update(remainder);
+            }
         }
+
+        this.paused = isPaused;
+
+        this.isSeeking = false;
 
         return this;
     },
@@ -502,15 +548,13 @@ var Tween = new Class({
      * @method Phaser.Tweens.Tween#initTweenData
      * @since 3.60.0
      *
-     * @param {boolean} [isSeek=false] - Is this being called as part of a seek, or not?
+     * @param {boolean} [isSeeking=false] - Is the Tween Data being reset as part of a seek?
      */
-    initTweenData: function (isSeek)
+    initTweenData: function (isSeeking)
     {
-        if (isSeek === undefined) { isSeek = false; }
+        if (isSeeking === undefined) { isSeeking = false; }
 
-        this.reset(true);
-
-        //  These two values are set directly during TweenData.init:
+        //  These two values are updated directly during TweenData.reset:
         this.duration = 0;
         this.startDelay = MATH_CONST.MAX_SAFE_INTEGER;
 
@@ -518,51 +562,69 @@ var Tween = new Class({
 
         for (var i = 0; i < this.totalData; i++)
         {
-            data[i].init(isSeek);
+            data[i].reset(isSeeking);
         }
 
         //  Clamp duration to ensure we never divide by zero
         this.duration = Math.max(this.duration, 0.01);
 
-        if (this.loopCounter > 0)
+        var duration = this.duration;
+        var completeDelay = this.completeDelay;
+        var loopCounter = this.loopCounter;
+        var loopDelay = this.loopDelay;
+
+        if (loopCounter > 0)
         {
-            this.totalDuration = this.duration + this.completeDelay + ((this.duration + this.loopDelay) * this.loopCounter);
+            this.totalDuration = duration + completeDelay + ((duration + loopDelay) * loopCounter);
         }
         else
         {
-            this.totalDuration = this.duration + this.completeDelay;
+            this.totalDuration = duration + completeDelay;
         }
     },
 
     /**
-     * Resets this Tween ready for another play-through from the parent TweenChain.
+     * Resets this Tween ready for another play-through.
      *
-     * This is called automatically and should not typically be invoked directly.
+     * This is called automatically from the Tween Manager, or from the parent TweenChain,
+     * and should not typically be invoked directly.
      *
-     * If you wish to restart this Tween, see `Tween.restart` or `Tween.seek` instead.
+     * If you wish to restart this Tween, use the `Tween.restart` or `Tween.seek` methods instead.
      *
      * @method Phaser.Tweens.Tween#reset
+     * @fires Phaser.Tweens.Events#TWEEN_ACTIVE
      * @since 3.60.0
      *
-     * @param {boolean} [skipReset=false] - Skip resetting the TweenData and Active State?
+     * @param {boolean} [skipInit=false] - Skip resetting the TweenData and Active State?
+     *
+     * @return {this} This Tween instance.
      */
-    reset: function (skipReset)
+    reset: function (skipInit)
     {
+        if (skipInit === undefined) { skipInit = false; }
+
         this.elapsed = 0;
-        this.progress = 0;
         this.totalElapsed = 0;
+        this.progress = 0;
         this.totalProgress = 0;
+        this.loopCounter = this.loop;
 
-        this.loopCounter = (this.loop === -1) ? 999999999999 : this.loop;
-
-        if (!skipReset)
+        if (this.loop === -1)
         {
-            this.resetTweenData(true);
+            this.isInfinite = true;
+            this.loopCounter = TWEEN_CONST.MAX;
+        }
+
+        if (!skipInit)
+        {
+            this.initTweenData();
 
             this.setActiveState();
 
             this.dispatchEvent(Events.TWEEN_ACTIVE, 'onActive');
         }
+
+        return this;
     },
 
     /**
@@ -584,7 +646,7 @@ var Tween = new Class({
         {
             return true;
         }
-        else if (this.isFinished() || (this.paused && !this.isSeeking))
+        else if (this.paused || this.isFinished())
         {
             return false;
         }
@@ -603,7 +665,7 @@ var Tween = new Class({
 
             return false;
         }
-        else if (!this.hasStarted && !this.isSeeking)
+        else if (!this.hasStarted)
         {
             this.startDelay -= delta;
 
@@ -633,8 +695,6 @@ var Tween = new Class({
             }
         }
 
-        this.delta = delta;
-
         this.elapsed += delta;
         this.progress = Math.min(this.elapsed / this.duration, 1);
 
@@ -659,6 +719,52 @@ var Tween = new Class({
         }
 
         return remove;
+    },
+
+    /**
+     * Moves this Tween forward by the given amount of milliseconds.
+     *
+     * It will only advance through the current loop of the Tween. For example, if the
+     * Tween is set to repeat or yoyo, it can only fast forward through a single
+     * section of the sequence. Use `Tween.seek` for more complex playhead control.
+     *
+     * If the Tween is paused or has already finished, calling this will have no effect.
+     *
+     * @method Phaser.Tweens.Tween#forward
+     * @since 3.60.0
+     *
+     * @param {number} ms - The number of milliseconds to advance this Tween by.
+     *
+     * @return {this} This Tween instance.
+     */
+    forward: function (ms)
+    {
+        this.update(ms);
+
+        return this;
+    },
+
+    /**
+     * Moves this Tween backward by the given amount of milliseconds.
+     *
+     * It will only rewind through the current loop of the Tween. For example, if the
+     * Tween is set to repeat or yoyo, it can only fast forward through a single
+     * section of the sequence. Use `Tween.seek` for more complex playhead control.
+     *
+     * If the Tween is paused or has already finished, calling this will have no effect.
+     *
+     * @method Phaser.Tweens.Tween#rewind
+     * @since 3.60.0
+     *
+     * @param {number} ms - The number of milliseconds to rewind this Tween by.
+     *
+     * @return {this} This Tween instance.
+     */
+    rewind: function (ms)
+    {
+        this.update(-ms);
+
+        return this;
     },
 
     /**

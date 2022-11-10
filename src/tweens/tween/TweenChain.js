@@ -10,6 +10,7 @@ var Class = require('../../utils/Class');
 var Events = require('../events');
 var GameObjectCreator = require('../../gameobjects/GameObjectCreator');
 var GameObjectFactory = require('../../gameobjects/GameObjectFactory');
+var TWEEN_CONST = require('./const');
 
 /**
  * @classdesc
@@ -65,7 +66,7 @@ var TweenChain = new Class({
      */
     init: function ()
     {
-        this.loopCounter = (this.loop === -1) ? 999999999999 : this.loop;
+        this.loopCounter = (this.loop === -1) ? TWEEN_CONST.MAX : this.loop;
 
         this.setCurrentTween(0);
 
@@ -501,7 +502,7 @@ var TweenChain = new Class({
 
         if (handler)
         {
-            handler.func.apply(handler.scope, [ this ].concat(handler.params));
+            handler.func.apply(this.callbackScope, [ this ].concat(handler.params));
         }
     },
 

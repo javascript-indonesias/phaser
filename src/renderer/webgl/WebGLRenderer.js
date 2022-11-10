@@ -22,6 +22,14 @@ var TextureEvents = require('../../textures/events');
 var Utils = require('./Utils');
 var WebGLSnapshot = require('../snapshot/WebGLSnapshot');
 
+var DEBUG = false;
+
+if (typeof WEBGL_DEBUG)
+{
+    var SPECTOR = require('phaser3spectorjs');
+    DEBUG = true;
+}
+
 /**
  * @callback WebGLContextCallback
  *
@@ -604,6 +612,19 @@ var WebGLRenderer = new Class({
          */
         this.maskTarget = null;
 
+        /**
+         * An instance of SpectorJS used for WebGL Debugging.
+         *
+         * Only available in the Phaser Debug build.
+         *
+         * @name Phaser.Renderer.WebGL.WebGLRenderer#spector
+         * @type {function}
+         * @since 3.60.0
+         */
+        this.spector = null;
+
+        this._debugCapture = false;
+
         this.init(this.config);
     },
 
@@ -623,6 +644,13 @@ var WebGLRenderer = new Class({
         var game = this.game;
         var canvas = this.canvas;
         var clearColor = config.backgroundColor;
+
+        if (DEBUG)
+        {
+            this.spector = new SPECTOR.Spector();
+
+            this.spector.onCapture.add(this.onCapture.bind(this));
+        }
 
         //  Did they provide their own context?
         if (game.config.context)
@@ -829,6 +857,71 @@ var WebGLRenderer = new Class({
         game.scale.on(ScaleEvents.RESIZE, this.onResize, this);
 
         this.resize(width, height);
+    },
+
+    captureFrame: function (quickCapture, fullCapture)
+    {
+        if (quickCapture === undefined) { quickCapture = false; }
+        if (fullCapture === undefined) { fullCapture = false; }
+
+        if (DEBUG && this.spector && !this._debugCapture)
+        {
+            this.spector.captureCanvas(this.canvas, 0, quickCapture, fullCapture);
+
+            this._debugCapture = true;
+        }
+    },
+
+    captureNextFrame: function ()
+    {
+        if (DEBUG && this.spector && !this._debugCapture)
+        {
+            this._debugCapture = true;
+
+            this.spector.captureNextFrame(this.canvas);
+        }
+    },
+
+    getFps: function ()
+    {
+        if (DEBUG && this.spector)
+        {
+            return this.spector.getFps();
+        }
+    },
+
+    startCapture: function (commandCount, quickCapture, fullCapture)
+    {
+        if (commandCount === undefined) { commandCount = 0; }
+        if (quickCapture === undefined) { quickCapture = false; }
+        if (fullCapture === undefined) { fullCapture = false; }
+
+        if (DEBUG && this.spector && !this._debugCapture)
+        {
+            this.spector.startCapture(this.canvas, commandCount, quickCapture, fullCapture);
+
+            this._debugCapture = true;
+        }
+    },
+
+    stopCapture: function ()
+    {
+        if (DEBUG && this.spector && this._debugCapture)
+        {
+            this.spector.stopCapture();
+        }
+    },
+
+    onCapture: function (capture)
+    {
+        if (DEBUG)
+        {
+            var view = this.spector.getResultUI();
+
+            view.display(capture);
+
+            this._debugCapture = false;
+        }
     },
 
     /**
@@ -2377,8 +2470,8 @@ var WebGLRenderer = new Class({
      * @method Phaser.Renderer.WebGL.WebGLRenderer#snapshotArea
      * @since 3.16.0
      *
-     * @param {number} x - The x coordinate to grab from.
-     * @param {number} y - The y coordinate to grab from.
+     * @param {number} x - The x coordinate to grab from. This is based on the game viewport, not the world.
+     * @param {number} y - The y coordinate to grab from. This is based on the game viewport, not the world.
      * @param {number} width - The width of the area to grab.
      * @param {number} height - The height of the area to grab.
      * @param {Phaser.Types.Renderer.Snapshot.SnapshotCallback} callback - The Function to invoke after the snapshot image is created.
@@ -2397,8 +2490,8 @@ var WebGLRenderer = new Class({
         state.getPixel = false;
         state.x = x;
         state.y = y;
-        state.width = Math.min(width, this.gl.drawingBufferWidth);
-        state.height = Math.min(height, this.gl.drawingBufferHeight);
+        state.width = width;
+        state.height = height;
 
         return this;
     },
@@ -2418,8 +2511,8 @@ var WebGLRenderer = new Class({
      * @method Phaser.Renderer.WebGL.WebGLRenderer#snapshotPixel
      * @since 3.16.0
      *
-     * @param {number} x - The x coordinate of the pixel to get.
-     * @param {number} y - The y coordinate of the pixel to get.
+     * @param {number} x - The x coordinate of the pixel to get. This is based on the game viewport, not the world.
+     * @param {number} y - The y coordinate of the pixel to get. This is based on the game viewport, not the world.
      * @param {Phaser.Types.Renderer.Snapshot.SnapshotCallback} callback - The Function to invoke after the snapshot pixel data is extracted.
      *
      * @return {this} This WebGL Renderer.
@@ -2451,8 +2544,8 @@ var WebGLRenderer = new Class({
      * @param {number} bufferHeight - The height of the framebuffer.
      * @param {Phaser.Types.Renderer.Snapshot.SnapshotCallback} callback - The Function to invoke after the snapshot image is created.
      * @param {boolean} [getPixel=false] - Grab a single pixel as a Color object, or an area as an Image object?
-     * @param {number} [x=0] - The x coordinate to grab from.
-     * @param {number} [y=0] - The y coordinate to grab from.
+     * @param {number} [x=0] - The x coordinate to grab from. This is based on the framebuffer, not the world.
+     * @param {number} [y=0] - The y coordinate to grab from. This is based on the framebuffer, not the world.
      * @param {number} [width=bufferWidth] - The width of the area to grab.
      * @param {number} [height=bufferHeight] - The height of the area to grab.
      * @param {string} [type='image/png'] - The format of the image to create, usually `image/png` or `image/jpeg`.
@@ -2468,6 +2561,12 @@ var WebGLRenderer = new Class({
         if (width === undefined) { width = bufferWidth; }
         if (height === undefined) { height = bufferHeight; }
 
+        if (type === 'pixel')
+        {
+            getPixel = true;
+            type = 'image/png';
+        }
+
         var currentFramebuffer = this.currentFramebuffer;
 
         this.snapshotArea(x, y, width, height, callback, type, encoderOptions);
@@ -2479,6 +2578,10 @@ var WebGLRenderer = new Class({
         state.isFramebuffer = true;
         state.bufferWidth = bufferWidth;
         state.bufferHeight = bufferHeight;
+
+        //  Ensure they're not trying to grab an area larger than the framebuffer
+        state.width = Math.min(state.width, bufferWidth);
+        state.height = Math.min(state.height, bufferHeight);
 
         this.setFramebuffer(framebuffer);
 
@@ -2528,7 +2631,7 @@ var WebGLRenderer = new Class({
      * @method Phaser.Renderer.WebGL.WebGLRenderer#createCanvasTexture
      * @since 3.20.0
      *
-     * @param {HTMLCanvasElement} srcCanvas - The Canvas to create the WebGL Texture from
+     * @param {HTMLCanvasElement} srcCanvas - The Canvas to create the WebGL Texture from.
      * @param {boolean} [noRepeat=false] - Should this canvas be allowed to set `REPEAT` (such as for Text objects?)
      * @param {boolean} [flipY=false] - Should the WebGL Texture set `UNPACK_MULTIPLY_FLIP_Y`?
      *

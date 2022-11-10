@@ -5,6 +5,7 @@
  */
 
 var Class = require('../../utils/Class');
+var Events = require('../events');
 var TWEEN_CONST = require('./const');
 
 /**
@@ -28,12 +29,12 @@ var TWEEN_CONST = require('./const');
  * @param {Phaser.Types.Tweens.GetStartCallback} getStart - What the property will be at the START of the Tween.
  * @param {?Phaser.Types.Tweens.GetActiveCallback} getActive - If not null, is invoked _immediately_ as soon as the TweenData is running, and is set on the target property.
  * @param {function} ease - The ease function this tween uses.
- * @param {function} delay - Function that returns the time in ms/frames before tween will start.
- * @param {number} duration - The duration of the tween in ms/frames.
+ * @param {function} delay - Function that returns the time in milliseconds before tween will start.
+ * @param {number} duration - The duration of the tween in milliseconds.
  * @param {boolean} yoyo - Determines whether the tween should return back to its start value after hold has expired.
- * @param {number} hold - Function that returns the time in ms/frames the tween will pause before repeating or returning to its starting value if yoyo is set to true.
+ * @param {number} hold - Function that returns the time in milliseconds the tween will pause before repeating or returning to its starting value if yoyo is set to true.
  * @param {number} repeat - Function that returns the number of times to repeat the tween. The tween will always run once regardless, so a repeat value of '1' will play the tween twice.
- * @param {number} repeatDelay - Function that returns the time in ms/frames before the repeat will start.
+ * @param {number} repeatDelay - Function that returns the time in milliseconds before the repeat will start.
  * @param {boolean} flipX - Should toggleFlipX be called when yoyo or repeat happens?
  * @param {boolean} flipY - Should toggleFlipY be called when yoyo or repeat happens?
  * @param {?function} interpolation - The interpolation function to be used for arrays of data. Defaults to 'null'.
@@ -213,6 +214,34 @@ var BaseTweenData = new Class({
          * @since 3.60.0
          */
         this.isCountdown = false;
+    },
+
+    /**
+     * Returns a reference to the target object belonging to this TweenData.
+     *
+     * @method Phaser.Tweens.BaseTweenData#getTarget
+     * @since 3.60.0
+     *
+     * @return {object} The target object. Can be any JavaScript object, but is typically a Game Object.
+     */
+    getTarget: function ()
+    {
+        return this.tween.targets[this.targetIndex];
+    },
+
+    /**
+     * Sets this TweenData's target object property to be the given value.
+     *
+     * @method Phaser.Tweens.BaseTweenData#setTargetValue
+     * @since 3.60.0
+     *
+     * @param {number} [value] - The value to set on the target. If not given, sets it to the last `current` value.
+     */
+    setTargetValue: function (value)
+    {
+        if (value === undefined) { value = this.current; }
+
+        this.tween.targets[this.targetIndex][this.key] = value;
     },
 
     /**
@@ -413,6 +442,211 @@ var BaseTweenData = new Class({
     isComplete: function ()
     {
         return (this.state === TWEEN_CONST.COMPLETE);
+    },
+
+    /**
+     * Internal method used as part of the playback process that checks if this
+     * TweenData should yoyo, repeat, or has completed.
+     *
+     * @method Phaser.Tweens.BaseTweenData#setStateFromEnd
+     * @fires Phaser.Tweens.Events#TWEEN_REPEAT
+     * @fires Phaser.Tweens.Events#TWEEN_YOYO
+     * @since 3.60.0
+     *
+     * @param {number} diff - Any extra time that needs to be accounted for in the elapsed and progress values.
+     */
+    setStateFromEnd: function (diff)
+    {
+        if (this.yoyo)
+        {
+            this.onRepeat(diff, true, true);
+        }
+        else if (this.repeatCounter > 0)
+        {
+            this.onRepeat(diff, true, false);
+        }
+        else
+        {
+            this.setCompleteState();
+        }
+    },
+
+    /**
+     * Internal method used as part of the playback process that checks if this
+     * TweenData should repeat or has completed.
+     *
+     * @method Phaser.Tweens.BaseTweenData#setStateFromStart
+     * @fires Phaser.Tweens.Events#TWEEN_REPEAT
+     * @since 3.60.0
+     *
+     * @param {number} diff - Any extra time that needs to be accounted for in the elapsed and progress values.
+     */
+    setStateFromStart: function (diff)
+    {
+        if (this.repeatCounter > 0)
+        {
+            this.onRepeat(diff, false);
+        }
+        else
+        {
+            this.setCompleteState();
+        }
+    },
+
+    /**
+     * Internal method that resets this Tween Data entirely, including the progress and elapsed values.
+     *
+     * Called automatically by the parent Tween. Should not be called directly.
+     *
+     * @method Phaser.Tweens.BaseTweenData#reset
+     * @since 3.60.0
+     */
+    reset: function ()
+    {
+        var tween = this.tween;
+        var totalTargets = tween.totalTargets;
+
+        var targetIndex = this.targetIndex;
+        var target = tween.targets[targetIndex];
+        var key = this.key;
+
+        this.progress = 0;
+        this.elapsed = 0;
+
+        //  Function signature: target, key, value, index, total, tween
+
+        this.delay = this.getDelay(target, key, 0, targetIndex, totalTargets, tween);
+
+        this.repeatCounter = (this.repeat === -1) ? TWEEN_CONST.MAX : this.repeat;
+
+        this.setPendingRenderState();
+
+        //  calcDuration:
+
+        //  Set t1 (duration + hold + yoyo)
+        var t1 = this.duration + this.hold;
+
+        if (this.yoyo)
+        {
+            t1 += this.duration;
+        }
+
+        //  Set t2 (repeatDelay + duration + hold + yoyo)
+        var t2 = t1 + this.repeatDelay;
+
+        //  Total Duration
+        this.totalDuration = this.delay + t1;
+
+        if (this.repeat === -1)
+        {
+            this.totalDuration += (t2 * TWEEN_CONST.MAX);
+            tween.isInfinite = true;
+        }
+        else if (this.repeat > 0)
+        {
+            this.totalDuration += (t2 * this.repeat);
+        }
+
+        if (this.totalDuration > tween.duration)
+        {
+            //  Set the longest duration in the parent Tween
+            tween.duration = this.totalDuration;
+        }
+
+        if (this.delay < tween.startDelay)
+        {
+            tween.startDelay = this.delay;
+        }
+
+        if (this.delay > 0)
+        {
+            this.elapsed = this.delay;
+
+            this.setDelayState();
+        }
+    },
+
+    /**
+     * Internal method that handles repeating or yoyo'ing this TweenData.
+     *
+     * Called automatically by `setStateFromStart` and `setStateFromEnd`.
+     *
+     * @method Phaser.Tweens.BaseTweenData#onRepeat
+     * @fires Phaser.Tweens.Events#TWEEN_REPEAT
+     * @fires Phaser.Tweens.Events#TWEEN_YOYO
+     * @since 3.60.0
+     *
+     * @param {number} diff - Any extra time that needs to be accounted for in the elapsed and progress values.
+     * @param {boolean} setStart - Set the TweenData start values?
+     * @param {boolean} isYoyo - Is this call a Yoyo check?
+     */
+    onRepeat: function (diff, setStart, isYoyo)
+    {
+        var tween = this.tween;
+        var totalTargets = tween.totalTargets;
+
+        var targetIndex = this.targetIndex;
+        var target = tween.targets[targetIndex];
+        var key = this.key;
+
+        var isTweenData = (key !== 'texture');
+
+        //  Account for any extra time we got from the previous frame
+        this.elapsed = diff;
+        this.progress = diff / this.duration;
+
+        if (this.flipX)
+        {
+            target.toggleFlipX();
+        }
+
+        if (this.flipY)
+        {
+            target.toggleFlipY();
+        }
+
+        if (isTweenData && (setStart || isYoyo))
+        {
+            this.start = this.getStartValue(target, key, this.start, targetIndex, totalTargets, tween);
+        }
+
+        if (isYoyo)
+        {
+            this.setPlayingBackwardState();
+
+            this.dispatchEvent(Events.TWEEN_YOYO, 'onYoyo');
+
+            return;
+        }
+
+        this.repeatCounter--;
+
+        //  Custom
+        if (isTweenData)
+        {
+            this.end = this.getEndValue(target, key, this.start, targetIndex, totalTargets, tween);
+        }
+
+        //  Delay?
+        if (this.repeatDelay > 0)
+        {
+            this.elapsed = this.repeatDelay - diff;
+
+            if (isTweenData)
+            {
+                this.current = this.start;
+
+                target[key] = this.current;
+            }
+
+            this.setRepeatState();
+        }
+        else
+        {
+            this.setPlayingForwardState();
+
+            this.dispatchEvent(Events.TWEEN_REPEAT, 'onRepeat');
+        }
     },
 
     /**

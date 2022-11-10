@@ -43,13 +43,13 @@ var TweenManager = new Class({
         this.scene = scene;
 
         /**
-         * The Systems object of the Scene which owns this Tween Manager.
+         * The Scene Systems Event Emitter.
          *
-         * @name Phaser.Tweens.TweenManager#systems
-         * @type {Phaser.Scenes.Systems}
-         * @since 3.0.0
+         * @name Phaser.Tweens.TweenManager#events
+         * @type {Phaser.Events.EventEmitter}
+         * @since 3.60.0
          */
-        this.systems = scene.sys;
+        this.events = scene.sys.events;
 
         /**
          * The time scale of the Tween Manager.
@@ -170,8 +170,8 @@ var TweenManager = new Class({
          */
         this.gap = 1000 / 240;
 
-        scene.sys.events.once(SceneEvents.BOOT, this.boot, this);
-        scene.sys.events.on(SceneEvents.START, this.start, this);
+        this.events.once(SceneEvents.BOOT, this.boot, this);
+        this.events.on(SceneEvents.START, this.start, this);
     },
 
     /**
@@ -184,7 +184,7 @@ var TweenManager = new Class({
      */
     boot: function ()
     {
-        this.systems.events.once(SceneEvents.DESTROY, this.destroy, this);
+        this.events.once(SceneEvents.DESTROY, this.destroy, this);
     },
 
     /**
@@ -198,17 +198,15 @@ var TweenManager = new Class({
      */
     start: function ()
     {
-        var eventEmitter = this.systems.events;
-
-        eventEmitter.on(SceneEvents.UPDATE, this.update, this);
-        eventEmitter.once(SceneEvents.SHUTDOWN, this.shutdown, this);
-
         this.timeScale = 1;
         this.paused = false;
 
         this.startTime = Date.now();
         this.prevTime = this.startTime;
         this.nextTime = this.gap;
+
+        this.events.on(SceneEvents.UPDATE, this.update, this);
+        this.events.once(SceneEvents.SHUTDOWN, this.shutdown, this);
     },
 
     /**
@@ -317,7 +315,7 @@ var TweenManager = new Class({
 
             if (tween instanceof Tween || tween instanceof TweenChain)
             {
-                tweens.push(tween.init());
+                tweens.push(tween.reset());
             }
             else
             {
@@ -330,7 +328,7 @@ var TweenManager = new Class({
                     tween = TweenBuilder(this, tween);
                 }
 
-                tweens.push(tween.init());
+                tweens.push(tween.reset());
             }
 
             result.push(tween);
@@ -434,7 +432,7 @@ var TweenManager = new Class({
     {
         if (!this.has(tween))
         {
-            this.tweens.push(tween.init());
+            this.tweens.push(tween.reset());
         }
 
         return this;
@@ -458,7 +456,7 @@ var TweenManager = new Class({
     {
         var tween = NumberTweenBuilder(this, config);
 
-        this.tweens.push(tween.init());
+        this.tweens.push(tween.reset());
 
         return tween;
     },
@@ -659,8 +657,9 @@ var TweenManager = new Class({
 
         var delta = this.getDelta(tick);
 
-        if (delta === 0)
+        if (delta <= 0)
         {
+            //  If we've got a negative delta, skip this step
             return;
         }
 
@@ -848,7 +847,7 @@ var TweenManager = new Class({
      * @method Phaser.Tweens.TweenManager#getTweensOf
      * @since 3.0.0
      *
-     * @param {object|array} target - The target to look for. Provide an array to look for multiple targets.
+     * @param {(object|object[])} target - The target to look for. Provide an array to look for multiple targets.
      *
      * @return {Phaser.Tweens.Tween[]} A new array containing all Tweens which affect the given target(s).
      */
@@ -857,7 +856,14 @@ var TweenManager = new Class({
         var output = [];
         var list = this.tweens;
 
-        target = Flatten(target);
+        if (!Array.isArray(target))
+        {
+            target = [ target ];
+        }
+        else
+        {
+            target = Flatten(target);
+        }
 
         var targetLen = target.length;
 
@@ -956,7 +962,7 @@ var TweenManager = new Class({
      */
     killAll: function ()
     {
-        var tweens = (this.processing) ? this.getAllTweens() : this.tweens;
+        var tweens = (this.processing) ? this.getTweens() : this.tweens;
 
         for (var i = 0; i < tweens.length; i++)
         {
@@ -1058,10 +1064,8 @@ var TweenManager = new Class({
 
         this.tweens = [];
 
-        var eventEmitter = this.systems.events;
-
-        eventEmitter.off(SceneEvents.UPDATE, this.update, this);
-        eventEmitter.off(SceneEvents.SHUTDOWN, this.shutdown, this);
+        this.events.off(SceneEvents.UPDATE, this.update, this);
+        this.events.off(SceneEvents.SHUTDOWN, this.shutdown, this);
     },
 
     /**
@@ -1075,10 +1079,10 @@ var TweenManager = new Class({
     {
         this.shutdown();
 
-        this.scene.sys.events.off(SceneEvents.START, this.start, this);
+        this.events.off(SceneEvents.START, this.start, this);
 
         this.scene = null;
-        this.systems = null;
+        this.events = null;
     }
 
 });

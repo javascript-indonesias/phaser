@@ -83,15 +83,14 @@ Previously, `WebGLRenderer.whiteTexture` and `WebGLRenderer.blankTexture` had a 
 
 #### Multi Tint Pipeline
 
-* If you have a customised Multi Tint Pipeline fragment shader that uses the `%forloop%` declaration, you should update it to follow the new format defined in `Multi.frag`. This new shader uses a function called `getSampler` instead. Please see the shader code and update your own shaders accordingly. You can also see the documentation for the MultiPipeline for details.
 * The `Multi.frag` shader now uses a `highp` precision, or `mediump` if the device doesn't support it (thanks @arbassic)
 * The `WebGL.Utils.checkShaderMax` function will no longer use a massive if/else glsl shader check and will instead rely on the value given in `gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)`.
-* The `WebGL.Utils.parseFragmentShaderMaxTextures` function no longer supports the `%forloop%` declaration.
 * The internal WebGL Utils function `GenerateSrc` has been removed as it's no longer required internally.
 * Previously, the Multi Tint methods `batchSprite`, `batchTexture`, `batchTextureFrame` and `batchFillRect` would all make heavy use of the `TransformMatrix.getXRound` and `getYRound` methods, which in turn called `getX` and `getY` and applied optional rounding to them. This is all now handled by one single function (`setQuad`) with no branching, meaning rendering one single sprite has cut down 16 function calls and 48 getters to just 1 function.
 
 #### Lights Pipeline
 
+* The Light Pipeline will now check to see if a Light2D enabled Game Object has a parent Container, or not, and factor the rotation and scale of this into the light calculation. Fix #6086 (thanks @irongaze)
 * The Light Pipeline no longer creates up to `maxLights` copies of the Light shader on boot. Previously it would then pick which shader to use, based on the number of visible lights in the Scene. Now, the number of lights is passed to the shader and branches accordingly. This means rather than compiling _n_ shaders on boot, it now only ever needs to create one.
 * You can now have no lights in a Scene, but the Scene will still be impacted by the ambient light. Previously, you always needed at least 1 light to trigger ambient light (thanks jstnldrs)
 * The `Light.frag` shader now uses a new `uLightCount` uniform to know when to stop iterating through the max lights.
@@ -123,14 +122,15 @@ TODO - TweenData to class
 TODO - TweenData and Tween State methods
 TODO - CONST removals
 
-The Phaser 3.60 Tween system has been recoded to help with performance and resolving some of its lingering issues and unifying the Tween events and callbacks.
+The Phaser 3.60 Tween system has been rewritten to help with performance, resolve some of its lingering issues and unifies the Tween events and callbacks.
 
 The following are breaking changes:
 
 * Tween Timelines have been removed entirely. Due to the way they were implemented they tended to cause a range of esoteric timing bugs which were non-trivial to resolve. To that end, we made the decision to remove Timelines entirely and introduced the ability to chain tweens together using the new `chain` method. This should give most developers the same level of sequencing they had using Timelines, without the timing issues.
+* The `Tween.seek` method used to take a value between 0 and 1, based on how far through the Tween you wished to seek. However, it did not work with infinitely looping or repeating Tweens and would crash the browser tab. The new `seek` method takes a value in milliseconds instead and works perfectly on infinite Tweens.
 * When creating a Tween, you can no longer pass a function for the following properties: `duration`, `hold`, `repeat` and `repeatDelay`. These should be numbers only. You can, however, still provide a function for `delay`, to keep it compatible with the StaggerBuilder.
 * The `TweenManager#getAllTweens` method has been renamed to `TweenManager#getTweens`. Functionally, it is the same.
-* The property and feature `Tween.useFrames` has been removed and is no longer a valid Tween Config option. Tweens are now entirely ms/time based.
+* The property and feature `Tween.useFrames` has been removed and is no longer a valid Tween Config option. Tweens are now entirely millisecond based.
 * The `TweenOnUpdateCallback` now has the following parameters: `tween`, `targets`, `key` (the property being tweened), `current` (the current value of the property), `previous` (the previous value of the property) and finally any of the params that were passed in the `onUpdateParams` array when the Tween was created.
 * The `TweenOnYoyoCallback` now has the following parameters: `tween`, `targets`, `key` (the property being tweened), `current` (the current value of the property), `previous` (the previous value of the property) and finally any of the params that were passed in the `onYoyoParams` array when the Tween was created.
 * The `TweenOnRepeatCallback` now has the following parameters: `tween`, `targets`, `key` (the property being tweened), `current` (the current value of the property), `previous` (the previous value of the property) and finally any of the params that were passed in the `onRepeatParams` array when the Tween was created.
@@ -219,6 +219,7 @@ Render Texture breaking changes:
 * `dirty` is now available via `texture.dirty`.
 * `camera` is now available via `texture.camera`.
 * `renderTarget` is now available via `texture.renderTarget`.
+* `origin` is now (0.5, 0.5) by default instead of (0, 0).
 
 * The following `RenderTexture` methods have changed:
 
@@ -270,6 +271,9 @@ There are breaking changes from previous versions of Phaser.
 
 ### New Features
 
+* `Animation.showBeforeDelay` is a new optional boolean property you can set when creating, or playing an animation. If the animation has a delay before playback starts this controls if it should still set the first frame immediately, or after the delay has expired (the default).
+* `InputPlugin.resetPointers` is a new method that will loop through all of the Input Manager Pointer instances and reset them all. This is useful if a 3rd party component, such as Vue, has stolen input from Phaser and you need to reset its input state again.
+* `Pointer.reset` is a new method that will reset a Pointer instance back to its 'factory' settings.
 * When using `Group.createMultiple` it will now skip the post-creations options if they are not set in the config object used, or a Game Object constructor. Previously, things like alpha, position, etc would be over-written by the defaults if they weren't given in the config, but now the method will check to see if they are set and only use them if they are. This is a breaking change, but makes it more efficient and flexible (thanks @samme)
 * When running a Scene transition there is a new optional callback `onStart`, which is passed the parameters `fromScene`, `toScene` and `duration` allowing you to consolidate transition logic into a single callback, rather than split across the start and end events (thanks @rexrainbow)
 * `TextureManager.silentWarnings` is a new boolean property that, when set, will prevent the Texture Manager from emiting any warnings or errors to the console in the case of missing texture keys or invalid texture access. The default is to display these warnings, this flag toggles that.
@@ -335,6 +339,15 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Updates
 
+* `Scenes.Systems.canInput` is a new internal method that determines if a Scene can receive Input events, or not. This is now used by the `InputPlugin` instead of the previous `isActive` test. This allows a Scene to emit and handle input events even when it is running `init` or `preload`. Previously, it could only do this after `create` had finished running. Fix #6123 (thanks @yaasinhamidi)
+* The `BitmapText` Game Object has two new read-only properties `displayWidth` and `displayHeight`. This allows the BitmapText to correctly use the `GetBounds` component.
+* The `BitmapText` Game Object now has the `GetBounds` component added to it, meaning you can now correctly get its dimensions as part of a Container. Fix #6237 (thanks @likwidgames)
+* `WebGLSnapshot` will now flip the pixels in the created Image element if the source was a framebuffer. This means grabbing a snapshot from a Dynamic or Render Texture will now correctly invert the pixels on the y axis for an Image. Grabbing from the game renderer will skip this.
+* `WebGLRenderer.snapshotFramebuffer` and by extension, the snapshot methods in Dynamic Textures and Render Textures, has been updated to ensure that the width and height never exceed the framebuffer dimensions, or it'll cause a runtime error. The method `snapshotArea` has had this limitation removed as a result, allowing you to snapshot areas that are larger than the Canvas. Fix #5707 (thanks @teng-z)
+* `Animation.stop` is always called when a new animation is loaded, regardless if the animation was playing or not and the `delayCounter` is reset to zero. This stops animations with delays preventing other animations from being started until the delay has expired. Fix #5680 (thanks @enderandpeter)
+* `ScaleManager.listeners` has been renamed to `domlisteners` to avoid conflicting with the EventEmitter listeners object. Fix #6260 (thanks @x-wk)
+* `Geom.Intersects.LineToLine` will no longer create an internal `Point` object, as it's not required internally (thanks @Trissolo)
+* The `tempZone` used by `GridAlign` has now had `setOrigin(0, 0)` applied to it. This leads to more accurate / expected zone placement when aligning grid items.
 * The `GetBitmapTextSize` function now includes an extra property in the resulting `BitmapTextCharacter` object called `idx` which is the index of the character within the Bitmap Text, without factoring in any word wrapping (thanks @JaroVDH)
 * `Camera.isSceneCamera` is a new boolean that controls if the Camera belongs to a Scene (the default), or a Texture. You can set this via the `Camera.setScene` method. Once set the `Camera.updateSystem` method is skipped, preventing the WebGL Renderer from setting a scissor every frame.
 * `Camera.preRender` will now apply `Math.floor` instead of `Math.round` to the values, keeping it consistent with the Renderer when following a sprite.
@@ -408,6 +421,10 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Bug Fixes
 
+* The method `Color.setFromHSV` would not change the members `h`, `s` and `v`, only the RGB properties. It now correctly updates them both. Fix #6276 (thanks @rexrainbow)
+* When calling `GameObject.getPostPipeline` and passing in a string for the pipeline name it would error with 'Uncaught TypeError: Right-hand side of 'instanceof' is not an object'. This is now handled correctly internally (thanks @neki-dev)
+* When playing a chained animation, the `nextAnim` property could get set to `undefined` which would stop the next animation in the queue from being set. The check now handles all falsey cases. Fix #5852 (thanks @Pythux)
+* When calling `InputPlugin.clear` it will now call `removeDebug` on the Game Object, making sure it clears up any Input Debug Graphics left in the Scene. Fix #6137 (thanks @spayton)
 * The `Video.loadURL` method wouldn't load the video or emit the `VIDEO_CREATED` event unless `noAudio` was specified. A load event handler has been added to resolve this (thanks @samme)
 * If you create a repeating or looping `TimerEvent` with a `delay` of zero it will now throw a runtime error as it would lead to an infinite loop. Fix #6225 (thanks @JernejHabjan)
 * The `endFrame` and `startFrame` properties of the `SpriteSheet` parser wouldn't correctly apply themselves, the Texture would still end up with all of the frames. It will now start at the given `startFrame` so that is frame zero and end at `endFrame`, regardless how many other frames are in the sheet.
@@ -504,4 +521,45 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 My thanks to the following for helping with the Phaser 3 Examples, Beta Testing, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
 
-@necrokot Golen @Pythux @samme @danfoster @eltociear @sylvainpolletvillard @hanzooo @etherealmachine @DeweyHur @twoco @austinlyon @Arcanorum OmniOwl @EsteFilipe @PhaserEditor2D @Fake @jonasrundberg @xmahle @arosemena @monteiz @VanaMartin @lolimay @201flaviosilva @orjandh @florestankorp @YeloPartyHat @hacheraw @kootoopas @joegaffey @rgk @ubershmekel @Nero0 @xuxucode @Smirnov48 @jerricko @ef4 @michalfialadev @darrylpizarro
+@201flaviosilva
+@Arcanorum
+@arosemena
+@austinlyon
+@danfoster
+@darrylpizarro
+@DeweyHur
+@ef4
+@eltociear
+@EsteFilipe
+@etherealmachine
+@Fake
+@florestankorp
+@hacheraw
+@hanzooo
+@jerricko
+@joegaffey
+@jonasrundberg
+@kootoopas
+@lolimay
+@michalfialadev
+@monteiz
+@necrokot
+@Nero0
+@orjandh
+@PhaserEditor2D
+@Pythux
+@quocsinh
+@rgk
+@samme
+@Smirnov48
+@sylvainpolletvillard
+@twoco
+@ubershmekel
+@VanaMartin
+@vforsh
+@x-wk
+@xmahle
+@xuxucode
+@YeloPartyHat
+Golen
+OmniOwl
