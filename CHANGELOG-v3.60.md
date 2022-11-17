@@ -83,6 +83,7 @@ Previously, `WebGLRenderer.whiteTexture` and `WebGLRenderer.blankTexture` had a 
 
 #### Multi Tint Pipeline
 
+* The `batchLine` method in the Multi Pipeline will now check to see if the dxdy len is zero, and if so, it will abort drawing the line. This fixes issues on older Android devices, such as the Samsung Galaxy S6 or Kindle 7, where it would draw erroneous lines leading up to the top-left of the canvas under WebGL when rendering a stroked rounded rectangle. Fix #5429 (thanks @fkoch-tgm @sreadixl)
 * The `Multi.frag` shader now uses a `highp` precision, or `mediump` if the device doesn't support it (thanks @arbassic)
 * The `WebGL.Utils.checkShaderMax` function will no longer use a massive if/else glsl shader check and will instead rely on the value given in `gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)`.
 * The internal WebGL Utils function `GenerateSrc` has been removed as it's no longer required internally.
@@ -90,6 +91,7 @@ Previously, `WebGLRenderer.whiteTexture` and `WebGLRenderer.blankTexture` had a 
 
 #### Lights Pipeline
 
+* The Light fragment shader will now use the `outTintEffect` attribute meaning the Light Pipeline will now correctly light both tinted and fill-tinted Game Objects. Fix #5452 (thanks @kainage)
 * The Light Pipeline will now check to see if a Light2D enabled Game Object has a parent Container, or not, and factor the rotation and scale of this into the light calculation. Fix #6086 (thanks @irongaze)
 * The Light Pipeline no longer creates up to `maxLights` copies of the Light shader on boot. Previously it would then pick which shader to use, based on the number of visible lights in the Scene. Now, the number of lights is passed to the shader and branches accordingly. This means rather than compiling _n_ shaders on boot, it now only ever needs to create one.
 * You can now have no lights in a Scene, but the Scene will still be impacted by the ambient light. Previously, you always needed at least 1 light to trigger ambient light (thanks jstnldrs)
@@ -184,7 +186,7 @@ Before Phaser 3.60 this was known as a Render Texture. Dynamic Textures have bee
 * `TextureManager.addDynamicTexture(key, width, height)` is a new method that will create a Dynamic Texture and store it in the Texture Manager, available globally for use by any Game Object.
 * Unlike the old Render Texture, Dynamic Texture extends the native `Phaser.Texture` class, meaning you can use it for any texture based object and also call all of the native Texture methods, such as the ability to add frames to it, use it as the backing source for a sprite sheet or atlas, and more.
 * Dynamic Textures no longer create both Render Targets _and_ Canvas objects, only the one that they require based on the renderer. This means Render Textures and Dynamic Textures now use 50% less memory under WebGL and don't create Canvas DOM elements.
-* You can now directly use a Dynamic Texture as a Bitmap Mask.
+* You can now directly use a Dynamic Texture as the source for a Bitmap Mask.
 * Game Objects that have a mask will now reflect this when drawn to a Dynamic Texture.
 * `DynamicTexture.isDrawing` is a new boolean that allows you to tell if a batch draw has been started and is in process.
 * `DynamicTexture.isSpriteTexture` is a new boolean that informs the texture if it is being used as a backing texture for Sprite Game Objects, or not. If it is (which is the default) then items drawn to the texture are automatically inversed. Doing this ensures that images drawn to the Render Texture are correctly inverted for rendering in WebGL. Not doing so can cause inverted frames. If you use this method, you must use it before drawing anything to the Render Texture. Fix #6057 #6017 (thanks @andymikulski @Grandnainconnu)
@@ -250,6 +252,7 @@ There are breaking changes from previous versions of Phaser.
 * `WebGLRenderer.beginBitmapMask` is a new method that starts the process of using the mask target framebuffer for drawing. This is called by the `BitmapMaskPipeline`.
 * `WebGLRenderer.drawBitmapMask` is a new method that completes the process of rendering using the mask target framebuffer. This is called by the `BitmapMaskPipeline`.
 * The `BitmapMaskPipeline` now hands over most control of the framebuffers to the WebGLRenderer.
+* The `GameObjects.Components.Mask.createBitmapMask` method can now accept the `x`, `y`, `texture` and `frame` parameters new to the BitmapMask constructor.
 
 ### TimeStep Updates
 
@@ -339,6 +342,8 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Updates
 
+* The `CONTEXT_RESTORED` Game Event has been removed and the WebGL Renderer no longer listens for the `contextrestored` DOM event, or has a `contextRestoredHandler` method. This never actually worked properly, in any version of Phaser 3 - although the WebGLRenderer would be restored, none of the shaders, pipelines or textures were correctly re-created. If a context is now lost, Phaser will display an error in the console and all rendering will halt. It will no longer try to re-create the context, leading to masses of WebGL errors in the console. Instead, it will die gracefully and require a page reload.
+* The `Text` and `TileSprite` Game Objects no longer listen for the `CONTEXT_RESTORED` event and have had their `onContextRestored` methods removed.
 * `Scenes.Systems.canInput` is a new internal method that determines if a Scene can receive Input events, or not. This is now used by the `InputPlugin` instead of the previous `isActive` test. This allows a Scene to emit and handle input events even when it is running `init` or `preload`. Previously, it could only do this after `create` had finished running. Fix #6123 (thanks @yaasinhamidi)
 * The `BitmapText` Game Object has two new read-only properties `displayWidth` and `displayHeight`. This allows the BitmapText to correctly use the `GetBounds` component.
 * The `BitmapText` Game Object now has the `GetBounds` component added to it, meaning you can now correctly get its dimensions as part of a Container. Fix #6237 (thanks @likwidgames)
@@ -421,6 +426,9 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Bug Fixes
 
+* The `Tilemap.destroyLayer` method would throw an error "TypeError: layer.destroy is not a function". It now correctly destroys the TilemapLayer. Fix #6268 (thanks @samme)
+* `MapData` and `ObjectLayer` will now enforce that the `Tilemap.objects` property is always an array. Sometimes Tiled willl set it to be a blank object in the JSON data. This fix makes sure it is always an array. Fix #6139 (thanks @robbeman)
+* The `ParseJSONTiled` function will now run a `DeepCopy` on the source Tiled JSON, which prevents object mutation, fixing an issue where Tiled Object Layer names would be duplicated if used across multiple Tilemap instances. Fix #6212 (thanks @temajm @wahur666)
 * The method `Color.setFromHSV` would not change the members `h`, `s` and `v`, only the RGB properties. It now correctly updates them both. Fix #6276 (thanks @rexrainbow)
 * When calling `GameObject.getPostPipeline` and passing in a string for the pipeline name it would error with 'Uncaught TypeError: Right-hand side of 'instanceof' is not an object'. This is now handled correctly internally (thanks @neki-dev)
 * When playing a chained animation, the `nextAnim` property could get set to `undefined` which would stop the next animation in the queue from being set. The check now handles all falsey cases. Fix #5852 (thanks @Pythux)
@@ -522,6 +530,7 @@ The following are API-breaking, in that a new optional parameter has been insert
 My thanks to the following for helping with the Phaser 3 Examples, Beta Testing, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
 
 @201flaviosilva
+@AlbertMontagutCasero
 @Arcanorum
 @arosemena
 @austinlyon
@@ -550,6 +559,7 @@ My thanks to the following for helping with the Phaser 3 Examples, Beta Testing,
 @Pythux
 @quocsinh
 @rgk
+@rollinsafary-inomma
 @samme
 @Smirnov48
 @sylvainpolletvillard
@@ -557,6 +567,7 @@ My thanks to the following for helping with the Phaser 3 Examples, Beta Testing,
 @ubershmekel
 @VanaMartin
 @vforsh
+@Vidminas
 @x-wk
 @xmahle
 @xuxucode
