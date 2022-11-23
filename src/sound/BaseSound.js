@@ -282,6 +282,7 @@ var BaseSound = new Class({
 
     /**
      * Play this sound, or a marked section of it.
+     *
      * It always plays the sound from the start. If you want to start playback from a specific time
      * you can set 'seek' setting of the config object, provided to this call, to that value.
      *
@@ -340,7 +341,9 @@ var BaseSound = new Class({
     },
 
     /**
-     * Pauses the sound.
+     * Pauses the sound. This only works if the sound is currently playing.
+     *
+     * You can inspect the `isPlaying` and `isPaused` properties to check the state.
      *
      * @method Phaser.Sound.BaseSound#pause
      * @since 3.0.0
@@ -361,7 +364,9 @@ var BaseSound = new Class({
     },
 
     /**
-     * Resumes the sound.
+     * Resumes the sound. This only works if the sound is paused and not already playing.
+     *
+     * You can inspect the `isPlaying` and `isPaused` properties to check the state.
      *
      * @method Phaser.Sound.BaseSound#resume
      * @since 3.0.0
