@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -54,9 +54,14 @@ function init ()
 {
     var ua = navigator.userAgent;
 
-    if ((/Edge\/\d+/).test(ua))
+    if ((/Edg\/\d+/).test(ua))
     {
         Browser.edge = true;
+        Browser.es2019 = true;
+    }
+    else if ((/OPR/).test(ua))
+    {
+        Browser.opera = true;
         Browser.es2019 = true;
     }
     else if ((/Chrome\/(\d+)/).test(ua) && !OS.windowsPhone)
@@ -79,11 +84,6 @@ function init ()
     {
         Browser.ie = true;
         Browser.ieVersion = parseInt(RegExp.$1, 10);
-    }
-    else if ((/Opera/).test(ua))
-    {
-        Browser.opera = true;
-        Browser.es2019 = true;
     }
     else if ((/Version\/(\d+\.\d+) Safari/).test(ua) && !OS.windowsPhone)
     {

@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -277,14 +277,14 @@ var WebGLPipeline = new Class({
         this.isPostFX = false;
 
         /**
-         * Indicates if this is a Sprite FX Pipeline, or not.
+         * Indicates if this is a Pre FX Pipeline, or not.
          *
-         * @name Phaser.Renderer.WebGL.WebGLPipeline#isSpriteFX
+         * @name Phaser.Renderer.WebGL.WebGLPipeline#isPreFX
          * @type {boolean}
          * @readonly
          * @since 3.60.0
          */
-        this.isSpriteFX = false;
+        this.isPreFX = false;
 
         /**
          * An array of RenderTarget instances that belong to this pipeline.
@@ -722,11 +722,36 @@ var WebGLPipeline = new Class({
             {
                 var shaderEntry = configShaders[i];
 
-                var name = GetFastValue(shaderEntry, 'name', 'default');
+                var name;
+                var vertShader;
+                var fragShader;
+                var attributes;
 
-                var vertShader = GetFastValue(shaderEntry, vName, defaultVertShader);
-                var fragShader = Utils.parseFragmentShaderMaxTextures(GetFastValue(shaderEntry, fName, defaultFragShader), renderer.maxTextures);
-                var attributes = GetFastValue(shaderEntry, aName, defaultAttribs);
+                if (typeof shaderEntry === 'string')
+                {
+                    name = 'default';
+                    vertShader = defaultVertShader;
+                    fragShader = Utils.parseFragmentShaderMaxTextures(shaderEntry, renderer.maxTextures);
+                    attributes = defaultAttribs;
+                }
+                else
+                {
+                    name = GetFastValue(shaderEntry, 'name', 'default');
+                    vertShader = GetFastValue(shaderEntry, vName, defaultVertShader);
+                    fragShader = Utils.parseFragmentShaderMaxTextures(GetFastValue(shaderEntry, fName, defaultFragShader), renderer.maxTextures);
+                    attributes = GetFastValue(shaderEntry, aName, defaultAttribs);
+                }
+
+                if (name === 'default')
+                {
+                    var lines = fragShader.split('\n');
+                    var test = lines[0].trim();
+
+                    if (test.indexOf('#define SHADER_NAME') > -1)
+                    {
+                        name = test.substring(20);
+                    }
+                }
 
                 if (vertShader && fragShader)
                 {
@@ -910,6 +935,20 @@ var WebGLPipeline = new Class({
         if (amount === undefined) { amount = 0; }
 
         return (this.vertexCount + amount > this.vertexCapacity);
+    },
+
+    /**
+     * Returns the number of vertices that can be added to the current batch before
+     * it will trigger a flush to happen.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLPipeline#vertexAvailable
+     * @since 3.60.0
+     *
+     * @return {number} The number of vertices that can still be added to the current batch before it will flush.
+     */
+    vertexAvailable: function ()
+    {
+        return this.vertexCapacity - this.vertexCount;
     },
 
     /**
@@ -1192,6 +1231,8 @@ var WebGLPipeline = new Class({
      * renderer has just performed a flush. It will bind the current render target, if any are set
      * and finally call the `onPreBatch` hook.
      *
+     * It is also called as part of the `PipelineManager.preBatch` method when processing Post FX Pipelines.
+     *
      * @method Phaser.Renderer.WebGL.WebGLPipeline#preBatch
      * @since 3.50.0
      *
@@ -1218,6 +1259,8 @@ var WebGLPipeline = new Class({
      *
      * It calls the `onDraw` hook followed by the `onPostBatch` hook, which can be used to perform
      * additional Post FX Pipeline processing.
+     *
+     * It is also called as part of the `PipelineManager.postBatch` method when processing Post FX Pipelines.
      *
      * @method Phaser.Renderer.WebGL.WebGLPipeline#postBatch
      * @since 3.50.0
@@ -1939,12 +1982,13 @@ var WebGLPipeline = new Class({
      * @since 3.50.0
      *
      * @param {string} name - The name of the uniform to set.
+     * @param {Phaser.Renderer.WebGL.WebGLShader} [shader] - The shader to set the value on. If not given, the `currentShader` is used.
      *
      * @return {this} This WebGLPipeline instance.
      */
-    setTime: function (uniform)
+    setTime: function (name, shader)
     {
-        this.set1f(uniform, this.game.loop.getDuration());
+        this.set1f(name, this.game.loop.getDuration(), shader);
 
         return this;
     },

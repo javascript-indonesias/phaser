@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -732,7 +732,7 @@ var GameObject = new Class({
      * every game frame. This method is passed two parameters: `delta` and `time`.
      *
      * If you wish to run your own logic within `preUpdate` then you should always call
-     * `preUpdate.super(delta, time)` within it, or it may fail to process required operations,
+     * `super.preUpdate(delta, time)` within it, or it may fail to process required operations,
      * such as Sprite animations.
      *
      * @method Phaser.GameObjects.GameObject#addToUpdateList
@@ -878,6 +878,20 @@ var GameObject = new Class({
             this.body.destroy();
 
             this.body = undefined;
+        }
+
+        if (this.preFX)
+        {
+            this.preFX.destroy();
+
+            this.preFX = undefined;
+        }
+
+        if (this.postFX)
+        {
+            this.postFX.destroy();
+
+            this.postFX = undefined;
         }
 
         this.active = false;

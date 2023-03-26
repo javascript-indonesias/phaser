@@ -1,24 +1,257 @@
 ## Version 3.60.0 - Miku - in development
 
-### New Features - Sprite FX
+### New Features - ESM Support
+
+Phaser 3.60 uses the new release of Webpack 5 in order to handle the builds. The configurations have been updated to follow the new format this upgrade introduced. As a bonus, Webpack 5 also bought a new experimental feature called 'output modules', which will take a CommonJS code-base, like Phaser uses and wrap the output in modern ES Module declarations.
+
+We are now using this as part of our build. You will find in the `dist` folder a new `phaser.esm.js` file, which is also linked in from our `package.json` module property. Using this build you can access any of the Phaser modules directly via named imports, meaning you can code like this:
+
+```js
+import { AUTO, Scene, Game } from './phaser.esm.js';
+
+class Test extends Scene
+{
+    constructor ()
+    {
+        super();
+    }
+
+    create ()
+    {
+        this.add.text(10, 10, 'Welcome to Phaser ESM');
+    }
+}
+
+const config = {
+    type: AUTO,
+    width: 800,
+    height: 600,
+    parent: 'phaser-example',
+    scene: [ Test ]
+};
+
+const game = new Game(config);
+```
+
+Note that we're importing from the local esm bundle. By using this approach you don't need to even use a bundler for quick local prototyping or testing, you can simply import and code directly.
+
+The dist folder still also contains `phaser.js` which, as before, uses a UMD export.
+
+Because the Webpack feature is experimental we won't make the ESM version the default just yet, but if you're curious and want to explore, please go ahead!
+
+### New Features - Built-in Special FX
+
+We have decided to bundle a selection of highly flexible special effect shaders in to Phaser 3.60 and provide access to them via an easy to use set of API calls. The FX included are:
+
+* Barrel - A nice pinch / bulge distortion effect.
+* Bloom - Add bloom to any Game Object, with custom offset, blur strength, steps and color.
+* Blur - 3 different levels of gaussian blur (low, medium and high) and custom distance and color.
+* Bokeh / TiltShift - A bokeh and tiltshift effect, with intensity, contrast and distance settings.
+* Circle - Add a circular ring around any Game Object, useful for masking / avatar frames, with custom color, width and background color.
+* ColorMatrix - Add a ColorMatrix to any Game Object with access to all of its methods, such as `sepia`, `greyscale`, `lsd` and lots more.
+* Displacement - Use a displacement texture, such as a noise texture, to drastically (or subtly!) alter the appearance of a Game Object.
+* Glow - Add a smooth inner or outer glow, with custom distance, strength and color.
+* Gradient - Draw a gradient between two colors across any Game Object, with optional 'chunky' mode for classic retro style games.
+* Pixelate - Make any Game Object appear pixelated, to a varying degree.
+* Shadow - Add a drop shadow behind a Game Object, with custom depth and color.
+* Shine - Run a 'shine' effect across a Game Object, either additively or as part of a reveal.
+* Vignette - Apply a vignette around a Game Object, with custom offset position, radius and color.
+* Wipe - Set a Game Object to 'wipe' or 'reveal' with custom line width, direction and axis of the effect.
+
+What's more, the FX can be stacked up. You could add, for example, a `Barrel` followed by a `Blur` and then topped-off with a `Circle` effect. Just by adjusting the ordering you can achieve some incredible and unique effects, very quickly.
+
+We've worked hard to make the API as easy to use as possible, too. No more messing with pipelines or importing plugins. You can simply do:
+
+```js
+const player = this.add.sprite(x, y, texture);
+
+player.preFX.addGlow(0xff0000, 32);
+```
+
+This will add a 32 pixel red glow around the `player` Sprite.
+
+Each effect returns a new FX Controller instance, allowing you to easily adjust the special effects in real-time via your own code, tweens and similar:
+
+```js
+const fx = container.postFX.addWipe();
+
+this.tweens.add({
+    targets: fx,
+    progress: 1
+});
+```
+
+This will add a Wipe Effect to a Container instance and then tween its progress value from 0 to 1, causing the wipe to play out.
+
+All texture-based Game Objects have access to `Pre FX` (so that includes Images, Sprites, TileSprites, Text, RenderTexture and Video). However, _all_ Game Objects have access to `Post FX`, as do cameras. The difference is just when the effect is applied. For a 'pre' effect, it is applied before the Game Object is drawn. For a 'post' effect, it's applied after it has been drawn. All of the same effects are available to both.
+
+```js
+this.cameras.main.postFX.addTiltShift();
+```
+
+For example, this will apply a Tilt Shift effect to everything being rendered by the Camera. Which is a much faster way of doing it than applying the same effect to every child in a Scene. You can also apply them to Containers, allowing more fine-grained control over the display.
+
+The full list of new methods are as follows:
+
+Available only to texture-based Game Objects:
+
+* `GameObject.preFX.addGlow` adds a Glow Pre FX effect to the Game Object.
+* `GameObject.preFX.addShadow` adds a Shadow Pre FX effect to the Game Object.
+* `GameObject.preFX.addPixelate` adds a Pixelate Pre FX effect to the Game Object.
+* `GameObject.preFX.addVignette` adds a Vignette Pre FX effect to the Game Object.
+* `GameObject.preFX.addShine` adds a Shine Pre FX effect to the Game Object.
+* `GameObject.preFX.addBlur` adds a Blur Pre FX effect to the Game Object.
+* `GameObject.preFX.addGradient` adds a Gradient Pre FX effect to the Game Object.
+* `GameObject.preFX.addBloom` adds a Bloom Pre FX effect to the Game Object.
+* `GameObject.preFX.addColorMatrix` adds a ColorMatrix Pre FX effect to the Game Object.
+* `GameObject.preFX.addCircle` adds a Circle Pre FX effect to the Game Object.
+* `GameObject.preFX.addBarrel` adds a Barrel Pre FX effect to the Game Object.
+* `GameObject.preFX.addDisplacement` adds a Displacement Pre FX effect to the Game Object.
+* `GameObject.preFX.addWipe` adds a Wipe Pre FX effect to the Game Object.
+* `GameObject.preFX.addReveal` adds a Reveal Pre FX effect to the Game Object.
+* `GameObject.preFX.addBokeh` adds a Bokeh Pre FX effect to the Game Object.
+* `GameObject.preFX.addTiltShift` adds a TiltShift Pre FX effect to the Game Object.
+
+Available to all Game Objects:
+
+* `GameObject.postFX.addGlow` adds a Glow Post FX effect to the Game Object.
+* `GameObject.postFX.addShadow` adds a Shadow Post FX effect to the Game Object.
+* `GameObject.postFX.addPixelate` adds a Pixelate Post FX effect to the Game Object.
+* `GameObject.postFX.addVignette` adds a Vignette Post FX effect to the Game Object.
+* `GameObject.postFX.addShine` adds a Shine Post FX effect to the Game Object.
+* `GameObject.postFX.addBlur` adds a Blur Post FX effect to the Game Object.
+* `GameObject.postFX.addGradient` adds a Gradient Post FX effect to the Game Object.
+* `GameObject.postFX.addBloom` adds a Bloom Post FX effect to the Game Object.
+* `GameObject.postFX.addColorMatrix` adds a ColorMatrix Post FX effect to the Game Object.
+* `GameObject.postFX.addCircle` adds a Circle Post FX effect to the Game Object.
+* `GameObject.postFX.addBarrel` adds a Barrel Post FX effect to the Game Object.
+* `GameObject.postFX.addDisplacement` adds a Displacement Post FX effect to the Game Object.
+* `GameObject.postFX.addWipe` adds a Wipe Post FX effect to the Game Object.
+* `GameObject.postFX.addReveal` adds a Reveal Post FX effect to the Game Object.
+* `GameObject.postFX.addBokeh` adds a Bokeh Post FX effect to the Game Object.
+* `GameObject.postFX.addTiltShift` adds a TiltShift Post FX effect to the Game Object.
+
+### New Features - Spatial Sound
+
+Thanks to a contribution from @alxwest the Web Audio Sound system now supports spatial sound.
+
+TODO - List all of the new properties and methods!
+
+### New Features - Spine 4 Support
+
+Thanks to a contribution from @justintien we now have a Spine 4 Plugin available.
+
+You can find it in the `plugins/spine4.1` folder in the main repository. There are also a bunch of new npm scripts to help build this plugin:
+
+`npm run plugin.spine4.1.full.dist` - To build new dist files for both canvas and WebGL.
+`npm run plugin.spine4.1.dist` - To build new dist files.
+`npm run plugin.spine4.1.watch` - To enter watch mode when doing dev work on the plugin.
+`npm run plugin.spine4.1.runtimes` - To build new versions of the Spine 4 runtimes.
+
+The core plugin API remains largely the same. You can find lots of updated examples in the Phaser 3 Examples repo in the `3.60/spine4.1` folder.
+
+We will maintain both the Spine 3 and 4 plugins for the forseeable future.
+
+### Additional Spine 3 Bug Fixes
+
+* Using `drawDebug` on a Spine Game Object to view its skeleton would cause the next object in the display list to be skipped for rendering, if it wasn't a Spine Game Object too. This is because the Spine 3 skeleton debug draw ends the spine batch but the Scene Renderer wasn't rebound. Fix #6380 (thanks @spayton)
+* The Spine Plugin `add` and `make` functions didn't clear and rebind the WebGL pipeline. This could cause two different visual issues: The first is that a Phaser Game Object (such as a Sprite) could be seen to change its texture to display the Spine atlas texture instead for a single frame, and then on the next pass revert back to normal again. The second issue is that if the Spine skeleton wasn't added to the display list, but just created (via `addToScene: false`) then the Sprite would take on the texture frame entirely from that point on. Fix #6362 (thanks @frissonlabs)
+* Previously, it wasn't possible for multiple Spine Atlases to use PNGs with the exact same filename, even if they were in different folders. The `SpineFile` loader has now been updated so that the always-unique Spine key is pre-pended to the filename, for example if the key was `bonus` and the PNG in the atlas was `coin.png` then the final key (as stored in the Texture Manager) is now `bonus:coin.png`. The `SpinePlugin.getAtlasCanvas` and `getAtlasWebGL` methods have been updated to reflect this change. Fix #6022 (thanks @orjandh)
+* If a `SpineContainer` had a mask applied to it and the next immediate item on the display list was another Spine object (outside of the Container) then it would fail to rebind the WebGL pipeline, causing the mask to break. It will now rebind the renderer at the end of the SpineContainer batch, no matter what, if it has a mask. Fix #5627 (thanks @FloodGames)
+
+### New Features - Plane Game Object
+
+Phaser v3.60 contains a new native Plane Game Object. The Plane Game Object is a helper class that takes the Mesh Game Object and extends it, allowing for fast and easy creation of Planes. A Plane is a one-sided grid of cells, where you specify the number of cells in each dimension. The Plane can have a texture that is either repeated (tiled) across each cell, or applied to the full Plane.
+
+The Plane can then be manipulated in 3D space, with rotation across all 3 axis.
+
+This allows you to create effects not possible with regular Sprites, such as perspective distortion. You can also adjust the vertices on a per-vertex basis. Plane data becomes part of the WebGL batch, just like standard Sprites, so doesn't introduce any additional shader overhead. Because the Plane just generates vertices into the WebGL batch, like any other Sprite, you can use all of the common Game Object components on a Plane too, such as a custom pipeline, mask, blend mode or texture.
+
+You can use the `uvScroll` and `uvScale` methods to adjust the placement and scaling of the texture if this Plane is using a single texture, and not a frame from a texture atlas or sprite sheet.
+
+The Plane Game Object also has the Animation component, allowing you to play animations across the Plane just as you would with a Sprite.
+
+As of Phaser 3.60 this Game Object is WebGL only. Please see the new examples and documentation for how to use it.
+
+### New Features - Nine Slice Game Object
+
+Phaser v3.60 contains a new native Nine Slice Game Object. A Nine Slice Game Object allows you to display a texture-based object that can be stretched both horizontally and vertically, but that retains fixed-sized corners. The dimensions of the corners are set via the parameters to the class. When you resize a Nine Slice Game Object only the middle sections of the texture stretch. This is extremely useful for UI and button-like elements, where you need them to expand to accommodate the content without distorting the texture.
+
+The texture you provide for this Game Object should be based on the following layout structure:
+
+```
+    A                          B
+  +---+----------------------+---+
+C | 1 |          2           | 3 |
+  +---+----------------------+---+
+  |   |                      |   |
+  | 4 |          5           | 6 |
+  |   |                      |   |
+  +---+----------------------+---+
+D | 7 |          8           | 9 |
+  +---+----------------------+---+
+```
+
+When changing this objects width and / or height:
+
+    areas 1, 3, 7 and 9 (the corners) will remain unscaled
+    areas 2 and 8 will be stretched horizontally only
+    areas 4 and 6 will be stretched vertically only
+    area 5 will be stretched both horizontally and vertically
+
+You can also create a 3 slice Game Object:
+
+This works in a similar way, except you can only stretch it horizontally. Therefore, it requires less configuration:
+
+```
+    A                          B
+  +---+----------------------+---+
+  |   |                      |   |
+C | 1 |          2           | 3 |
+  |   |                      |   |
+  +---+----------------------+---+
+```
+
+When changing this objects width (you cannot change its height)
+
+    areas 1 and 3 will remain unscaled
+    area 2 will be stretched horizontally
+
+The above configuration concept is adapted from the Pixi NineSlicePlane.
+
+To specify a 3 slice object instead of a 9 slice you should only provide the `leftWidth` and `rightWidth` parameters. To create a 9 slice
+you must supply all parameters.
+
+The _minimum_ width this Game Object can be is the total of `leftWidth` + `rightWidth`.  The _minimum_ height this Game Object
+can be is the total of `topHeight` + `bottomHeight`. If you need to display this object at a smaller size, you can scale it.
+
+In terms of performance, using a 3 slice Game Object is the equivalent of having 3 Sprites in a row. Using a 9 slice Game Object is the equivalent of having 9 Sprites in a row. The vertices of this object are all batched together and can co-exist with other Sprites and graphics on the display list, without incurring any additional overhead.
+
+As of Phaser 3.60 this Game Object is WebGL only. Please see the new examples and documentation for how to use it.
+
+### New Features - Pre FX Pipeline
 
 * When defining the `renderTargets` in a WebGL Pipeline config, you can now set optional `width` and `height` properties, which will create a Render Target of that exact size, ignoring the `scale` value (if also given).
-* `WebGLPipeline.isSpriteFX` is a new boolean property that defines if the pipeline is a Sprite FX Pipeline, or not. The default is `false`.
+* `WebGLPipeline.isPreFX` is a new boolean property that defines if the pipeline is a Sprite FX Pipeline, or not. The default is `false`.
 * `GameObjects.Components.FX` is a new component that provides access to FX specific properties and methods. The Image and Sprite Game Objects have this component by default.
-* `fxPadding` and its related method `setFXPadding` allow you to set extra padding to be added to the texture the Game Object renders with. This is especially useful for Sprite FX shaders that modify the sprite beyond its bounds, such as glow or shadow effects.
+* `fxPadding` and its related method `setFXPadding` allow you to set extra padding to be added to the texture the Game Object renders with. This is especially useful for Pre FX shaders that modify the sprite beyond its bounds, such as glow or shadow effects.
 * The `WebGLPipeline.setShader` method has a new optional parameter `buffer` that allows you to set the vertex buffer to be bound before the shader is activated.
 * The `WebGLPipeline.setVertexBuffer` method has a new optional parameter `buffer` that allows you to set the vertex buffer to be bound if you don't want to bind the default one.
 * The `WebGLRenderer.createTextureFromSource` method has a new optional boolean parameter `forceClamp` that will for the clamp wrapping mode even if the texture is a power-of-two.
 * `RenderTarget` will now automatically set the wrapping mode to clamp.
 * `WebGLPipeline.flipProjectionMatrix` is a new method that allows you to flip the y and bottom projection matrix values via a parameter.
-* `PipelineManager.renderTargets` is a new property that holds an array of `RenderTarget` objects that all `SpriteFX` pipelines can share, to keep texture memory as low as possible.
+* `PipelineManager.renderTargets` is a new property that holds an array of `RenderTarget` objects that all `PreFX` pipelines can share, to keep texture memory as low as possible.
 * `PipelineManager.maxDimension` is a new property that holds the largest possible target dimension.
 * `PipelineManager.frameInc` is a new property that holds the amount the `RenderTarget`s will increase in size in each iteration. The default value is 32, meaning it will create targets of size 32, 64, 96, etc. You can control this via the pipeline config object.
 * `PipelineManager.targetIndex` is a new property that holds the internal target array offset index. Treat it as read-only.
 * The Pipeline Manager will now create a bunch of `RenderTarget` objects during its `boot` method. These are sized incrementally from 32px and up (use the `frameInc` value to alter this). These targets are shared by all Sprite FX Pipelines.
-* `PipelineManager.getRenderTarget` is a new method that will return the a `RenderTarget` that best fits the dimensions given. This is typically called by Sprite FX Pipelines, rather than directly.
-* `PipelineManager.getSwapRenderTarget` is a new method that will return a 'swap' `RenderTarget` that matches the size of the main target. This is called by Sprite FX pipelines and not typically called directly.
-* `PipelineManager.getAltSwapRenderTarget` is a new method that will return a 'alternative swap' `RenderTarget` that matches the size of the main target. This is called by Sprite FX pipelines and not typically called directly.
+* `PipelineManager.getRenderTarget` is a new method that will return the a `RenderTarget` that best fits the dimensions given. This is typically called by Pre FX Pipelines, rather than directly.
+* `PipelineManager.getSwapRenderTarget` is a new method that will return a 'swap' `RenderTarget` that matches the size of the main target. This is called by Pre FX pipelines and not typically called directly.
+* `PipelineManager.getAltSwapRenderTarget` is a new method that will return a 'alternative swap' `RenderTarget` that matches the size of the main target. This is called by Pre FX pipelines and not typically called directly.
+* The `WebGLPipeline.setTime` method has a new optional parameter `shader`, which allows you to control the shader on which the time value is set.
+* If you add `#define SHADER_NAME` to the start of your shader then it will be picked up as the `WebGLShader` name during the `setShadersFromConfig` process within `WebGLPipeline`.
+* Calling `setPostPipeline` on a Game Object will now pass the `pipelineData` configuration object (if provided) to the pipeline instance being created.
+* `PipelineManager.getPostPipeline` now has an optional 3rd parameter, a `config` object that is passed to the pipeline instance in its constructor, which can be used by the pipeline during its set-up.
 
 ### New Features - Compressed Texture Support
 
@@ -36,9 +269,449 @@ Compressed Textures are loaded using the new `this.load.texture` method, which t
 * `WebGLRenderer.getCompressedTextures` is a new method that will populate the `WebGLRenderer.compression` object and return its value. This is called automatically when the renderer boots.
 * `WebGLRenderer.getCompressedTextureName` is a new method that will return a compressed texture format GLenum based on the given format.
 
+### New Features - Updated Particle System
+
+The Particle system has been mostly rewritten to give it a much needed overhaul. This makes the API cleaner, the Game Objects a lot more memory efficient and also introduces several great new features. In order to do this, we had to make some breaking changes. The largest being the way in which particles are now created.
+
+Previously when you used the `this.add.particles` command it would create a `ParticleEmitterManager` instance. You would then use this to create an Emitter, which would actually emit the particles. While this worked and did allow a Manager to control multiple emitters we found that in discussion developers seldom used this feature and it was common for a Manager to own just one single Emitter.
+
+In order to streamline memory and the display list we have removed the `ParticleEmitterManager` entirely. When you call `this.add.particles` you're now creating a `ParticleEmitter` instance, which is being added directly to the display list and can be manipulated just like any other Game Object, i.e. scaled, rotated, positioned, added to a Container, etc. It now extends the `GameObject` base class, meaning it's also an event emitter, which allowed us to create some handy new events for particles.
+
+So, to create an emitter, you now give it an xy coordinate, a texture and an emitter configuration object (you can also set this later, but most commonly you'd do it on creation). I.e.:
+
+```js
+const emitter = this.add.particles(100, 300, 'flares', {
+    frame: 'red',
+    angle: { min: -30, max: 30 },
+    speed: 150
+});
+```
+
+This will create a 'red flare' emitter at 100 x 300.
+
+Prior to 3.60 it would have looked like:
+
+```js
+const manager = this.add.particles('flares');
+
+const emitter = manager.createEmitter({
+    x: 100,
+    y: 300,
+    frame: 'red',
+    angle: { min: -30, max: 30 },
+    speed: 150
+});
+```
+
+The change is quite subtle but makes a big difference internally.
+
+The biggest real change is with the particle x/y coordinates. It's important to understand that if you define x/y coordinates within the emitter configuration, they will be relative to those given in the `add.particles` call:
+
+```js
+const emitter = this.add.particles(100, 300, 'flares', {
+    x: 100,
+    y: 100,
+    frame: 'red',
+    angle: { min: -30, max: 30 },
+    speed: 150
+});
+```
+
+In the above example the particles will emit from 200 x 400 in world space, because the emitter is at 100 x 300 and the particles emit from an offset of 100 x 100.
+
+By making this change it now means you're able to do things like tween the x/y coordinates of the emitter (something you couldn't do before), or add a single emitter to a Container.
+
+Other new features include:
+
+#### Animated Particles
+
+The Particle class now has an instance of the `Animation State` component within it. This allows a particle to play an animation when it is emitted, simply by defining it in the emitter config.
+
+For example, this will make each particle play the 'Prism' animation on emission:
+
+```js
+const emitter = this.add.particles(400, 300, 'gems', {
+    anim: 'prism'
+    ...
+});
+```
+
+You can also allow it to select a random animation by providing an array:
+
+```js
+const emitter = this.add.particles(400, 300, 'gems', {
+    anim: [ 'prism', 'square', 'ruby', 'square' ]
+    ...
+});
+```
+
+You've also the ability to cycle through the animations in order, so each new particle gets the next animation in the array:
+
+```js
+const emitter = this.add.particles(400, 300, 'gems', {
+    anim: { anims: [ 'prism', 'square', 'ruby', 'square' ], cycle: true }
+    ...
+});
+```
+
+Or even set a quantity. For example, this will emit 10 'prism' particles, then 10 'ruby' particles and then repeat:
+
+```js
+const emitter = this.add.particles(400, 300, 'gems', {
+    anim: { anims: [ 'prism', 'ruby' ], cycle: true, quantity: 10 }
+    ...
+});
+```
+
+The Animations must have already been created in the Global Animation Manager and must use the same texture as the one bound to the Particle Emitter. Aside from this, you can still control them in the same way as any other particle - scaling, tinting, rotation, alpha, lifespan, etc.
+
+#### Fast Forward Particle Time
+
+* You can now 'fast forward' a Particle Emitter. This can be done via either the emitter config, using the new `advance` property, or by calling the new `ParticleEmitter.fastForward` method. If, for example, you have an emitter that takes a few seconds to 'warm up' and get all the particles into position, this allows you to 'fast forward' the emitter to a given point in time. The value is given in ms. All standard emitter events and callbacks are still handled, but no rendering takes place during the fast-forward until it has completed.
+* The `ParticleEmitter.start` method has a new optional parameter `advance` that allows you to fast-forward the given amount of ms before the emitter starts flowing.
+
+#### Particle Interpolation
+
+* It's now possible to create a new Interpolation EmitterOp. You do this by providing an array of values to interpolate between, along with the function name:
+
+```js
+const emitter = this.add.particles(0, 0, 'texture', {
+    x: { values: [ 50, 500, 200, 800 ], interpolation: 'catmull' }
+    ...
+});
+```
+
+This will interpolate the `x` property of each particle through the data set given, using a catmull rom interpolation function. You can also use `linear` or `bezier` functions. Interpolation can be combined with an `ease` type, which controls the progression through the time value. The related `EmitterOpInterpolationConfig` types have also been added.
+
+#### Particle Emitter Duration
+
+* The Particle Emitter config has a new optional parameter `duration`:
+
+```js
+const emitter = this.add.particles(0, 0, 'texture', {
+    speed: 24,
+    lifespan: 1500,
+    duration: 500
+});
+```
+
+This parameter is used for 'flow' emitters only and controls how many milliseconds the emitter will run for before automatically turning itself off.
+
+* `ParticleEmitter.duration` is a new property that contains the duration that the Emitter will emit particles for in flow mode.
+* The `ParticleEmitter.start` method has a new optional parameter `duration`, which allows you to set the emitter duration when you call this method. If you do this, it will override any value set in the emitter configuration.
+* The `ParticleEmitter.stop` method has a new optional parameter `kill`. If set it will kill all alive particles immediately, rather than leaving them to die after their lifespan expires.
+
+#### Stop After a set number of Particles
+
+* The Particle Emitter config has a new optional `stopAfter` property. This, combined with the `frequency` property allows you to control exactly how many particles are emitted before the emitter then stops:
+
+```js
+const emitter = this.add.particles(0, 0, 'texture', {
+    x: { start: 400, end: 0 },
+    y: { start: 300, end: 0 },
+    lifespan: 3000,
+    frequency: 250,
+    stopAfter: 6,
+    quantity: 1
+});
+```
+
+In the above code the emitter will launch 1 particle (set by the `quantity` property) every 250 ms (set by the `frequency` property) and move it to xy 0x0. Once it has fired 6 particles (the `stopAfter` property) the emitter will stop and emit the `COMPLETE` event.
+
+* The `stopAfter` counter is reset each time you call the `start` or `flow` methods.
+
+#### Particle Hold
+
+* You can configure a Particle to be frozen or 'held in place' after it has finished its lifespan for a set number of ms via the new `hold` configuration option:
+
+```js
+const emitter = this.add.particles(0, 0, 'texture', {
+    lifespan: 2000,
+    scale: { start: 0, end: 1 },
+    hold: 1000
+    ...
+});
+```
+
+The above will scale a Particle in from 0 to 1 over the course of its lifespan (2 seconds). It will then `hold` it on-screen for another second (1000 ms) before the Emitter recycles it and removes it from display.
+
+#### Particle Emitter Events
+
+* The Particle Emitter will now fire 5 new events. Listen for the events as follows:
+
+```js
+const emitter = this.add.particles(0, 0, 'flares');
+
+emitter.on('start', (emitter) => {
+    //  emission started
+});
+
+emitter.on('explode', (emitter, particle) => {
+    //  emitter 'explode' called
+});
+
+emitter.on('deathzone', (emitter, particle, deathzone) => {
+    //  emitter 'death zone' called
+});
+
+emitter.on('stop', (emitter) => {
+    //  emission has stopped
+});
+
+emitter.on('complete', (emitter) => {
+    //  all particles fully dead
+});
+```
+
+* The `Particles.Events.START` event is fired whenever the Emitter begins emission of particles in flow mode. A reference to the `ParticleEmitter` is included as the only parameter.
+* The `Particles.Events.EXPLODE` event is fired whenever the Emitter explodes a bunch of particles via the `explode` method. A reference to the `ParticleEmitter` and a reference to the most recently fired `Particle` instance are the two parameters.
+* The `Particles.Events.DEATH_ZONE` event is fired whenever a Particle is killed by a Death Zone. A reference to the `ParticleEmitter`, the killed `Particle` and the `DeathZone` that caused it are the 3 parameters.
+* The `Particles.Events.STOP` event is fired whenever the Emitter finishes emission of particles in flow mode. This happens either when you call the `stop` method, or when an Emitter hits its duration  or stopAfter limit. A reference to the `ParticleEmitter` is included as the only parameter.
+* The `Particles.Events.COMPLETE` event is fired when the final alive particle expires.
+
+#### Multiple Emit Zones
+
+* In v3.60 a Particle Emitter can now have multiple emission zones. Previously, an Emitter could have only a single emission zone. The zones can be created either via the Emitter Config by passing an array of zone objects, or via the new `ParticleEmitter.addEmitZone` method:
+
+```js
+const circle = new Phaser.Geom.Circle(0, 0, 160);
+
+const emitter = this.add.particles(400, 300, 'metal');
+
+emitter.addEmitZone({ type: 'edge', source: circle, quantity: 64 });
+```
+
+* When an Emitter has more than one emission zone, the Particles will cycle through the zones in sequence. For example, an Emitter with 3 zones would emit its first particle from zone 1, the second from zone 2, the third from zone 3, the fourth from zone 1, etc.
+* You can control how many particles are emitted from a single zone via the new `total` property. `EdgeZone.total` and `RandomZone.total` are new properties that control the total number of particles the zone will emit, before passing control over to the next zone in the list, if any. The default is -1.
+* Because an Emitter now supports multiple Emit Zones, the method `setEmitZone` now performs a different task than before. It's now an alias for `addEmitZone`. This means if you call it multiple times, it will add multiple zones to the emitter, where-as before it would just replace the zone each time.
+* `ParticleEmitter#removeEmitZone` is a new method that allows you to remove an Emit Zone from an Emitter without needing to modify the internal zones array.
+* `ParticleEmitter.getEmitZone` is a new method that Particles call when they are 'fired' in order to set their starting position, if any.
+* The property `ParticleEmitter.emitZone` has been removed. It has been replaced with the new `ParticleEmitter.emitZones` array-based property.
+
+#### Multiple Death Zones
+
+* In v3.60 a Particle Emitter can now have multiple death zones. Previously, an Emitter could have only a single death zone. The zones can be created either via the Emitter Config by passing an array of zone objects, or via the new `ParticleEmitter.addDeathZone` method:
+
+```js
+const circle = new Phaser.Geom.Circle(0, 0, 160);
+
+const emitter = this.add.particles(400, 300, 'metal');
+
+emitter.addDeathZone({ type: 'onEnter', source: circle });
+```
+
+* When an Emitter has more than one Death Zone, the Particles will check themselves against all of the Death Zones, to see if any of them kills them.
+* Because an Emitter now supports multiple Emit Zones, the method `setEmitZone` now performs a different task than before. It's now an alias for `addEmitZone`. This means if you call it multiple times, it will add multiple zones to the emitter, where-as before it would just replace the zone each time.
+* `ParticleEmitter#removeDeathZone` is a new method that allows you to remove a Death Zone from an Emitter without needing to modify the internal zones array.
+* `ParticleEmitter.getDeathZone` is a new method that Particles call when they are updated in order to check if they intersect with any of the Death Zones.
+* The property `ParticleEmitter.deathZone` has been removed. It has been replaced with the new `ParticleEmitter.deathZones` array-based property.
+
+#### Particle Colors
+
+* You can now specify a new `color` property in the Emitter configuration. This takes the form of an array of hex color values that the particles will linearly interpolate between during theif lifetime. This allows you to now change the color of a particle from birth to death, which gives you far more control over your emitter visuals than ever before. You'd use it as follows:
+
+```js
+const flame = this.add.particles(150, 550, 'flares',
+{
+    frame: 'white',
+    color: [ 0xfacc22, 0xf89800, 0xf83600, 0x9f0404 ],
+    colorEase: 'quad.out',
+    lifespan: 2400,
+    angle: { min: -100, max: -80 },
+    scale: { start: 0.70, end: 0, ease: 'sine.out' },
+    speed: 100,
+    advance: 2000,
+    blendMode: 'ADD'
+});
+```
+
+Here you can see the array of 4 colors it will interpolate through.
+
+* The new `colorEase` configuration property allows you to define the ease used to calculate the route through the interpolation. This can be set to any valid ease string, such as `sine.out` or `quad.in`, etc. If left undefined it will use `linear` as default.
+* `EmitterColorOp` is a brand new Emitter Op class that specifically controls the handling of color values, it extends `EmitterOp` and uses the same methods but configured for faster color interpolation.
+* If you define `color` in your config it will override any Emitter tint values you may have set. In short, use `color` if you wish to adjust the color of the particles during their lifespan and use `tint` if you wish to modify either the entire emitter at once, or the color of the particles on birth only.
+* `ParticleEmitter.particleColor` is a new property that allows you to get and set the particle color op value.
+* `ParticleEmitter.colorEase` is a new property that allows you to get and set the ease function used by the color op.
+
+#### Particle Sort Order
+
+* You now have much more control over the sorting order of particles in an Emitter. You can set the new `ParticleEmitter.sortProperty` and `sortOrderAsc` properties to set how (and if) particles should be sorted prior to rendering. For example, setting `sortProperty` to `y` would mean that the particles will be sorted based on their y value prior to rendering. The sort order controls the order in which the particles are rendered. For example:
+
+```js
+const emitter = this.add.particles(100, 300, 'blocks', {
+    frame: 'redmonster',
+    lifespan: 5000,
+    angle: { min: -30, max: 30 },
+    speed: 150,
+    frequency: 200
+});
+
+emitter.setSortProperty('y', true);
+```
+
+* The new `ParticleEmitter.setSortProperty` method allows you to modify the sort property and order at run-time.
+* The new `ParticleEmitter.setSortCallback` method allows you to set a callback that will be invoked in order to sort the particles, rather than using the built-in one. This gives you complete freedom over the logic applied to particle render sorting.
+
+#### Particle Bounds, Renderer Culling and Overlap
+
+* Particles now have the ability to calculate their bounding box, based on their position, scale, rotation, texture frame and the transform of their parent. You can call the new `Particle.getBounds` method to return the bounds, which also gets stored in the new `Particle.bounds` Rectangle property.
+* `ParticleEmitter.getBounds` is a new method that will return the bounds of the Emitter based on all currently active particles. Optional parameters allow you to pad out the bounds and/or advance time in the particle flow, to allow for a more accurate overall bounds generation.
+* `ParticleEmitter.viewBounds` is a new property that is a Geom Rectangle. Set this Rectangle to define the overall area the emitter will render to. If this area doesn't intersect with the Camera then the emitter will be culled from rendering. This allows you to populate large Scenes with active emitters that don't consume rendering resources even though they are offscreen. Use the new `getBounds` method to help define the `viewBounds` area.
+* `ParticleEmitter.overlap` is a new method that will run a rectangle intersection test against the given target and all alive particles, returning those that overlap in an array. The target can be a Rectangle Geometry object or an Arcade Physics Body.
+* `Particle.kill` is a new method that will set the life of the particle to zero, forcing it to be immediately killed on the next Particle Emitter update.
+* `ParticleEmitter.getWorldTransformMatrix` is a new method that allows a Particle Emitter to calculate its world transform, factoring in any parents.
+* `ParticleEmitter.worldMatrix` is a new property that holds a TransformMatrix used for bounds calculations.
+
+#### Particle Emitter Bounds
+
+* Prior to v3.60 a Particle Emitter had a `bounds` property. This was a Rectangle and if a Particle hit any of its edges it would rebound off it based on the Particles `bounce` value. In v3.60 this action has been moved to a Particle Processor. You can still configure the bounds via the Emitter config using the `bounds` property, as before. And you can configure which faces collide via the `collideLeft` etc properties. However, the following internal changes have taken place:
+* `ParticleBounds` is a new Particle Processor class that handles updating the particles.
+* The `ParticleEmitter.setBounds` method has been replaced with `ParticleEmitter.addParticleBounds` which now returns a new `ParticleBounds` Particle Processor instance.
+* The `ParticleEmitter.bounds` property has been removed. Please see the `addParticleBounds` method if you wish to retain this object.
+* The `ParticleEmitter.collideLeft` property has been removed. It's now part of the `ParticleBounds` Particle Processor.
+* The `ParticleEmitter.collideRight` property has been removed. It's now part of the `ParticleBounds` Particle Processor.
+* The `ParticleEmitter.collideTop` property has been removed. It's now part of the `ParticleBounds` Particle Processor.
+* The `ParticleEmitter.collideBottom` property has been removed. It's now part of the `ParticleBounds` Particle Processor.
+* The `Particle.checkBounds` method has been removed as it's now handled by the Particle Processors.
+
+#### Particle Processors
+
+* `ParticleProcessor` is a new base class that you can use to create your own Particle Processors, which are special processors capable of manipulating the path of Particles based on your own logic or math. It provides the structure required to handle the processing of particles and should be used as a base for your own classes.
+* `GravityWell` now extends the new `ParticleProcessor` class.
+* `ParticleEmitter.addParticleProcessor` is a new method that allows you to add a Particle Processor instance to the Emitter. The old `createGravityWell` method now uses this.
+* `ParticleEmitter.removeParticleProcessor` is a new method that will remove a Particle Processor from an Emitter.
+* `ParticleEmitter.processors` is a new List property that contains all of the Particle Processors belonging to the Emitter.
+* The `ParticleEmitter.wells` property has been removed. You should now use the new `processors` property instead, they are functionally identical.
+* `ParticleProcessor.update` is the method that handles all of the particle manipulation. It now has a new 4th parameter `t` that is the normalized lifespan of the Particle being processed.
+
+#### Particle System EmitterOp Breaking Changes and Updates:
+
+All of the following properties have been replaced on the `ParticleEmitter` class. Previously they were `EmitterOp` instances. They are now public getter / setters, so calling, for example, `emitter.particleX` will now return a numeric value - whereas before it would return the `EmitterOp` instance. This gives developers a lot more freedom when using Particle Emitters. Before v3.60 it was impossible to do this, for example:
+
+```js
+this.tweens.add({
+    targets: emitter,
+    particleX: 400
+});
+```
+
+I.e. you couldn't tween an emitters particle spawn position by directly accessing its x and y properties. However, now that all EmitterOps are getters, you're free to do this, allowing you to be much more creative and giving a nice quality-of-life improvement.
+
+If, however, your code used to access EmitterOps, you'll need to change it as follows:
+
+```js
+//  Phaser 3.55
+emitter.x.onChange(value)
+//  Phaser 3.60
+emitter.particleX = value
+
+//  Phaser 3.55
+let x = emitter.x.propertyValue
+//  Phaser 3.60
+let x = emitter.particleX
+
+//  Phaser 3.55
+emitter.x.onEmit()
+emitter.x.onUpdate()
+//  Phaser 3.60
+emitter.ops.x.onEmit()
+emitter.ops.x.onUpdate()
+```
+
+All of following EmitterOp functions can now be found in the new `ParticleEmitter.ops` property and have been replaced with getters:
+
+* accelerationX
+* accelerationY
+* alpha
+* angle
+* bounce
+* color
+* delay
+* lifespan
+* maxVelocityX
+* maxVelocityY
+* moveToX
+* moveToY
+* quantity
+* rotate
+* scaleX
+* scaleY
+* speedX
+* speedY
+* tint
+* x
+* y
+
+Which means you can now directly access, modify and tween any of the above emitter properties at run-time while the emitter is active.
+
+Another potentially breaking change is the removal of two internal private counters. These should never have been used directly anyway, but they are:
+
+* `ParticleEmitter._counter` - Now available via `ParticleEmitter.flowCounter`
+* `ParticleEmitter._frameCounter` - Now available via `ParticleEmitter.frameCounter`
+* `EmitterOp._onEmit` is a new private reference to the emit callback function, if specified in the emitter configuration. It is called by the new `EmitterOp.proxyEmit` method, to ensure that the Emitter `current` property remains current.
+* `EmitterOp._onUpdate` is a new private reference to the update callback function, if specified in the emitter configuration. It is called by the new `EmitterOp.proxyUpdate` method, to ensure that the Emitter `current` property remains current.
+* `EmitterOp.destroy` is a new method that nulls all references. This is called automatically when a `ParticleEmitter` is itself destroyed.
+
+#### Further Particle System Updates and Fixes:
+
+* The Particle `DeathZone.willKill` method now takes a `Particle` instance as its only parameter, instead of x and y coordinates, allowing you to perform more complex checks before deciding if the Particle should be killed, or not.
+* The `Particle.resetPosition` method has been renamed to `setPosition` and it now takes optional x/y parameters. If not given, it performs the same task as `resetPosition` did in earlier versions.
+* The `ParticleEmitter` class now has the `AlphaSingle` Component. This allows you to call `setAlpha` on the Emitter instance itself and have it impact all particles being rendered by it, allowing you to now 'fade in/out' a whole Emitter.
+* Setting `frequency` wasn't working correctly in earlier versions. It should allow you to specify a time, in ms, between which each 'quantity' of particles is emitted. However, the `preUpdate` loop was calculating the value incorrectly. It will now count down the right amount of time before emiting another batch of particles.
+* Calling `ParticleEmitter.start` wouldn't reset the `_frameCounter` value internally, meaning the new emission didn't restart from the first texture frame again.
+* `ParticleEmitter.counters` is a new Float32Array property that is used to hold all of the various internal counters required for emitter operation. Both the previous `_counter` and `_frameCounter` properties have been merged into this array, along with new ones required for new features.
+* The WebGL Renderer will now use the new `setQuad` feature of the Transform Matrix. This vastly reduces the amount of math and function calls per particle, from 8 down to 1, increasing performance.
+* Particles with a scaleX or scaleY value of zero will no longer be rendered.
+* `ParticleEmitter.preDestroy` is a new method that will now clean-up all resources and internal arrays and destroy all Particles that the Emitter owns and clean-up all external references.
+* `Particle.destroy` is a new method that will clean up all external references and destroy the Animation State controller.
+* The `ParticleEmitter._frameLength` property is now specified on the class, rather than added dynamically at run-time, helping preserve class shape.
+* The `ParticleEmitter.defaultFrame` property has been removed as it's not required.
+* Calling `ParticleEmitter.setFrame` no longer resets the internal `_frameCounter` value to zero. Instead, the counter comparison has been hardened to `>=` instead of `===` to allow this value to change mid-emission and never reach the total.
+* The `ParticleEmitter.configFastMap` property has been moved to a local var within the `ParticleEmitter` JS file. It didn't need to be a property on the class itself, reducing the overall size of the class and saving memory.
+* The `ParticleEmitter.configOpMap` property has been moved to a local var within the `ParticleEmitter` JS file. It didn't need to be a property on the class itself, reducing the overall size of the class and saving memory.
+* `Particle.scene` is a new property that references the Scene the Particle Emitter belongs to.
+* `Particle.anims` is a new property that is an instance of the `AnimationState` component.
+* `Particle.emit` is a new proxy method that passes all Animation related events through to the Particle Emitter Manager to emit, as Particles cannot emit events directly.
+* `Particle.isCropped` is a new read-only property. Do not modify.
+* `Particle.setSizeToFrame` is a new internal NOOP method. Do not call.
+* `ParticleEmitter.anims` is a new property that contains the Animation keys that can be assigned to Particles.
+* `ParticleEmitter.currentAnim` is a new property that contains the index of the current animation, as tracked in cycle playback.
+* `ParticleEmitter.randomAnim` is a new boolean property that controls if the animations are selected randomly, or in a cycle.
+* `ParticleEmitter.animQuantity` is a new property that controls the number of consecutive particles that are emitted with the current animation.
+* `ParticleEmitter.counters` is a new internal Float32Array that holds all the counters the Emitter uses.
+* `ParticleEmitter.getAnim` is a new method, called by Particles when they are emitted, that will return the animation to use, if any.
+* `ParticleEmitter.setAnim` is a new method, called with the Emitter Manager, that sets the animation data into the Emitter.
+* The `Particles.EmitterOp.toJSON` method will now JSON stringify the property value before returning it.
+* `Particles.EmitterOp.method` is a new property that holds the current operation method being used. This is a read-only numeric value.
+* `Particles.EmitterOp.active` is a new boolean property that defines if the operator is alive, or not. This is now used by the Emitter instead of nulling Emitter properties, helping maintain class shape.
+* `Particles.EmitterOp.getMethod` is a new internal method that returns the operation function being used as a numeric value. This is then cached in the `method` property.
+* The `Particles.EmitterOp.setMethods` method has been updated so it now has a non-optional 'method' parameter. It has also been rewritten to be much more efficient, now being just a single simple select/case block.
+* The `Particles.EmitterOp.onChange` method will now use the cached 'method' property to avoid running through the `setMethods` function if not required, allowing each Particle EmitterOp to skip a huge chunk of code.
+* We've also greatly improved the documentation around the Particle classes.
+* `ParticleEmitter.setConfig` is a new method that allows you to set the configuration of the Emitter. Previously this was known as `fromJSON`.
+* The `ParticleEmitter.setPosition` method no longer changes the position of the particle emission point, but of the Emitter itself.
+* The `ParticleEmitter.setBounds` method has been renamed to `setParticleBounds`.
+* The `ParticleEmitter.setSpeed` method has been renamed to `setParticleSpeed`.
+* The `ParticleEmitter.setScale` method has been renamed to `setParticleScale` as `setScale` will now set the scale of the whole Emitter.
+* The `ParticleEmitter.setScaleX` and `setScaleY` methods have been removed. Please use `setParticleScale`.
+* The `ParticleEmitter.setGravity` method has been renamed to `setParticleGravity`.
+* The `ParticleEmitter.setGravityX` and `setGravityY` methods have been removed. Please use `setParticleGravity`.
+* The `ParticleEmitter.setAlpha` method has been renamed to `setParticleAlpha` as `setAlpha` will now set the alpha of the whole Emitter.
+* The `ParticleEmitter.setTint` method has been renamed to `setParticleTint`.
+* The `ParticleEmitter.setLifespan` method has been renamed to `setParticleLifespan`.
+* The `ParticleEmitter.on` property has been renamed to `emitting` to avoid conflicts with the Event Emitter.
+* The `ParticleEmitter.x` property has been renamed to `particleX` and is a new EmitterOp capable of being tweened.
+* The `ParticleEmitter.y` property has been renamed to `particleY` and is a new EmitterOp capable of being tweened.
+* The `ParticleEmitter.scaleX` property has been renamed to `particleScaleX` and is a new EmitterOp capable of being tweened.
+* The `ParticleEmitter.scaleY` property has been renamed to `particleScaleY` and is a new EmitterOp capable of being tweened.
+* The `ParticleEmitter.tint` property has been renamed to `particleTint` and is a new EmitterOp capable of being tweened.
+* The `ParticleEmitter.alpha` property has been renamed to `particleAlpha` and is a new EmitterOp capable of being tweened.
+* The `ParticleEmitter.angle` property has been renamed to `particleAngle` and is a new EmitterOp capable of being tweened.
+* The `ParticleEmitter.rotate` property has been renamed to `particleRotate` and is a new EmitterOp capable of being tweened.
+
 ### New Features - Vastly Improved Mobile Performance and WebGL Pipeline Changes
 
-
+TODO
 
 #### WebGL Renderer Updates
 
@@ -72,6 +745,7 @@ Previously, `WebGLRenderer.whiteTexture` and `WebGLRenderer.blankTexture` had a 
 
 * The `RenderTarget` class will now create a Framebuffer that includes a Depth Stencil Buffer attachment by default. Previously, it didn't. By attaching a stencil buffer it allows things like Geometry Masks to work in combination with Post FX and other Pipelines. Fix #5802 (thanks @mijinc0)
 * When calling `PipelineManager.clear` and `rebind` it will now check if the vao extension is available, and if so, it'll bind a null vertex array. This helps clean-up from 3rd party libs that don't do this directly, such as ThreeJS.
+* The `mipmapFilter` property in the Game Config now defaults to '' (an empty string) instead of 'LINEAR'. The WebGLRenderer has been updated so that it will no longer create mipmaps at all with a default config. This potential saves a lot of VRAM (if your game has a lot of power-of-two textures) where before it was creating mipmaps that may never have been used. However, you may notice scaling doesn't look as crisp as it did before if you were using this feature without knowing it. To get it back, just add `mipmapFilter: 'LINEAR'` to your game config. Remember, as this is WebGL1 it _only_ works with power-of-two sized textures.
 
 #### Mobile Pipeline
 
@@ -243,6 +917,22 @@ You should use a Dynamic Texture if the texture isn't going to be displayed in-g
 
 You should use a Render Texture if you need to display the texture in-game on a single Game Object, as it provides the convenience of wrapping an Image and Dynamic Texture together for you.
 
+### Post Pipeline Updates
+
+In order to add clarity in the codebase we have created a new `PostPipeline` Component and moved all of the relevant functions from the `Pipeline` component in to it. This leads to the following changes:
+
+* `PostPipeline` is a new Game Object Component that is now inherited by all Game Objects that are capable of using it.
+* Game Objects with the `PostPipeline` component now have a new property called `postPipelineData`. This object is used for storing Post Pipeline specific data in. Previously, both regular and post pipelines used the same `pipelineData` object, but this has now been split up for flexibility.
+* The `Pipeline.resetPipeline` method no longer has its first `resetPostPipelines` argument. It now has just one argument `resetData` so please be aware of this if you call this function anywhere in your code.
+* `PostPipeline.initPostPipeline` is a new method that should be called by any Game Object that supports Post Pipelines.
+* The following Game Objects now have the new `PostPipeline` Component exclusively: `Container` and `Layer`.
+
+### Input System Updates
+
+There are breaking changes from previous versions of Phaser.
+
+* The `InteractiveObject.alwaysEnabled` property has been removed. It is no longer checked within the `InputPlugin` and setting it will have no effect. This property has not worked correctly since version 3.52 when the new render list was implemented. Upon further investigation we decided to remove the property entirely, rather than shoe-horn it into the render list. If you need to create a non-rendering Interactive area, use the Zone Game Object instead.
+
 ### Bitmap Mask Updates
 
 There are breaking changes from previous versions of Phaser.
@@ -278,6 +968,11 @@ There are breaking changes from previous versions of Phaser.
 
 ### New Features
 
+* The Arcade Physics World has a new property `tileFilterOptions` which is an object passed to the `GetTilesWithin` methods used by the Sprite vs. Tilemap collision functions. These filters dramatically reduce the quantity of tiles being checked for collision, potentially saving thousands of redundant math comparisons from taking place.
+* The `Graphics.strokeRoundedRect` and `fillRoundedRect` methods can now accept negative values for the corner radius settings, in which case a concave corner is drawn instead (thanks @rexrainbow)
+* `AnimationManager.getAnimsFromTexture` is a new method that will return all global Animations, as stored in the Animation Manager, that have at least one frame using the given Texture. This will not include animations created directly on local Sprites.
+* `BitmapText.setLineSpacing` is a new method that allows you to set the vertical spacing between lines in multi-line BitmapText Game Objects. It works in the same was as spacing for Text objects and the spacing value can be positive or negative. See also `BitmapText.lineSpacing` for the property rather than the method.
+* `WebGLPipeline.vertexAvailable` is a new method that returns the number of vertices that can be added to the current batch before it will trigger a flush.
 * The `Tilemap` and `TilemapLayer` classes have a new method `getTileCorners`. This method will return an array of Vector2s with each entry corresponding to the corners of the requested tile, in world space. This currently works for Orthographic and Hexagonal tilemaps.
 * `BaseSoundManager.getAllPlaying` is a new method that will return all currently playing sounds in the Sound Manager.
 * `Animation.showBeforeDelay` is a new optional boolean property you can set when creating, or playing an animation. If the animation has a delay before playback starts this controls if it should still set the first frame immediately, or after the delay has expired (the default).
@@ -292,6 +987,7 @@ There are breaking changes from previous versions of Phaser.
 * All of the following Texture Manager methods will now allow you to pass in a Phaser Texture as the `source` parameter: `addSpriteSheet`, `addAtlas`, `addAtlasJSONArray`, `addAtlasJSONHash`, `addAtlasXML` and `addAtlasUnity`. This allows you to add sprite sheet or atlas data to existing textures, or textures that came from external sources, such as SVG files, canvas elements or Dynamic Textures.
 * `Game.pause` is a new method that will pause the entire game and all Phaser systems.
 * `Game.resume` is a new method that will resume the entire game and resume all of Phaser's systems.
+* `Game.isPaused` is a new boolean that tracks if the Game loop is paused, or not (and can also be toggled directly)
 * `ScaleManager.getViewPort` is a new method that will return a Rectangle geometry object that matches the visible area of the screen, or the given Camera instance (thanks @rexrainbow)
 * When starting a Scene and using an invalid key, Phaser will now raise a console warning informing you of this, instead of silently failing. Fix #5811 (thanks @ubershmekel)
 * `GameObjects.Layer.addToDisplayList` and `removeFromDisplayList` are new methods that allows for you to now add a Layer as a child of another Layer. Fix #5799 (thanks @samme)
@@ -348,6 +1044,38 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Updates
 
+* The `GetBounds.getCenter` method now has an optional `includeParent` argument, which allows you to get the value in world space.
+* The `MatterTileBody` class, which is created when you convert a Tilemap into a Matter Physics world, will now check to see if the Tile has `flipX` or `flipY` set on it and rotate the body accordingly. Fix #5893 (thanks @Olliebrown @phaserhelp)
+* The `BaseCamera` has had its `Alpha` component replaced with `AlphaSingle`. Previously you had access to properties such as `alphaTopLeft` that never worked, now it correctly has just a single alpha property (thanks @samme)
+* `Time.Clock.startTime` is a new property that stores the time the Clock (and therefore the Scene) was started. This can be useful for comparing against the current time to see how much real world time has elapsed (thanks @samme)
+* `ColorMatrix._matrix` and `_data` are now Float32Arrays.
+* Calling the `ColorMatrix.set`, `reset` and `getData` methods all now use the built-in Float32 Array operations, making them considerably faster.
+* `ColorMatrix.BLACK_WHITE` is a new constant used by blackwhite operations.
+* `ColorMatrix.NEGATIVE` is a new constant used by negative operations.
+* `ColorMatrix.DESATURATE_LUMINANCE` is a new constant used by desaturation operations.
+* `ColorMatrix.SEPIA` is a new constant used by sepia operations.
+* `ColorMatrix.LSD` is a new constant used by LSD operations.
+* `ColorMatrix.BROWN` is a new constant used by brown operations.
+* `ColorMatrix.VINTAGE` is a new constant used by vintage pinhole operations.
+* `ColorMatrix.KODACHROME` is a new constant used by kodachrome operations.
+* `ColorMatrix.TECHNICOLOR` is a new constant used by technicolor operations.
+* `ColorMatrix.POLAROID` is a new constant used by polaroid operations.
+* `ColorMatrix.SHIFT_BGR` is a new constant used by shift BGR operations.
+* If no Audio URLs match the given device a new warning is now displayed in the console (thanks @samme)
+* `Texture.has` will now return a strict boolean, rather than an object that can be cooerced into a boolean (thanks @samme)
+* The `CanvasTexture.draw` method has a new optional parameter `update` which allows you to control if the internal ImageData is recalculated, or not (thanks @samme)
+* The `CanvasTexture.drawFrame` method has a new optional parameter `update` which allows you to control if the internal ImageData is recalculated, or not (thanks @samme)
+* The `CanvasTexture.clear` method has a new optional parameter `update` which allows you to control if the internal ImageData is recalculated, or not (thanks @samme)
+* The `Game.registry`, which is a `DataManager` instance that can be used as a global store of game wide data will now use its own Event Emitter, instead of the Game's Event Emitter. This means it's perfectly safe for you to now use the Registry to emit and listen for your own custom events without conflicting with events the Phaser Game instance emits.
+* The `GenerateVerts` function has a new optional parameter `flipUV` which, if set, will flip the UV texture coordinates (thanks cedarcantab)
+* The `GenerateVerts` function no longer errors if the verts and uvs arrays are not the same size and `containsZ` is true (thanks cedarcantab)
+* The `Device.Browser` checks for Opera and Edge have been updated to use the more modern user agent strings those browsers now use. This breaks compatibility with really old versions of those browsers but fixes it for modern ones (which is more important) (thanks @
+ArtemSiz)
+* The `SceneManager.processQueue` method will no longer `return` if a new Scene was added, after starting it. This allows any other queued operations to still be run in the same frame, rather than being delayed until the next game frame. Fix #5359 (thanks @telinc1)
+* `Camera.scrollX` and `scrollY` will now only set the `Camera.dirty` flag to `true` if the new value given to them is different from their current value. This allows you to use this property in your own culling functions. Fix #6088 (thanks @Waclaw-I)
+* `Face.update` is a new method that updates each of the Face vertices. This is now called internally by `Face.isInView`.
+* `Vertex.resize` is a new method that will set the position and then translate the Vertex based on an identity matrix.
+* The `Vertex.update` method now returns `this` to allow it to be chained.
 * You can now optionally specify the `maxSpeed` value in the Arcade Physics Group config (thanks @samme)
 * You can now optionally specify the `useDamping` boolean in the Arcade Physics Group config (thanks @samme)
 * Removed the `HexagonalTileToWorldY` function as it cannot work without an X coordinate. Use `HexagonalTileToWorldXY` instead.
@@ -439,6 +1167,17 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Bug Fixes
 
+* The `TilemapLayer.skipCull` feature wasn't being applied correctly for Isometric, Hexagonal or Staggered tiles, only for Orthographic tiles (the default). It will now respect the `skipCull` property and return all tiles during culling if enabled. Fix #5524 (thanks @veleek)
+* Shutting down a Scene that didn't have the `LoaderPlugin` would throw an error when removing event handlers. It now checks first, before removing (thanks @samme)
+* The `Container.getBounds` method will now use `getTextBounds` if one of its children is a `BitmapText` Game Object, giving more accurate bounds results (thanks @EmilSV)
+* The `renderFlags` property, used to determine if a Game Object will render, or not, would be calculated incorrectly depending on the order of the `scaleX` and `scaleY` properties. It now works regardless of the order (thanks @mizunokazumi)
+* The `SpriteSheetFromAtlas` parser was using the incorrect `sourceIndex` to grab frames from a given texture. This caused a crash whenever a trimmed spritesheet was added from any multiatlas image other than the first (thanks @Bambosh)
+* The `maxSpeed` setting in Arcade Physics wasn't recalculated during the Body update, prior to being compared, leading to inconsistent results. Fix #6329 (thanks @Bambosh)
+* Several paths have been fixed in the `phaser-core.js` entry point (thanks @pavle-goloskokovic)
+* When a Game Object had Input Debug Enabled the debug image would be incorrectly offset if the Game Object was attached to was scaled and the hit area shape was smaller, or offset, from the Game Object. Fix #4905 #6317 (thanks @PavelMishin @justinlueders)
+* An inactive Scene is no longer updated after a Scene transition completes. Previously, it will still update the Scene one final time. This fix also prevents the `POST_UPDATE` event from firing after the transition is over. Fix #5550 (thanks @mijinc0 @samme)
+* Although not recommended, when adding a `Layer` Game Object to another `Layer` Game Object, it will no longer error because it cannot find the `removeFromDisplayList` function. Fix #5595 (thanks @tringcooler)
+* The `Actions.Spread` method will now place the final item correctly and abort early if the array only contains 1 or 0 items (thanks @EmilSV)
 * Calling `setDisplayOrigin` on a `Video` Game Object would cause the origins to be set to `NaN` if the Video was created without an asset key. It will now give Videos a default size, preventing this error, which is reset once a video is loaded. Fix #5560 (thanks @mattjennings)
 * When `ImageFile` loads with a linked Normal Map and the map completes first, but the Image is still in a pending state, it would incorrectly add itself to the cache instead of waiting. It now checks this process more carefully. Fix #5886 (thanks @inmylo)
 * Using a `dataKey` to specify a part of a JSON file when using `load.pack` would fail as it wouldn't correctly assign the right part of the pack file to the Loader. You can now use this parameter properly. Fix #6001 (thanks @rexrainbow)
@@ -453,7 +1192,6 @@ The following are API-breaking, in that a new optional parameter has been insert
 * If `Rope.setPoints` was called with the exact same number of points as before, it wouldn't set the `dirty` flag, meaning the vertices were not updated on the next render (thanks @stupot)
 * `Particle.fire` will now check to see if the parent Emitter is set to follow a Game Object and if so, and if the x/y EmitterOps are spread ops, then it'll space the particles out based on the follower coordinates, instead of clumping them all together. Fix #5847 (thanks @sreadixl)
 * When using RTL (right-to-left) `Text` Game Objects, the Text would vanish on iOS15+ if you changed the text or font style. The context RTL properties are now restored when the text is updated, fixing this issue. Fix #6121 (thanks @liorGameDev)
-* The `InputPlugin.sortGameObjects` method was using the Camera Render List to determine the Game Object display list. This would exclude non-rendering objects, such as Game Objects with alpha set to zero, even if their Input `alwaysEnable` flag was set. This method now uses the Display List instead, which gives correct results for invisible 'always enabled' objects. Fix #5507 (thanks @EmilSV)
 * The `Tilemap.destroyLayer` method would throw an error "TypeError: layer.destroy is not a function". It now correctly destroys the TilemapLayer. Fix #6268 (thanks @samme)
 * `MapData` and `ObjectLayer` will now enforce that the `Tilemap.objects` property is always an array. Sometimes Tiled willl set it to be a blank object in the JSON data. This fix makes sure it is always an array. Fix #6139 (thanks @robbeman)
 * The `ParseJSONTiled` function will now run a `DeepCopy` on the source Tiled JSON, which prevents object mutation, fixing an issue where Tiled Object Layer names would be duplicated if used across multiple Tilemap instances. Fix #6212 (thanks @temajm @wahur666)
@@ -505,7 +1243,6 @@ The following are API-breaking, in that a new optional parameter has been insert
 * The `BitmapMask` shader has been recoded so it now works correctly if you mask a Game Object that has alpha set on it, or in its texture. Previously it would alpha the Game Object against black (thanks stever1388)
 * When the Pointer moves out of the canvas and is released it would trigger `Uncaught TypeError: Cannot read properties of undefined (reading 'renderList')` if multiple children existed in the pointer-out array. Fix #5867 #5699 (thanks @rexrainbow @lyger)
 * If the Input Target in the game config was a string, it wouldn't be correctly parsed by the Touch Manager.
-* The `InputPlugin.sortGameObjects` will now assign a value of 0 to any game object not in the render list, but still viable for input, such as an invisible object with `alwaysEnabled` set to true. This fixes an issue where non-render list objects would be skipped. Fix #5507 (thanks @EmilSV)
 * The `GameObject.willRender` method will now factor in the parent `displayList`, if it has one, to the end result. This fixes issues like that where an invisible Layer will still process input events. Fix #5883 (thanks @rexrainbow)
 * `InputPlugin.disable` will now also reset the drag state of the Game Object as well as remove it from all of the internal temporary arrays. This fixes issues where if you disabled a Game Object for input during an input event it would still remain in the temporary internal arrays. This method now also returns the Input Plugin, to match `enable`. Fix #5828 (thank @natureofcode @thewaver)
 * The `GetBounds` component has been removed from the Point Light Game Object. Fix #5934 (thanks @x-wk @samme)
@@ -557,6 +1294,7 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 My thanks to the following for helping with the Phaser 3 Examples, Beta Testing, Docs, and TypeScript definitions, either by reporting errors, fixing them, or helping author the docs:
 
+@0day-oni
 @201flaviosilva
 @AlbertMontagutCasero
 @Arcanorum
@@ -567,6 +1305,7 @@ My thanks to the following for helping with the Phaser 3 Examples, Beta Testing,
 @danfoster
 @darrylpizarro
 @DeweyHur
+@drunkcat
 @ef4
 @eltociear
 @EsteFilipe
@@ -580,11 +1319,14 @@ My thanks to the following for helping with the Phaser 3 Examples, Beta Testing,
 @jonasrundberg
 @kootoopas
 @lolimay
+@MaffDev
 @michalfialadev
 @monteiz
 @necrokot
 @Nero0
+@OdinvonDoom
 @orjandh
+@pavle-goloskokovic
 @PhaserEditor2D
 @Pythux
 @quocsinh
@@ -604,6 +1346,7 @@ My thanks to the following for helping with the Phaser 3 Examples, Beta Testing,
 @xmahle
 @xuxucode
 @YeloPartyHat
+@ZekeLu
 FromChris
 Golen
 OmniOwl

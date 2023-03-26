@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -301,8 +301,6 @@ var SceneManager = new Class({
             //  Clear the pending lists
             this._start.length = 0;
             this._pending.length = 0;
-
-            return;
         }
 
         for (i = 0; i < this._queue.length; i++)
@@ -574,6 +572,11 @@ var SceneManager = new Class({
             if (sys.settings.status > CONST.START && sys.settings.status <= CONST.RUNNING)
             {
                 sys.step(time, delta);
+            }
+
+            if (sys.scenePlugin._target)
+            {
+                sys.scenePlugin.step(time, delta);
             }
         }
     },
@@ -1293,8 +1296,11 @@ var SceneManager = new Class({
         {
             var loader = scene.sys.load;
 
-            loader.off(LoaderEvents.COMPLETE, this.loadComplete, this);
-            loader.off(LoaderEvents.COMPLETE, this.payloadComplete, this);
+            if (loader)
+            {
+                loader.off(LoaderEvents.COMPLETE, this.loadComplete, this);
+                loader.off(LoaderEvents.COMPLETE, this.payloadComplete, this);
+            }
 
             scene.sys.shutdown(data);
         }

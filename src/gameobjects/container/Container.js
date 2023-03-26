@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @author       Felipe Alfonso <@bitnenfer>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -70,7 +70,7 @@ var Vector2 = require('../../math/Vector2');
  * @extends Phaser.GameObjects.Components.ComputedSize
  * @extends Phaser.GameObjects.Components.Depth
  * @extends Phaser.GameObjects.Components.Mask
- * @extends Phaser.GameObjects.Components.Pipeline
+ * @extends Phaser.GameObjects.Components.PostPipeline
  * @extends Phaser.GameObjects.Components.Transform
  * @extends Phaser.GameObjects.Components.Visible
  *
@@ -89,7 +89,7 @@ var Container = new Class({
         Components.ComputedSize,
         Components.Depth,
         Components.Mask,
-        Components.Pipeline,
+        Components.PostPipeline,
         Components.Transform,
         Components.Visible,
         Render
@@ -244,11 +244,9 @@ var Container = new Class({
          */
         this.scrollFactorY = 1;
 
-        this.initPipeline();
+        this.initPostPipeline();
 
         this.setPosition(x, y);
-
-        this.clearAlpha();
 
         this.setBlendMode(BlendModes.SKIP_CHECK);
 
@@ -409,19 +407,28 @@ var Container = new Class({
             {
                 var entry = children[i];
 
-                if (entry.getBounds)
+                if (entry.getTextBounds)
+                {
+                    var textBounds = entry.getTextBounds().global;
+                    tempRect.setTo(textBounds.x, textBounds.y, textBounds.width, textBounds.height);
+                }
+                else if (entry.getBounds)
                 {
                     entry.getBounds(tempRect);
+                }
+                else
+                {
+                    continue;
+                }
 
-                    if (!hasSetFirst)
-                    {
-                        output.setTo(tempRect.x, tempRect.y, tempRect.width, tempRect.height);
-                        hasSetFirst = true;
-                    }
-                    else
-                    {
-                        Union(tempRect, output, output);
-                    }
+                if (!hasSetFirst)
+                {
+                    output.setTo(tempRect.x, tempRect.y, tempRect.width, tempRect.height);
+                    hasSetFirst = true;
+                }
+                else
+                {
+                    Union(tempRect, output, output);
                 }
             }
         }

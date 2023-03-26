@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -289,13 +289,13 @@ var Tween = new Class({
     {
         if (startToCurrent === undefined) { startToCurrent = false; }
 
-        if (key !== 'texture' && (this.isPlayingForward() || this.isPlayingBackward()))
+        if (key !== 'texture')
         {
             for (var i = 0; i < this.totalData; i++)
             {
                 var tweenData = this.data[i];
 
-                if (tweenData.key === key)
+                if (tweenData.key === key && (tweenData.isPlayingForward() || tweenData.isPlayingBackward()))
                 {
                     tweenData.end = value;
 

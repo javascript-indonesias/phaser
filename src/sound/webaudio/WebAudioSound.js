@@ -1,13 +1,14 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @author       Pavle Goloskokovic <pgoloskokovic@gmail.com> (http://prunegames.com)
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
 var BaseSound = require('../BaseSound');
 var Class = require('../../utils/Class');
 var Events = require('../events');
+var GetFastValue = require('../../utils/object/GetFastValue');
 
 /**
  * @classdesc
@@ -19,7 +20,7 @@ var Events = require('../events');
  * @constructor
  * @since 3.0.0
  *
- * @param {Phaser.Sound.WebAudioSoundManager} manager - Reference to the current sound manager instance.
+ * @param {Phaser.Sound.WebAudioSoundManager} manager - Reference to the WebAudio Sound Manager that owns this Sound instance.
  * @param {string} key - Asset key for the sound.
  * @param {Phaser.Types.Sound.SoundConfig} [config={}] - An optional config object containing default sound settings.
  */
@@ -96,6 +97,25 @@ var WebAudioSound = new Class({
          * @since 3.50.0
          */
         this.pannerNode = null;
+
+        /**
+         * The Stereo Spatial Panner node.
+         *
+         * @name Phaser.Sound.WebAudioSound#spatialNode
+         * @type {PannerNode}
+         * @since 3.60.0
+         */
+        this.spatialNode = null;
+
+        /**
+         * If the Spatial Panner node has been set to track a vector or
+         * Game Object, this retains a reference to it.
+         *
+         * @name Phaser.Sound.WebAudioSound#spatialSource
+         * @type {Phaser.Types.Math.Vector2Like}
+         * @since 3.60.0
+         */
+        this.spatialSource = null;
 
         /**
          * The time at which the sound should have started playback from the beginning.
@@ -177,13 +197,31 @@ var WebAudioSound = new Class({
 
         this.muteNode.connect(this.volumeNode);
 
+        if (manager.context.createPanner)
+        {
+            this.spatialNode = manager.context.createPanner();
+
+            this.volumeNode.connect(this.spatialNode);
+        }
+
         if (manager.context.createStereoPanner)
         {
             this.pannerNode = manager.context.createStereoPanner();
 
-            this.volumeNode.connect(this.pannerNode);
+            if (manager.context.createPanner)
+            {
+                this.spatialNode.connect(this.pannerNode);
+            }
+            else
+            {
+                this.volumeNode.connect(this.pannerNode);
+            }
 
             this.pannerNode.connect(manager.destination);
+        }
+        else if (manager.context.createPanner)
+        {
+            this.spatialNode.connect(manager.destination);
         }
         else
         {
@@ -450,7 +488,111 @@ var WebAudioSound = new Class({
             rate: 1
         });
 
+        var source = this.currentConfig.source;
+
+        if (source && this.manager.context.createPanner)
+        {
+            var node = this.spatialNode;
+
+            node.panningModel = GetFastValue(source, 'panningModel', 'equalpower');
+            node.distanceModel = GetFastValue(source, 'distanceModel', 'inverse');
+            node.orientationX.value = GetFastValue(source, 'orientationX', 0);
+            node.orientationY.value = GetFastValue(source, 'orientationY', 0);
+            node.orientationZ.value = GetFastValue(source, 'orientationZ', -1);
+            node.refDistance = GetFastValue(source, 'refDistance', 1);
+            node.maxDistance = GetFastValue(source, 'maxDistance', 10000);
+            node.rolloffFactor = GetFastValue(source, 'rolloffFactor', 1);
+            node.coneInnerAngle = GetFastValue(source, 'coneInnerAngle', 360);
+            node.coneOuterAngle = GetFastValue(source, 'coneOuterAngle', 0);
+            node.coneOuterGain = GetFastValue(source, 'coneOuterGain', 0);
+
+            this.spatialSource = GetFastValue(source, 'follow', null);
+
+            if (!this.spatialSource)
+            {
+                node.positionX.value = GetFastValue(source, 'x', 0);
+                node.positionY.value = GetFastValue(source, 'y', 0);
+                node.positionZ.value = GetFastValue(source, 'z', 0);
+            }
+        }
+
         BaseSound.prototype.applyConfig.call(this);
+    },
+
+    /**
+     * Sets the x position of this Sound in Spatial Audio space.
+     *
+     * This only has any effect if the sound was created with a SpatialSoundConfig object.
+     *
+     * Also see the `WebAudioSoundManager.setListenerPosition` method.
+     *
+     * If you find that the sound becomes too quiet, too quickly, as it moves away from
+     * the listener, then try different `refDistance` property values when configuring
+     * the spatial sound.
+     *
+     * @name Phaser.Sound.WebAudioSound#x
+     * @type {number}
+     * @since 3.60.0
+     */
+    x: {
+
+        get: function ()
+        {
+            if (this.spatialNode)
+            {
+                return this.spatialNode.positionX;
+            }
+            else
+            {
+                return 0;
+            }
+        },
+
+        set: function (value)
+        {
+            if (this.spatialNode)
+            {
+                this.spatialNode.positionX.value = value;
+            }
+        }
+    },
+
+    /**
+     * Sets the y position of this Sound in Spatial Audio space.
+     *
+     * This only has any effect if the sound was created with a SpatialSoundConfig object.
+     *
+     * Also see the `WebAudioSoundManager.setListenerPosition` method.
+     *
+     * If you find that the sound becomes too quiet, too quickly, as it moves away from
+     * the listener, then try different `refDistance` property values when configuring
+     * the spatial sound.
+     *
+     * @name Phaser.Sound.WebAudioSound#y
+     * @type {number}
+     * @since 3.60.0
+     */
+    y: {
+
+        get: function ()
+        {
+            if (this.spatialNode)
+            {
+                return this.spatialNode.positionY;
+            }
+            else
+            {
+                return 0;
+            }
+        },
+
+        set: function (value)
+        {
+            if (this.spatialNode)
+            {
+                this.spatialNode.positionY.value = value;
+            }
+        }
     },
 
     /**
@@ -463,6 +605,23 @@ var WebAudioSound = new Class({
      */
     update: function ()
     {
+        if (this.isPlaying && this.spatialSource)
+        {
+
+            var x = GetFastValue(this.spatialSource, 'x', null);
+            var y = GetFastValue(this.spatialSource, 'y', null);
+
+            if (x && x !== this._spatialx)
+            {
+                this._spatialx = this.spatialNode.positionX.value = x;
+            }
+            if (y && y !== this._spatialy)
+            {
+                this._spatialy = this.spatialNode.positionY.value = y;
+            }
+
+        }
+
         if (this.hasEnded)
         {
             this.hasEnded = false;
@@ -519,6 +678,13 @@ var WebAudioSound = new Class({
         {
             this.pannerNode.disconnect();
             this.pannerNode = null;
+        }
+
+        if (this.spatialNode)
+        {
+            this.spatialNode.disconnect();
+            this.spatialNode = null;
+            this.spatialSource = null;
         }
 
         this.rateUpdates.length = 0;

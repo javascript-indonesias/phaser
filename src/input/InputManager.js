@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -843,14 +843,9 @@ var InputManager = new Class({
     {
         var input = gameObject.input;
 
-        if (!input || !input.enabled || (!input.alwaysEnabled && !gameObject.willRender(camera)))
+        if (!input || !input.enabled || !gameObject.willRender(camera))
         {
             return false;
-        }
-
-        if (input.alwaysEnabled)
-        {
-            return true;
         }
 
         var visible = true;

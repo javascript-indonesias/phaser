@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -61,7 +61,7 @@ var BaseCamera = new Class({
     Extends: EventEmitter,
 
     Mixins: [
-        Components.Alpha,
+        Components.AlphaSingle,
         Components.Visible
     ],
 
@@ -878,7 +878,7 @@ var BaseCamera = new Class({
      * @method Phaser.Cameras.Scene2D.BaseCamera#ignore
      * @since 3.0.0
      *
-     * @param {(Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]|Phaser.GameObjects.Group)} entries - The Game Object, or array of Game Objects, to be ignored by this Camera.
+     * @param {(Phaser.GameObjects.GameObject|Phaser.GameObjects.GameObject[]|Phaser.GameObjects.Group|Phaser.GameObjects.Layer|Phaser.GameObjects.Layer[])} entries - The Game Object, or array of Game Objects, to be ignored by this Camera.
      *
      * @return {this} This Camera instance.
      */
@@ -1757,8 +1757,11 @@ var BaseCamera = new Class({
 
         set: function (value)
         {
-            this._scrollX = value;
-            this.dirty = true;
+            if (value !== this._scrollX)
+            {
+                this._scrollX = value;
+                this.dirty = true;
+            }
         }
 
     },
@@ -1787,8 +1790,11 @@ var BaseCamera = new Class({
 
         set: function (value)
         {
-            this._scrollY = value;
-            this.dirty = true;
+            if (value !== this._scrollY)
+            {
+                this._scrollY = value;
+                this.dirty = true;
+            }
         }
 
     },

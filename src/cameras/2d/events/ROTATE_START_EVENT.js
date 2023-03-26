@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -8,6 +8,18 @@
  * The Camera Rotate Start Event.
  *
  * This event is dispatched by a Camera instance when the Rotate Effect starts.
+ *
+ * Listen for it via either of the following:
+ *
+ * ```js
+ * this.cameras.main.on('camerarotatestart', () => {});
+ * ```
+ *
+ * or use the constant, to avoid having to remember the correct event string:
+ *
+ * ```js
+ * this.cameras.main.on(Phaser.Cameras.Scene2D.Events.ROTATE_START, () => {});
+ * ```
  *
  * @event Phaser.Cameras.Scene2D.Events#ROTATE_START
  * @type {string}

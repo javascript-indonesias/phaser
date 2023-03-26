@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -31,12 +31,13 @@ var RenderTarget = new Class({
 
     initialize:
 
-    function RenderTarget (renderer, width, height, scale, minFilter, autoClear, autoResize)
+    function RenderTarget (renderer, width, height, scale, minFilter, autoClear, autoResize, addDepthBuffer)
     {
         if (scale === undefined) { scale = 1; }
         if (minFilter === undefined) { minFilter = 0; }
         if (autoClear === undefined) { autoClear = true; }
         if (autoResize === undefined) { autoResize = false; }
+        if (addDepthBuffer === undefined) { addDepthBuffer = true; }
 
         /**
          * A reference to the WebGLRenderer instance.
@@ -132,13 +133,28 @@ var RenderTarget = new Class({
          * @readonly
          * @since 3.50.0
          */
-        this.autoResize = false;
+        this.autoResize = true;
+
+        /**
+         * Does this Render Target have a Depth Buffer?
+         *
+         * @name Phaser.Renderer.WebGL.RenderTarget#hasDepthBuffer
+         * @type {boolean}
+         * @readonly
+         * @since 3.60.0
+         */
+        this.hasDepthBuffer = addDepthBuffer;
 
         this.resize(width, height);
 
         if (autoResize)
         {
             this.setAutoResize(true);
+        }
+        else
+        {
+            //  Block resizing unless this RT allows it
+            this.autoResize = false;
         }
     },
 
@@ -192,7 +208,7 @@ var RenderTarget = new Class({
         var scaledWidth = width * this.scale;
         var scaledHeight = height * this.scale;
 
-        if (scaledWidth !== this.width || scaledHeight !== this.height)
+        if (this.autoResize && (scaledWidth !== this.width || scaledHeight !== this.height))
         {
             var renderer = this.renderer;
 
@@ -217,7 +233,7 @@ var RenderTarget = new Class({
             }
 
             this.texture = renderer.createTextureFromSource(null, width, height, this.minFilter, true);
-            this.framebuffer = renderer.createFramebuffer(width, height, this.texture, true);
+            this.framebuffer = renderer.createFramebuffer(width, height, this.texture, this.hasDepthBuffer);
 
             this.width = width;
             this.height = height;
@@ -244,9 +260,11 @@ var RenderTarget = new Class({
     {
         if (adjustViewport === undefined) { adjustViewport = false; }
 
+        var renderer = this.renderer;
+
         if (adjustViewport)
         {
-            this.renderer.flush();
+            renderer.flush();
         }
 
         if (width && height)
@@ -254,7 +272,7 @@ var RenderTarget = new Class({
             this.resize(width, height);
         }
 
-        this.renderer.pushFramebuffer(this.framebuffer, false, false, false);
+        renderer.pushFramebuffer(this.framebuffer, false, false);
 
         if (adjustViewport)
         {
@@ -269,6 +287,8 @@ var RenderTarget = new Class({
 
             gl.clear(gl.COLOR_BUFFER_BIT);
         }
+
+        renderer.clearStencilMask();
     },
 
     /**

@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -20,13 +20,15 @@ var TilemapLayer = require('./TilemapLayer');
 var Tileset = require('./Tileset');
 
 /**
+ * A predicate, to test each element of the array.
+ *
  * @callback TilemapFilterCallback
  *
  * @param {Phaser.GameObjects.GameObject} value - An object found in the filtered area.
  * @param {number} index - The index of the object within the array.
  * @param {Phaser.GameObjects.GameObject[]} array - An array of all the objects found.
  *
- * @return {Phaser.GameObjects.GameObject} The object.
+ * @return {boolean} A value that coerces to `true` to keep the element, or to `false` otherwise.
  */
 
 /**
@@ -643,7 +645,7 @@ var Tilemap = new Class({
      * one criteria to your config. If you do not specify any criteria, then _all_ objects in the
      * Object Layer will be converted.
      *
-     * By default this method will convert objects into `Sprite` instances, but you can override
+     * By default this method will convert Objects into {@link Phaser.GameObjects.Sprite} instances, but you can override
      * this by providing your own class type:
      *
      * ```javascript
@@ -654,34 +656,48 @@ var Tilemap = new Class({
      * ```
      *
      * This will convert all Objects with a gid of 26 into your custom `Coin` class. You can pass
-     * any class type here, but it _must_ extend `Phaser.GameObjects.GameObject` as its base class.
+     * any class type here, but it _must_ extend {@link Phaser.GameObjects.GameObject} as its base class.
      * Your class will always be passed 1 parameter: `scene`, which is a reference to either the Scene
      * specified in the config object or, if not given, the Scene to which this Tilemap belongs. The
-     * class must have {@link Phaser.GameObjects.Components.Transform#setPosition} and
-     * {@link Phaser.GameObjects.Components.Texture#setTexture} methods.
+     * class must have {@link Phaser.GameObjects.Components.Transform#setPosition setPosition} and
+     * {@link Phaser.GameObjects.Components.Texture#setTexture setTexture} methods.
      *
-     * All properties from object are copied into the Game Object, so you can use this as an easy
-     * way to configure properties from within the map editor. For example giving an object a
+     * Custom properties on the Object are copied onto any existing properties on the Game Object, so you can use this as an easy
+     * way to configure properties from within the map editor. For example giving an Object a
      * property of `alpha: 0.5` in Tiled will be reflected in the Game Object that is created.
      *
-     * Custom object properties that do not exist as a Game Object property are set in the
-     * Game Objects {@link Phaser.GameObjects.GameObject#data data store}.
+     * Custom properties that do not exist on the Game Object are set in the
+     * Game Object's {@link Phaser.GameObjects.GameObject#data data store}.
      *
-     * Objects that are based on tiles (tilemap objects that are defined using the `gid` property) can be considered "hierarchical" by passing the third parameter `useTileset` true.
-     * Data such as texture, frame (assuming you've matched tileset and spritesheet geometries),
-     * `type` and `properties` will use the tileset information first and then override it with data set at the object level.
-     * For instance, a tileset which includes
-     * `[... a tileset of 16 elements...], [...ids 0, 1, and 2...], {id: 3, type: 'treadmill', speed:4}`
-     * and an object layer which includes
-     * `{id: 7, gid: 19, speed:5, rotation:90}`
-     * will be interpreted as though it were
-     * `{id: 7, gid:19, speed:5, rotation:90, type:'treadmill', texture:..., frame:3}`.
-     * You can then suppress this behavior by setting the boolean `ignoreTileset` for each `config` that should ignore
+     * When `useTileset` is `true` (the default), Tile Objects will inherit the texture and any tile properties
+     * from the tileset, and the local tile ID will be used as the texture frame. For the frame selection to work
+     * you need to load the tileset texture as a spritesheet so its frame names match the local tile IDs.
+     *
+     * For instance, a tileset tile
+     *
+     * ```
+     * { id: 3, type: 'treadmill', speed: 4 }
+     * ```
+     *
+     * with gid 19 and an object
+     *
+     * ```
+     * { id: 7, gid: 19, speed: 5, rotation: 90 }
+     * ```
+     *
+     * will be interpreted as
+     *
+     * ```
+     * { id: 7, gid: 19, speed: 5, rotation: 90, type: 'treadmill', texture: '[the tileset texture]', frame: 3 }
+     * ```
+     *
+     * You can suppress this behavior by setting the boolean `ignoreTileset` for each `config` that should ignore
      * object gid tilesets.
      *
-     * You can set a `container` property in the config. If given, the class will be added to
-     * the Container instance instead of the Scene.
-     * You can set named texture-`key` and texture-`frame` properties, which will be set on the resultant object.
+     * You can set a `container` property in the config. If given, the new Game Object will be added to
+     * the Container or Layer instance instead of the Scene.
+     *
+     * You can set named texture-`key` and texture-`frame` properties, which will be set on the new Game Object.
      *
      * Finally, you can provide an array of config objects, to convert multiple types of object in
      * a single call:
@@ -870,7 +886,7 @@ var Tilemap = new Class({
      * @since 3.0.0
      *
      * @param {(number|array)} indexes - The tile index, or array of indexes, to create Sprites from.
-     * @param {(number|array)} replacements - The tile index, or array of indexes, to change a converted
+     * @param {?(number|array)} replacements - The tile index, or array of indexes, to change a converted
      * tile to. Set to `null` to leave the tiles unchanged. If an array is given, it is assumed to be a
      * one-to-one mapping with the indexes array.
      * @param {Phaser.Types.GameObjects.Sprite.SpriteConfig} spriteConfig - The config object to pass into the Sprite creator (i.e. scene.make.sprite).
@@ -925,7 +941,7 @@ var Tilemap = new Class({
 
     /**
      * For each object in the given object layer, run the given filter callback function. Any
-     * objects that pass the filter test (i.e. where the callback returns true) will returned as a
+     * objects that pass the filter test (i.e. where the callback returns true) will be returned in a
      * new array. Similar to Array.prototype.Filter in vanilla JS.
      *
      * @method Phaser.Tilemaps.Tilemap#filterObjects

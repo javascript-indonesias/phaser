@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -2514,7 +2514,7 @@ var InputPlugin = new Class({
 
                 debug.setRotation(rotation);
                 debug.setScale(scaleX, scaleY);
-                debug.setPosition(x + offsetx, y + offsety);
+                debug.setPosition(x + offsetx * scaleX, y + offsety * scaleY);
                 debug.setScrollFactor(gameObject.scrollFactorX, gameObject.scrollFactorY);
                 debug.setDepth(gameObject.depth);
             };
@@ -2670,7 +2670,7 @@ var InputPlugin = new Class({
             return gameObjects;
         }
 
-        var list = this.displayList.list;
+        var list = pointer.camera.renderList;
 
         return gameObjects.sort(function (childA, childB)
         {

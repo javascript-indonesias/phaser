@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -187,13 +187,15 @@ var Game = new Class({
         this.cache = new CacheManager(this);
 
         /**
-         * An instance of the Data Manager
+         * An instance of the Data Manager. This is a global manager, available from any Scene
+         * and allows you to share and exchange your own game-level data or events without having
+         * to use an internal event system.
          *
          * @name Phaser.Game#registry
          * @type {Phaser.Data.DataManager}
          * @since 3.0.0
          */
-        this.registry = new DataManager(this);
+        this.registry = new DataManager(this, new EventEmitter());
 
         /**
          * An instance of the Input Manager.
@@ -339,6 +341,17 @@ var Game = new Class({
          */
         this.hasFocus = false;
 
+        /**
+         * Is the Game currently paused? This will stop everything from updating,
+         * except the `TimeStep` and related RequestAnimationFrame or setTimeout.
+         * Those will continue stepping, but the core Game step will be skipped.
+         *
+         * @name Phaser.Game#isPaused
+         * @type {boolean}
+         * @since 3.60.0
+         */
+        this.isPaused = false;
+
         //  Wait for the DOM Ready event, then call boot.
         DOMContentLoaded(this.boot.bind(this));
     },
@@ -465,6 +478,11 @@ var Game = new Class({
             return this.runDestroy();
         }
 
+        if (this.isPaused)
+        {
+            return;
+        }
+
         var eventEmitter = this.events;
 
         //  Global Managers like Input and Sound update in the prestep
@@ -529,6 +547,11 @@ var Game = new Class({
             return this.runDestroy();
         }
 
+        if (this.isPaused)
+        {
+            return;
+        }
+
         var eventEmitter = this.events;
 
         //  Global Managers like Input and Sound update in the prestep
@@ -584,7 +607,14 @@ var Game = new Class({
      */
     pause: function ()
     {
-        this.onHidden();
+        var wasPaused = this.isPaused;
+
+        this.isPaused = true;
+
+        if (!wasPaused)
+        {
+            this.events.emit(Events.PAUSE);
+        }
     },
 
     /**
@@ -614,7 +644,14 @@ var Game = new Class({
      */
     resume: function ()
     {
-        this.onVisible();
+        var wasPaused = this.isPaused;
+
+        this.isPaused = false;
+
+        if (wasPaused)
+        {
+            this.events.emit(Events.RESUME);
+        }
     },
 
     /**

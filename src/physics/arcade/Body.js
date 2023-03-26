@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @author       Benjamin D. Richards <benjamindrichards@gmail.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -445,10 +445,9 @@ var Body = new Class({
          */
         this.customBoundsRectangle = world.bounds;
 
-        //  If true this Body will dispatch events
-
         /**
-         * Whether the simulation emits a `worldbounds` event when this Body collides with the world boundary (and `collideWorldBounds` is also true).
+         * Whether the simulation emits a `worldbounds` event when this Body collides with the world boundary
+         * (and `collideWorldBounds` is also true).
          *
          * @name Phaser.Physics.Arcade.Body#onWorldBounds
          * @type {boolean}
@@ -481,7 +480,7 @@ var Body = new Class({
         this.onOverlap = false;
 
         /**
-         * The Body's absolute maximum velocity, in pixels per second.
+         * The absolute maximum velocity of this body, in pixels per second.
          * The horizontal and vertical components are applied separately.
          *
          * @name Phaser.Physics.Arcade.Body#maxVelocity
@@ -2465,11 +2464,13 @@ var Body = new Class({
         if (left)
         {
             blocked.left = true;
+            blocked.none = false;
         }
 
         if (right)
         {
             blocked.right = true;
+            blocked.none = false;
         }
     },
 
@@ -2501,11 +2502,13 @@ var Body = new Class({
         if (up)
         {
             blocked.up = true;
+            blocked.none = false;
         }
 
         if (down)
         {
             blocked.down = true;
+            blocked.none = false;
         }
     },
 

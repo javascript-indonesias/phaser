@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -51,11 +51,11 @@ var _FLAG = 8; // 1000
  * @extends Phaser.GameObjects.Components.Crop
  * @extends Phaser.GameObjects.Components.Depth
  * @extends Phaser.GameObjects.Components.Flip
- * @extends Phaser.GameObjects.Components.FX
- * @extends Phaser.GameObjects.Components.GetBounds
+  * @extends Phaser.GameObjects.Components.GetBounds
  * @extends Phaser.GameObjects.Components.Mask
  * @extends Phaser.GameObjects.Components.Origin
  * @extends Phaser.GameObjects.Components.Pipeline
+ * @extends Phaser.GameObjects.Components.PostPipeline
  * @extends Phaser.GameObjects.Components.ScrollFactor
  * @extends Phaser.GameObjects.Components.Tint
  * @extends Phaser.GameObjects.Components.Transform
@@ -80,11 +80,11 @@ var TileSprite = new Class({
         Components.Crop,
         Components.Depth,
         Components.Flip,
-        Components.FX,
         Components.GetBounds,
         Components.Mask,
         Components.Origin,
         Components.Pipeline,
+        Components.PostPipeline,
         Components.ScrollFactor,
         Components.Tint,
         Components.Transform,
@@ -105,7 +105,14 @@ var TileSprite = new Class({
 
         if (displayFrame.source.compressionAlgorithm)
         {
-            console.warn('TileSprite cannot use compressed textures');
+            console.warn('TileSprite cannot use compressed texture');
+            displayTexture = scene.sys.textures.get('__MISSING');
+            displayFrame = displayTexture.get();
+        }
+
+        if (displayTexture.type === 'DynamicTexture')
+        {
+            console.warn('TileSprite cannot use Dynamic Texture');
             displayTexture = scene.sys.textures.get('__MISSING');
             displayFrame = displayTexture.get();
         }
@@ -180,7 +187,7 @@ var TileSprite = new Class({
          * @type {CanvasRenderingContext2D}
          * @since 3.12.0
          */
-        this.context = this.canvas.getContext('2d');
+        this.context = this.canvas.getContext('2d', { willReadFrequently: false });
 
         /**
          * The Texture the TileSprite is using as its fill pattern.
@@ -265,7 +272,7 @@ var TileSprite = new Class({
          * @type {CanvasRenderingContext2D}
          * @since 3.12.0
          */
-        this.fillContext = this.fillCanvas.getContext('2d');
+        this.fillContext = this.fillCanvas.getContext('2d', { willReadFrequently: false });
 
         /**
          * The texture that the Tile Sprite is rendered to, which is then rendered to a Scene.
@@ -282,6 +289,7 @@ var TileSprite = new Class({
         this.setFrame(frameKey);
         this.setOriginFromFrame();
         this.initPipeline();
+        this.initPostPipeline(true);
     },
 
     /**

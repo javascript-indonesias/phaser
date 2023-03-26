@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -127,7 +127,7 @@ var DynamicTexture = new Class({
          * @type {CanvasRenderingContext2D}
          * @since 3.7.0
          */
-        this.context = (isCanvas) ? source.getContext('2d') : null;
+        this.context = (isCanvas) ? source.getContext('2d', { willReadFrequently: true }) : null;
 
         /**
          * Is this Dynamic Texture dirty or not? If not it won't spend time clearing or filling itself.
@@ -141,7 +141,7 @@ var DynamicTexture = new Class({
         /**
          * Is this Dynamic Texture being used as the base texture for a Sprite Game Object?
          *
-         * This is enabled by default, as we expect that will be the core use for Dymamic Textures.
+         * This is enabled by default, as we expect that will be the core use for Dynamic Textures.
          *
          * However, to disable it, call `RenderTexture.setIsSpriteTexture(false)`.
          *
@@ -170,7 +170,7 @@ var DynamicTexture = new Class({
          * An internal Camera that can be used to move around this Dynamic Texture.
          *
          * Control it just like you would any Scene Camera. The difference is that it only impacts
-         * the placement of Game Objects that you then draw to this texture.
+         * the placement of **Game Objects** (not textures) that you then draw to this texture.
          *
          * You can scroll, zoom and rotate this Camera.
          *
@@ -191,7 +191,7 @@ var DynamicTexture = new Class({
          * @type {Phaser.Renderer.WebGL.RenderTarget}
          * @since 3.60.0
          */
-        this.renderTarget = (!isCanvas) ? new RenderTarget(renderer, width, height, 1, 0, false) : null;
+        this.renderTarget = (!isCanvas) ? new RenderTarget(renderer, width, height, 1, 0, false, true) : null;
 
         /**
          * A reference to the WebGL Single Pipeline.

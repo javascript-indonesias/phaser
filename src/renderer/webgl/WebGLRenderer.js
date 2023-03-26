@@ -1,7 +1,7 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
  * @author       Felipe Alfonso <@bitnenfer>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -68,7 +68,7 @@ var WebGLRenderer = new Class({
         var contextCreationConfig = {
             alpha: gameConfig.transparent,
             desynchronized: gameConfig.desynchronized,
-            depth: false,
+            depth: true,
             antialias: gameConfig.antialiasGL,
             premultipliedAlpha: gameConfig.premultipliedAlpha,
             stencil: true,
@@ -526,6 +526,10 @@ var WebGLRenderer = new Class({
          *
          * For more details see https://webglfundamentals.org/webgl/lessons/webgl-3d-textures.html
          *
+         * As of v3.60 no mipmaps will be generated unless a string is given in
+         * the game config. This saves on VRAM use when it may not be required.
+         * To obtain the previous result set the property to `LINEAR` in the config.
+         *
          * @name Phaser.Renderer.WebGL.WebGLRenderer#mipmapFilter
          * @type {GLenum}
          * @since 3.21.0
@@ -771,7 +775,10 @@ var WebGLRenderer = new Class({
         gl.clearColor(clearColor.redGL, clearColor.greenGL, clearColor.blueGL, clearColor.alphaGL);
 
         //  Mipmaps
-        this.mipmapFilter = gl[config.mipmapFilter];
+        if (config.mipmapFilter !== '')
+        {
+            this.mipmapFilter = gl[config.mipmapFilter];
+        }
 
         //  Check maximum supported textures
         this.maxTextures = Utils.checkShaderMax(gl, config.maxTextures);
@@ -879,6 +886,16 @@ var WebGLRenderer = new Class({
         if (DEBUG && this.spector)
         {
             return this.spector.getFps();
+        }
+    },
+
+    log: function ()
+    {
+        if (DEBUG && this.spector)
+        {
+            var t = Array.prototype.slice.call(arguments).join(' ');
+
+            return this.spector.log(t);
         }
     },
 
@@ -1493,10 +1510,12 @@ var WebGLRenderer = new Class({
      * @param {WebGLFramebuffer} framebuffer - The framebuffer that needs to be bound.
      * @param {boolean} [updateScissor=false] - Set the gl scissor to match the frame buffer size? Or, if `null` given, pop the scissor from the stack.
      * @param {boolean} [setViewport=true] - Should the WebGL viewport be set?
+     * @param {WebGLTexture} [texture=null] - Bind the given frame buffer texture?
+     * @param {boolean} [clear=false] - Clear the frame buffer after binding?
      *
      * @return {this} This WebGLRenderer instance.
      */
-    pushFramebuffer: function (framebuffer, updateScissor, setViewport)
+    pushFramebuffer: function (framebuffer, updateScissor, setViewport, texture, clear)
     {
         if (framebuffer === this.currentFramebuffer)
         {
@@ -1505,7 +1524,7 @@ var WebGLRenderer = new Class({
 
         this.fboStack.push(framebuffer);
 
-        return this.setFramebuffer(framebuffer, updateScissor, setViewport);
+        return this.setFramebuffer(framebuffer, updateScissor, setViewport, texture, clear);
     },
 
     /**
@@ -1521,13 +1540,17 @@ var WebGLRenderer = new Class({
      * @param {WebGLFramebuffer} framebuffer - The framebuffer that needs to be bound.
      * @param {boolean} [updateScissor=false] - If a framebuffer is given, set the gl scissor to match the frame buffer size? Or, if `null` given, pop the scissor from the stack.
      * @param {boolean} [setViewport=true] - Should the WebGL viewport be set?
+     * @param {WebGLTexture} [texture=null] - Bind the given frame buffer texture?
+     * @param {boolean} [clear=false] - Clear the frame buffer after binding?
      *
      * @return {this} This WebGLRenderer instance.
      */
-    setFramebuffer: function (framebuffer, updateScissor, setViewport)
+    setFramebuffer: function (framebuffer, updateScissor, setViewport, texture, clear)
     {
         if (updateScissor === undefined) { updateScissor = false; }
         if (setViewport === undefined) { setViewport = true; }
+        if (texture === undefined) { texture = null; }
+        if (clear === undefined) { clear = false; }
 
         if (framebuffer === this.currentFramebuffer)
         {
@@ -1554,6 +1577,17 @@ var WebGLRenderer = new Class({
         if (setViewport)
         {
             gl.viewport(0, 0, width, height);
+        }
+
+        if (texture)
+        {
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        }
+
+        if (clear)
+        {
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
         }
 
         if (updateScissor)
@@ -1609,6 +1643,34 @@ var WebGLRenderer = new Class({
         this.setFramebuffer(framebuffer, updateScissor, setViewport);
 
         return framebuffer;
+    },
+
+    /**
+     * Restores the previous framebuffer from the fbo stack and sets it.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#restoreFramebuffer
+     * @since 3.60.0
+     *
+     * @param {boolean} [updateScissor=false] - If a framebuffer is given, set the gl scissor to match the frame buffer size? Or, if `null` given, pop the scissor from the stack.
+     * @param {boolean} [setViewport=true] - Should the WebGL viewport be set?
+     */
+    restoreFramebuffer: function (updateScissor, setViewport)
+    {
+        if (updateScissor === undefined) { updateScissor = false; }
+        if (setViewport === undefined) { setViewport = true; }
+
+        var fboStack = this.fboStack;
+
+        var framebuffer = fboStack[fboStack.length - 1];
+
+        if (!framebuffer)
+        {
+            framebuffer = null;
+        }
+
+        this.currentFramebuffer = null;
+
+        this.setFramebuffer(framebuffer, updateScissor, setViewport);
     },
 
     /**
@@ -1694,7 +1756,7 @@ var WebGLRenderer = new Class({
 
         if (scaleMode === CONST.ScaleModes.LINEAR && this.config.antialias)
         {
-            minFilter = (pow) ? this.mipmapFilter : gl.LINEAR;
+            minFilter = (pow && this.mipmapFilter) ? this.mipmapFilter : gl.LINEAR;
             magFilter = gl.LINEAR;
         }
 
@@ -1830,20 +1892,13 @@ var WebGLRenderer = new Class({
      */
     createFramebuffer: function (width, height, renderTexture, addDepthStencilBuffer)
     {
+        if (addDepthStencilBuffer === undefined) { addDepthStencilBuffer = true; }
+
         var gl = this.gl;
         var framebuffer = gl.createFramebuffer();
         var complete = 0;
 
         this.setFramebuffer(framebuffer);
-
-        if (addDepthStencilBuffer)
-        {
-            var depthStencilBuffer = gl.createRenderbuffer();
-
-            gl.bindRenderbuffer(gl.RENDERBUFFER, depthStencilBuffer);
-            gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_STENCIL, width, height);
-            gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, depthStencilBuffer);
-        }
 
         renderTexture.isRenderTexture = true;
         renderTexture.isAlphaPremultiplied = false;
@@ -1865,6 +1920,15 @@ var WebGLRenderer = new Class({
         }
 
         framebuffer.renderTexture = renderTexture;
+
+        if (addDepthStencilBuffer)
+        {
+            var depthStencilBuffer = gl.createRenderbuffer();
+
+            gl.bindRenderbuffer(gl.RENDERBUFFER, depthStencilBuffer);
+            gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_STENCIL, width, height);
+            gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, depthStencilBuffer);
+        }
 
         this.setFramebuffer(null);
 
@@ -2085,7 +2149,20 @@ var WebGLRenderer = new Class({
     {
         if (framebuffer)
         {
-            this.gl.deleteFramebuffer(framebuffer);
+            var gl = this.gl;
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+            var renderBuffer = gl.getParameter(gl.RENDERBUFFER_BINDING);
+
+            if (renderBuffer)
+            {
+                gl.deleteRenderbuffer(renderBuffer);
+            }
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+            gl.deleteFramebuffer(framebuffer);
 
             ArrayRemove(this.fboStack, framebuffer);
 
@@ -2420,6 +2497,50 @@ var WebGLRenderer = new Class({
     },
 
     /**
+     * Disables the STENCIL_TEST but does not change the status
+     * of the current stencil mask.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#clearStencilMask
+     * @since 3.60.0
+     */
+    clearStencilMask: function ()
+    {
+        this.gl.disable(this.gl.STENCIL_TEST);
+    },
+
+    /**
+     * Restores the current stencil function to the one that was in place
+     * before `clearStencilMask` was called.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#restoreStencilMask
+     * @since 3.60.0
+     */
+    restoreStencilMask: function ()
+    {
+        var gl = this.gl;
+
+        var current = this.getCurrentStencilMask();
+
+        if (current)
+        {
+            var mask = current.mask;
+
+            gl.enable(gl.STENCIL_TEST);
+
+            //  colorMask + stencilOp(KEEP)
+
+            if (mask.invertAlpha)
+            {
+                gl.stencilFunc(gl.NOTEQUAL, mask.level, 0xff);
+            }
+            else
+            {
+                gl.stencilFunc(gl.EQUAL, mask.level, 0xff);
+            }
+        }
+    },
+
+    /**
      * Schedules a snapshot of the entire game viewport to be taken after the current frame is rendered.
      *
      * To capture a specific area see the `snapshotArea` method. To capture a specific pixel, see `snapshotPixel`.
@@ -2652,7 +2773,7 @@ var WebGLRenderer = new Class({
 
         if (this.config.antialias)
         {
-            minFilter = (pow) ? this.mipmapFilter : gl.LINEAR;
+            minFilter = (pow && this.mipmapFilter) ? this.mipmapFilter : gl.LINEAR;
             magFilter = gl.LINEAR;
         }
 
@@ -2742,7 +2863,7 @@ var WebGLRenderer = new Class({
 
         if (this.config.antialias)
         {
-            minFilter = (pow) ? this.mipmapFilter : gl.LINEAR;
+            minFilter = (pow && this.mipmapFilter) ? this.mipmapFilter : gl.LINEAR;
             magFilter = gl.LINEAR;
         }
 

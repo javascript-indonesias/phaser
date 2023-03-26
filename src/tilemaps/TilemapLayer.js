@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -31,6 +31,7 @@ var Vector2 = require('../math/Vector2');
  * @extends Phaser.GameObjects.Components.Mask
  * @extends Phaser.GameObjects.Components.Origin
  * @extends Phaser.GameObjects.Components.Pipeline
+ * @extends Phaser.GameObjects.Components.PostPipeline
  * @extends Phaser.GameObjects.Components.ScrollFactor
  * @extends Phaser.GameObjects.Components.Transform
  * @extends Phaser.GameObjects.Components.Visible
@@ -56,6 +57,7 @@ var TilemapLayer = new Class({
         Components.Mask,
         Components.Origin,
         Components.Pipeline,
+        Components.PostPipeline,
         Components.Transform,
         Components.Visible,
         Components.ScrollFactor,
@@ -301,6 +303,7 @@ var TilemapLayer = new Class({
         this.setSize(tilemap.tileWidth * this.layer.width, tilemap.tileHeight * this.layer.height);
 
         this.initPipeline();
+        this.initPostPipeline(false);
     },
 
     /**
@@ -443,7 +446,7 @@ var TilemapLayer = new Class({
      * @since 3.50.0
      *
      * @param {(number|array)} indexes - The tile index, or array of indexes, to create Sprites from.
-     * @param {(number|array)} replacements - The tile index, or array of indexes, to change a converted
+     * @param {?(number|array)} replacements - The tile index, or array of indexes, to change a converted
      * tile to. Set to `null` to leave the tiles unchanged. If an array is given, it is assumed to be a
      * one-to-one mapping with the indexes array.
      * @param {Phaser.Types.GameObjects.Sprite.SpriteConfig} [spriteConfig] - The config object to pass into the Sprite creator (i.e.

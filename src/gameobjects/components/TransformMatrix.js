@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -786,7 +786,7 @@ var TransformMatrix = new Class({
      * @method Phaser.GameObjects.Components.TransformMatrix#decomposeMatrix
      * @since 3.0.0
      *
-     * @return {object} The decomposed Matrix.
+     * @return {Phaser.Types.GameObjects.DecomposeMatrixResults} The decomposed Matrix.
      */
     decomposeMatrix: function ()
     {
@@ -920,12 +920,14 @@ var TransformMatrix = new Class({
      * @param {number} xw - The xw value.
      * @param {number} yh - The yh value.
      * @param {boolean} roundPixels - Pass the results via Math.round?
+     * @param {Float32Array} [quad] - Optional Float32Array to store the results in. Otherwises uses the local quad array.
      *
-     * @return {number} The calculated y value.
+     * @return {Float32Array} The quad Float32Array.
      */
-    setQuad: function (x, y, xw, yh, roundPixels)
+    setQuad: function (x, y, xw, yh, roundPixels, quad)
     {
-        var quad = this.quad;
+        if (quad === undefined) { quad = this.quad; }
+
         var matrix = this.matrix;
 
         var a = matrix[0];

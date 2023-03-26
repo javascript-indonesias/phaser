@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -363,7 +363,7 @@ var Config = new Class({
         /**
          * @const {string} Phaser.Core.Config#mipmapFilter - Sets the `mipmapFilter` property when the WebGL renderer is created.
          */
-        this.mipmapFilter = GetValue(renderConfig, 'mipmapFilter', 'LINEAR', config);
+        this.mipmapFilter = GetValue(renderConfig, 'mipmapFilter', '', config);
 
         /**
          * @const {boolean} Phaser.Core.Config#desynchronized - When set to `true` it will create a desynchronized context for both 2D and WebGL. See https://developers.google.com/web/updates/2019/05/desynchronized for details.
@@ -527,6 +527,16 @@ var Config = new Class({
          * @const {string[]} Phaser.Core.Config#loaderLocalScheme - An array of schemes that the Loader considers as being 'local' files. Defaults to: `[ 'file://', 'capacitor://' ]`.
          */
         this.loaderLocalScheme = GetValue(config, 'loader.localScheme', [ 'file://', 'capacitor://' ]);
+
+        /**
+         * @const {number} Phaser.Core.Config#glowFXQuality - The quality of the Glow FX (defaults to 0.1)
+         */
+        this.glowFXQuality = GetValue(config, 'fx.glow.quality', 0.1);
+
+        /**
+         * @const {number} Phaser.Core.Config#glowFXDistance - The distance of the Glow FX (defaults to 10)
+         */
+        this.glowFXDistance = GetValue(config, 'fx.glow.distance', 10);
 
         /*
          * Allows `plugins` property to either be an array, in which case it just replaces

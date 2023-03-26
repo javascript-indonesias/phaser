@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2022 Photon Storm Ltd.
+ * @copyright    2013-2023 Photon Storm Ltd.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -82,7 +82,7 @@ var CanvasPool = function ()
 
         if (_disableContextSmoothing && canvasType === CONST.CANVAS)
         {
-            Smoothing.disable(canvas.getContext('2d'));
+            Smoothing.disable(canvas.getContext('2d', { willReadFrequently: false }));
         }
 
         return canvas;
