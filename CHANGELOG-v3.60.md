@@ -1,5 +1,69 @@
 ## Version 3.60.0 - Miku - in development
 
+### New Features - Timeline Class
+
+Phaser 3.60 has a new Timeline Class which allows for fine-grained control of sequenced events. Previously in 3.55 the Timeline was part of the Tween system and it never quite worked as intended. In 3.60 it has been removed from Tweens entirely, replaced with the much more solid and reliable Tween Chains and Timeline has now becomes its own first-class citizen within Phaser. It allows you to sequence _any_ event you like, not just tweens.
+
+A Timeline is a way to schedule events to happen at specific times in the future. You can think of it as an event sequencer for your game, allowing you to schedule the running of callbacks, events and other actions at specific times in the future.
+
+A Timeline is a Scene level system, meaning you can have as many Timelines as you like, each belonging to a different Scene. You can also have multiple Timelines running at the same time.
+
+If the Scene is paused, the Timeline will also pause. If the Scene is destroyed, the Timeline will be automatically destroyed. However, you can control the Timeline directly, pausing, resuming and stopping it at any time.
+
+Create an instance of a Timeline via the Game Object Factory:
+
+```js
+const timeline = this.add.timeline();
+```
+
+The Timeline always starts paused. You must call `play` on it to start it running.
+
+You can also pass in a configuration object on creation, or an array of them:
+
+```js
+const timeline = this.add.timeline({
+    at: 1000,
+    run: () => {
+        this.add.sprite(400, 300, 'logo');
+    }
+});
+
+timeline.play();
+```
+
+In this example we sequence a few different events:
+
+```js
+const timeline = this.add.timeline([
+    {
+        at: 1000,
+        run: () => { this.logo = this.add.sprite(400, 300, 'logo'); },
+        sound: 'TitleMusic'
+    },
+    {
+        at: 2500,
+        tween: {
+            targets: this.logo,
+            y: 600,
+            yoyo: true
+        },
+        sound: 'Explode'
+    },
+    {
+        at: 8000,
+        event: 'HURRY_PLAYER',
+        target: this.background,
+        set: {
+            tint: 0xff0000
+        }
+    }
+]);
+
+timeline.play();
+```
+
+There are lots of options available to you via the configuration object. See the `TimelineEventConfig` typedef for more details.
+
 ### New Features - ESM Support
 
 Phaser 3.60 uses the new release of Webpack 5 in order to handle the builds. The configurations have been updated to follow the new format this upgrade introduced. As a bonus, Webpack 5 also bought a new experimental feature called 'output modules', which will take a CommonJS code-base, like Phaser uses and wrap the output in modern ES Module declarations.
@@ -968,6 +1032,7 @@ There are breaking changes from previous versions of Phaser.
 
 ### New Features
 
+* The Hexagonal Tilemap system now supports all 4 different types of layout as offered by Tiled: `staggeraxis-y + staggerindex-odd`, `staggeraxis-x + staggerindex-odd`, `staggeraxis-y + staggerindex-even` and `staggeraxis-x, staggerindex-even` (thanks @rexrainbow)
 * The Arcade Physics World has a new property `tileFilterOptions` which is an object passed to the `GetTilesWithin` methods used by the Sprite vs. Tilemap collision functions. These filters dramatically reduce the quantity of tiles being checked for collision, potentially saving thousands of redundant math comparisons from taking place.
 * The `Graphics.strokeRoundedRect` and `fillRoundedRect` methods can now accept negative values for the corner radius settings, in which case a concave corner is drawn instead (thanks @rexrainbow)
 * `AnimationManager.getAnimsFromTexture` is a new method that will return all global Animations, as stored in the Animation Manager, that have at least one frame using the given Texture. This will not include animations created directly on local Sprites.
@@ -1044,6 +1109,8 @@ The following are API-breaking, in that a new optional parameter has been insert
 
 ### Updates
 
+* You will now get a warning from the `AnimationManager` and `AnimationState` if you try to add an animation with a key that already exists. Fix #6434.
+* `Tilemap.addTilesetImage` has a new optional parameter `tileOffset` which, if given, controls the rendering offset of the tiles. This was always available on the Tileset itself, but not from this function (thanks @imothee)
 * The `GameObject.getBounds` method will now return a `Geom.Rectangle` instance, rather than a plain Object (thanks @samme)
 * The `GetBounds.getCenter` method now has an optional `includeParent` argument, which allows you to get the value in world space.
 * The `MatterTileBody` class, which is created when you convert a Tilemap into a Matter Physics world, will now check to see if the Tile has `flipX` or `flipY` set on it and rotate the body accordingly. Fix #5893 (thanks @Olliebrown @phaserhelp)
@@ -1318,6 +1385,7 @@ My thanks to the following for helping with the Phaser 3 Examples, Beta Testing,
 @jerricko
 @joegaffey
 @jonasrundberg
+@kainage
 @kootoopas
 @lolimay
 @MaffDev
