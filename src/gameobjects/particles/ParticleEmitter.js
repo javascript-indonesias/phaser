@@ -1462,8 +1462,8 @@ var ParticleEmitter = new Class({
      * @method Phaser.GameObjects.Particles.ParticleEmitter#setParticleSpeed
      * @since 3.60.0
      *
-     * @param {number} x - The horizontal scale of the emitted Particles.
-     * @param {number} [y=x] - The vertical scale of emitted Particles. If not set it will use the `x` value.
+     * @param {number} x - The horizontal speed of the emitted Particles.
+     * @param {number} [y=x] - The vertical speed of emitted Particles. If not set it will use the `x` value.
      *
      * @return {this} This Particle Emitter.
      */
@@ -1731,6 +1731,21 @@ var ParticleEmitter = new Class({
     },
 
     /**
+     * Clear all Death Zones from this Particle Emitter.
+     *
+     * @method Phaser.GameObjects.Particles.ParticleEmitter#clearDeathZones
+     * @since 3.61.0
+     *
+     * @return {this} This Particle Emitter.
+     */
+    clearDeathZones: function ()
+    {
+        this.deathZones.length = 0;
+
+        return this;
+    },
+
+    /**
      * Adds a new Particle Emission Zone to this Emitter.
      *
      * An {@link Phaser.Types.GameObjects.Particles.ParticleEmitterEdgeZoneConfig EdgeZone} places particles on its edges.
@@ -1747,7 +1762,7 @@ var ParticleEmitter = new Class({
      *
      * @param {Phaser.Types.GameObjects.Particles.EmitZoneObject|Phaser.Types.GameObjects.Particles.EmitZoneObject[]} zone - An Emission Zone configuration object, a RandomZone or EdgeZone instance, or an array of them.
      *
-     * @return {Phaser.GameObjects.Particles.Zones.EdgeZone|Phaser.GameObjects.Particles.Zones.RandomZone} The Emission Zone that was added to this Emitter.
+     * @return {Phaser.GameObjects.Particles.Zones.EdgeZone[]|Phaser.GameObjects.Particles.Zones.RandomZone[]} An array of the Emission Zones that were added to this Emitter.
      */
     addEmitZone: function (config)
     {
@@ -1758,6 +1773,7 @@ var ParticleEmitter = new Class({
 
         var zone;
         var emitZones = this.emitZones;
+        var output = [];
 
         for (var i = 0; i < config.length; i++)
         {
@@ -1796,9 +1812,11 @@ var ParticleEmitter = new Class({
                     emitZones.push(zone);
                 }
             }
+
+            output.push(zone);
         }
 
-        return zone;
+        return output;
     },
 
     /**
@@ -1814,6 +1832,23 @@ var ParticleEmitter = new Class({
     removeEmitZone: function (zone)
     {
         Remove(this.emitZones, zone);
+
+        this.zoneIndex = 0;
+
+        return this;
+    },
+
+    /**
+     * Clear all Emission Zones from this Particle Emitter.
+     *
+     * @method Phaser.GameObjects.Particles.ParticleEmitter#clearEmitZones
+     * @since 3.61.0
+     *
+     * @return {this} This Particle Emitter.
+     */
+    clearEmitZones: function ()
+    {
+        this.emitZones.length = 0;
 
         this.zoneIndex = 0;
 
@@ -2958,7 +2993,7 @@ var ParticleEmitter = new Class({
      * However, it can be set to any valid EmitterOp onEmit type.
      *
      * @name Phaser.GameObjects.Particles.ParticleEmitter#particleX
-     * @type {Phaser.Types.GameObjects.Particles.EmitterOpOnEmitType}
+     * @type {Phaser.Types.GameObjects.Particles.EmitterOpOnEmitType|Phaser.Types.GameObjects.Particles.EmitterOpOnUpdateType}
      * @since 3.60.0
      */
     particleX: {
@@ -2984,7 +3019,7 @@ var ParticleEmitter = new Class({
      * However, it can be set to any valid EmitterOp onEmit type.
      *
      * @name Phaser.GameObjects.Particles.ParticleEmitter#particleY
-     * @type {Phaser.Types.GameObjects.Particles.EmitterOpOnEmitType}
+     * @type {Phaser.Types.GameObjects.Particles.EmitterOpOnEmitType|Phaser.Types.GameObjects.Particles.EmitterOpOnUpdateType}
      * @since 3.60.0
      */
     particleY: {

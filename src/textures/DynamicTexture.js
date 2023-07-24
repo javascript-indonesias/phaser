@@ -450,6 +450,7 @@ var DynamicTexture = new Class({
         var originY = GetFastValue(config, 'originY', 0.5);
         var blendMode = GetFastValue(config, 'blendMode', 0);
         var erase = GetFastValue(config, 'erase', false);
+        var skipBatch = GetFastValue(config, 'skipBatch', false);
 
         var stamp = this.manager.resetStamp(alpha, tint);
 
@@ -474,7 +475,14 @@ var DynamicTexture = new Class({
             this._eraseMode = true;
         }
 
-        this.draw(stamp, x, y);
+        if (!skipBatch)
+        {
+            this.draw(stamp, x, y);
+        }
+        else
+        {
+            this.batchGameObject(stamp, x, y);
+        }
 
         if (erase)
         {
@@ -1481,6 +1489,22 @@ var DynamicTexture = new Class({
     snapshotPixel: function (x, y, callback)
     {
         return this.snapshotArea(x, y, 1, 1, callback, 'pixel');
+    },
+
+    /**
+     * Returns the underlying WebGLTexture, if not running in Canvas mode.
+     *
+     * @method Phaser.Textures.DynamicTexture#getWebGLTexture
+     * @since 3.60.0
+     *
+     * @return {?WebGLTexture} The underlying WebGLTexture, if not running in Canvas mode.
+     */
+    getWebGLTexture: function ()
+    {
+        if (this.renderTarget)
+        {
+            return this.renderTarget.texture;
+        }
     },
 
     /**

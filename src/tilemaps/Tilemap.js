@@ -87,6 +87,10 @@ var Tileset = require('./Tileset');
  * child called 'Layer 1'. In the Tilemap object, 'Layer 1' will have the name
  * 'ParentGroup/Layer 1'.
  *
+ * The Phaser Tiled Parser does **not** support the 'Collection of Images' feature for a Tileset.
+ * You must ensure all of your tiles are contained in a single tileset image file (per layer)
+ * and have this 'embedded' in the exported Tiled JSON map data.
+ *
  * @class Tilemap
  * @memberof Phaser.Tilemaps
  * @constructor
@@ -426,7 +430,7 @@ var Tilemap = new Class({
         if (tileMargin === undefined) { tileMargin = 0; }
         if (tileSpacing === undefined) { tileSpacing = 0; }
         if (gid === undefined) { gid = 0; }
-        if (tileOffset === undefined) { tileOffset = {x: 0, y: 0} }
+        if (tileOffset === undefined) { tileOffset = { x: 0, y: 0 }; }
 
         tileset = new Tileset(tilesetName, gid, tileWidth, tileHeight, tileMargin, tileSpacing, undefined, undefined, tileOffset);
 
@@ -678,12 +682,25 @@ var Tilemap = new Class({
      * class must have {@link Phaser.GameObjects.Components.Transform#setPosition setPosition} and
      * {@link Phaser.GameObjects.Components.Texture#setTexture setTexture} methods.
      *
-     * Custom properties on the Object are copied onto any existing properties on the Game Object, so you can use this as an easy
-     * way to configure properties from within the map editor. For example giving an Object a
-     * property of `alpha: 0.5` in Tiled will be reflected in the Game Object that is created.
+     * This method will set the following Tiled Object properties on the new Game Object:
      *
-     * Custom properties that do not exist on the Game Object are set in the
-     * Game Object's {@link Phaser.GameObjects.GameObject#data data store}.
+     * - `flippedHorizontal` as `flipX`
+     * - `flippedVertical` as `flipY`
+     * - `height` as `displayHeight`
+     * - `name`
+     * - `rotation`
+     * - `visible`
+     * - `width` as `displayWidth`
+     * - `x`, adjusted for origin
+     * - `y`, adjusted for origin
+     *
+     * Additionally, this method will set Tiled Object custom properties
+     *
+     * - on the Game Object, if it has the same property name and a value that isn't `undefined`; or
+     * - on the Game Object's {@link Phaser.GameObjects.GameObject#data data store} otherwise.
+     *
+     * For example, a Tiled Object with custom properties `{ alpha: 0.5, gold: 1 }` will be created as a Game
+     * Object with an `alpha` value of 0.5 and a `data.values.gold` value of 1.
      *
      * When `useTileset` is `true` (the default), Tile Objects will inherit the texture and any tile properties
      * from the tileset, and the local tile ID will be used as the texture frame. For the frame selection to work
@@ -1206,7 +1223,7 @@ var Tilemap = new Class({
      *
      * @param {(string|number|Phaser.Tilemaps.TilemapLayer)} [layer] - The name of the layer from Tiled, the index of the layer in the map or Tilemap Layer. If not given will default to the maps current layer index.
      *
-     * @return {Phaser.Tilemaps.LayerData} The corresponding LayerData within this.layers.
+     * @return {?Phaser.Tilemaps.LayerData} The corresponding `LayerData` within `this.layers`, or null.
      */
     getLayer: function (layer)
     {
@@ -1278,7 +1295,7 @@ var Tilemap = new Class({
         {
             return layer;
         }
-        else if (layer instanceof TilemapLayer)
+        else if (layer instanceof TilemapLayer && layer.tilemap === this)
         {
             return layer.layerIndex;
         }

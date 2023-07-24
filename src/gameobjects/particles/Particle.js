@@ -616,11 +616,14 @@ var Particle = new Class({
         this.computeVelocity(emitter, delta, step, processors, t);
 
         this.scaleX = ops.scaleX.onUpdate(this, 'scaleX', t, this.scaleX);
-        this.scaleY = this.scaleX;
 
         if (ops.scaleY.active)
         {
             this.scaleY = ops.scaleY.onUpdate(this, 'scaleY', t, this.scaleY);
+        }
+        else
+        {
+            this.scaleY = this.scaleX;
         }
 
         this.angle = ops.rotate.onUpdate(this, 'rotate', t, this.angle);
@@ -635,7 +638,7 @@ var Particle = new Class({
             return true;
         }
 
-        this.alpha = ops.alpha.onUpdate(this, 'alpha', t, this.alpha);
+        this.alpha = Clamp(ops.alpha.onUpdate(this, 'alpha', t, this.alpha), 0, 1);
 
         if (ops.color.active)
         {

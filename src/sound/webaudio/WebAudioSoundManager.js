@@ -314,7 +314,7 @@ var WebAudioSoundManager = new Class({
         {
             if (_this.context && body)
             {
-                var bodyRemove = body.removeEventListener;
+                var bodyRemove = body.removeEventListener.bind(body);
 
                 _this.context.resume().then(function ()
                 {
@@ -411,8 +411,11 @@ var WebAudioSoundManager = new Class({
 
         BaseSoundManager.prototype.update.call(this, time, delta);
 
-        //  Resume interrupted audio on iOS
-        this.onFocus();
+        //  Resume interrupted audio on iOS only if the game has focus
+        if (!this.gameLostFocus)
+        {
+            this.onFocus();
+        }
     },
 
     /**

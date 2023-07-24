@@ -104,22 +104,22 @@ var Config = new Class({
         /**
          * @const {number} Phaser.Core.Config#minWidth - The minimum width, in pixels, the canvas will scale down to. A value of zero means no minimum.
          */
-        this.minWidth = GetValue(scaleConfig, 'minWidth', 0, config);
+        this.minWidth = GetValue(scaleConfig, 'min.width', 0, config);
 
         /**
          * @const {number} Phaser.Core.Config#maxWidth - The maximum width, in pixels, the canvas will scale up to. A value of zero means no maximum.
          */
-        this.maxWidth = GetValue(scaleConfig, 'maxWidth', 0, config);
+        this.maxWidth = GetValue(scaleConfig, 'max.width', 0, config);
 
         /**
          * @const {number} Phaser.Core.Config#minHeight - The minimum height, in pixels, the canvas will scale down to. A value of zero means no minimum.
          */
-        this.minHeight = GetValue(scaleConfig, 'minHeight', 0, config);
+        this.minHeight = GetValue(scaleConfig, 'min.height', 0, config);
 
         /**
          * @const {number} Phaser.Core.Config#maxHeight - The maximum height, in pixels, the canvas will scale up to. A value of zero means no maximum.
          */
-        this.maxHeight = GetValue(scaleConfig, 'maxHeight', 0, config);
+        this.maxHeight = GetValue(scaleConfig, 'max.height', 0, config);
 
         /**
          * @const {number} Phaser.Core.Config#renderType - Force Phaser to use a specific renderer. Can be `CONST.CANVAS`, `CONST.WEBGL`, `CONST.HEADLESS` or `CONST.AUTO` (default)

@@ -233,6 +233,19 @@ var Text = new Class({
         this.lineSpacing = 0;
 
         /**
+         * Adds / Removes spacing between characters.
+         * Can be a negative or positive number.
+         *
+         * If you update this property directly, instead of using the `setLetterSpacing` method, then
+         * be sure to call `updateText` after, or you won't see the change reflected in the Text object.
+         *
+         * @name Phaser.GameObjects.Text#letterSpacing
+         * @type {number}
+         * @since 3.60.0
+         */
+        this.letterSpacing = 0;
+
+        /**
          * Whether the text or its settings have changed and need updating.
          *
          * @name Phaser.GameObjects.Text#dirty
@@ -1055,6 +1068,32 @@ var Text = new Class({
     },
 
     /**
+     * Sets the letter spacing value.
+     *
+     * This will add, or remove spacing between each character of this Text Game Object. The value can be
+     * either positive or negative. Positive values increase the space between each character, whilst negative
+     * values decrease it. Note that some fonts are spaced naturally closer together than others.
+     *
+     * Please understand that enabling this feature will cause Phaser to render each character in this Text object
+     * one by one, rather than use a draw for the whole string. This makes it extremely expensive when used with
+     * either long strings, or lots of strings in total. You will be better off creating bitmap font text if you
+     * need to display large quantities of characters with fine control over the letter spacing.
+     *
+     * @method Phaser.GameObjects.Text#setLetterSpacing
+     * @since 3.61.0
+     *
+     * @param {number} value - The amount to add to the letter width. Set to zero to disable.
+     *
+     * @return {this} This Text object.
+     */
+    setLetterSpacing: function (value)
+    {
+        this.letterSpacing = value;
+
+        return this.updateText();
+    },
+
+    /**
      * Set the text padding.
      *
      * 'left' can be an object.
@@ -1133,6 +1172,55 @@ var Text = new Class({
     setMaxLines: function (max)
     {
         return this.style.setMaxLines(max);
+    },
+
+    /**
+     * Render text from right-to-left or left-to-right.
+     *
+     * @method Phaser.GameObjects.Text#setRTL
+     * @since 3.61.0
+     *
+     * @param {boolean} [rtl=true] - Set to `true` to render from right-to-left.
+     *
+     * @return {this} This Text object.
+     */
+    setRTL: function (rtl)
+    {
+        if (rtl === undefined) { rtl = true; }
+
+        var style = this.style;
+
+        if (style.rtl === rtl)
+        {
+            return this;
+        }
+
+        style.rtl = rtl;
+
+        if (rtl)
+        {
+            this.canvas.dir = 'rtl';
+            this.context.direction = 'rtl';
+            this.canvas.style.display = 'none';
+
+            AddToDOM(this.canvas, this.scene.sys.canvas);
+        }
+        else
+        {
+            this.canvas.dir = 'ltr';
+            this.context.direction = 'ltr';
+        }
+
+        if (style.align === 'left')
+        {
+            style.align = 'right';
+        }
+        else if (style.align === 'right')
+        {
+            style.align = 'left';
+        }
+
+        return this;
     },
 
     /**
@@ -1313,7 +1401,28 @@ var Text = new Class({
             {
                 style.syncShadow(context, style.shadowFill);
 
-                context.fillText(lines[i], linePositionX, linePositionY);
+                // Looping fillText could be an expensive operation, we should ignore it if it is not needed
+
+                var letterSpacing = this.letterSpacing;
+
+                if (letterSpacing !== 0)
+                {
+                    var charPositionX = 0;
+
+                    var line = lines[i].split('');
+
+                    //  Draw text letter by letter
+                    for (var l = 0; l < line.length; l++)
+                    {
+                        context.fillText(line[l], linePositionX + charPositionX, linePositionY);
+
+                        charPositionX += context.measureText(line[l]).width + letterSpacing;
+                    }
+                }
+                else
+                {
+                    context.fillText(lines[i], linePositionX, linePositionY);
+                }
             }
         }
 
@@ -1419,10 +1528,7 @@ var Text = new Class({
      */
     preDestroy: function ()
     {
-        if (this.style.rtl)
-        {
-            RemoveFromDOM(this.canvas);
-        }
+        RemoveFromDOM(this.canvas);
 
         CanvasPool.remove(this.canvas);
 
