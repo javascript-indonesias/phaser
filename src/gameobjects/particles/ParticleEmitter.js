@@ -636,7 +636,7 @@ var ParticleEmitter = new Class({
          * In 3.60 they can now have an array of Emission Zones.
          *
          * @name Phaser.GameObjects.Particles.ParticleEmitter#emitZones
-         * @type {Phaser.GameObjects.Particles.Zones.EdgeZone[]|Phaser.GameObjects.Particles.Zones.RandomZone[]}
+         * @type {Phaser.Types.GameObjects.Particles.EmitZoneObject[]}
          * @since 3.60.0
          * @see Phaser.GameObjects.Particles.ParticleEmitter#setEmitZone
          */
@@ -685,7 +685,7 @@ var ParticleEmitter = new Class({
          * A Game Object whose position is used as the particle origin.
          *
          * @name Phaser.GameObjects.Particles.ParticleEmitter#follow
-         * @type {?Phaser.GameObjects.GameObject}
+         * @type {?Phaser.Types.Math.Vector2Like}
          * @default null
          * @since 3.0.0
          * @see Phaser.GameObjects.Particles.ParticleEmitter#startFollow
@@ -1134,7 +1134,7 @@ var ParticleEmitter = new Class({
      * @method Phaser.GameObjects.Particles.ParticleEmitter#startFollow
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.GameObject} target - The Game Object to follow.
+     * @param {Phaser.Types.Math.Vector2Like} target - The Object to follow.
      * @param {number} [offsetX=0] - Horizontal offset of the particle origin from the Game Object.
      * @param {number} [offsetY=0] - Vertical offset of the particle origin from the Game Object.
      * @param {boolean} [trackVisible=false] - Whether the emitter's visible state will track the target's visible state.
@@ -1316,7 +1316,7 @@ var ParticleEmitter = new Class({
             if (this.animCounter >= this.animQuantity)
             {
                 this.animCounter = 0;
-                this.currentAnim = Wrap(this.currentAnim + 1, 0, len - 1);
+                this.currentAnim = Wrap(this.currentAnim + 1, 0, len);
             }
 
             return anim;
@@ -1333,9 +1333,9 @@ var ParticleEmitter = new Class({
      * @method Phaser.GameObjects.Particles.ParticleEmitter#setAnim
      * @since 3.60.0
      *
-     * @param {(array|string|Phaser.Types.GameObjects.Particles.ParticleEmitterFrameConfig)} anims - One or more animations, or a configuration object.
-     * @param {boolean} [pickRandom=true] - Whether animations should be assigned at random from `anims`.
-     * @param {number} [quantity=1] - The number of consecutive particles that will receive each animation.
+     * @param {(string|string[]|Phaser.Types.GameObjects.Particles.ParticleEmitterAnimConfig)} anims - One or more animations, or a configuration object.
+     * @param {boolean} [pickRandom=true] - Whether animations should be assigned at random from `anims`. If a config object is given, this parameter is ignored.
+     * @param {number} [quantity=1] - The number of consecutive particles that will receive each animation. If a config object is given, this parameter is ignored.
      *
      * @return {this} This Particle Emitter.
      */
@@ -1672,7 +1672,7 @@ var ParticleEmitter = new Class({
      *
      * @param {Phaser.Types.GameObjects.Particles.DeathZoneObject|Phaser.Types.GameObjects.Particles.DeathZoneObject[]} config - A Death Zone configuration object, a Death Zone instance, a valid Geometry object or an array of them.
      *
-     * @return {Phaser.GameObjects.Particles.Zones.DeathZone} The Death Zone that was added to this Emitter.
+     * @return {Phaser.GameObjects.Particles.Zones.DeathZone[]} An array of the Death Zones that were added to this Emitter.
      */
     addDeathZone: function (config)
     {
@@ -1682,7 +1682,7 @@ var ParticleEmitter = new Class({
         }
 
         var zone;
-        var deathZones = this.deathZones;
+        var output = [];
 
         for (var i = 0; i < config.length; i++)
         {
@@ -1690,13 +1690,13 @@ var ParticleEmitter = new Class({
 
             if (zone instanceof DeathZone)
             {
-                deathZones.push(zone);
+                output.push(zone);
             }
             else if (typeof zone.contains === 'function')
             {
                 zone = new DeathZone(zone, true);
 
-                deathZones.push(zone);
+                output.push(zone);
             }
             else
             {
@@ -1709,12 +1709,14 @@ var ParticleEmitter = new Class({
 
                     zone = new DeathZone(source, killOnEnter);
 
-                    deathZones.push(zone);
+                    output.push(zone);
                 }
             }
         }
 
-        return zone;
+        this.deathZones = this.deathZones.concat(output);
+
+        return output;
     },
 
     /**
@@ -1764,9 +1766,9 @@ var ParticleEmitter = new Class({
      * @method Phaser.GameObjects.Particles.ParticleEmitter#addEmitZone
      * @since 3.60.0
      *
-     * @param {Phaser.Types.GameObjects.Particles.EmitZoneObject|Phaser.Types.GameObjects.Particles.EmitZoneObject[]} zone - An Emission Zone configuration object, a RandomZone or EdgeZone instance, or an array of them.
+     * @param {Phaser.Types.GameObjects.Particles.EmitZoneData|Phaser.Types.GameObjects.Particles.EmitZoneData[]} zone - An Emission Zone configuration object, a RandomZone or EdgeZone instance, or an array of them.
      *
-     * @return {Phaser.GameObjects.Particles.Zones.EdgeZone[]|Phaser.GameObjects.Particles.Zones.RandomZone[]} An array of the Emission Zones that were added to this Emitter.
+     * @return {Phaser.Types.GameObjects.Particles.EmitZoneObject[]} An array of the Emission Zones that were added to this Emitter.
      */
     addEmitZone: function (config)
     {
@@ -1776,7 +1778,6 @@ var ParticleEmitter = new Class({
         }
 
         var zone;
-        var emitZones = this.emitZones;
         var output = [];
 
         for (var i = 0; i < config.length; i++)
@@ -1785,7 +1786,7 @@ var ParticleEmitter = new Class({
 
             if (zone instanceof RandomZone || zone instanceof EdgeZone)
             {
-                emitZones.push(zone);
+                output.push(zone);
             }
             else
             {
@@ -1793,32 +1794,35 @@ var ParticleEmitter = new Class({
                 //  emitZone: { type: 'random', source: X }
                 //  emitZone: { type: 'edge', source: X, quantity: 32, [stepRate=0], [yoyo=false], [seamless=true], [total=1] }
 
-                var type = GetFastValue(zone, 'type', 'random');
                 var source = GetFastValue(zone, 'source', null);
 
-                if (type === 'random')
+                if (source)
                 {
-                    zone = new RandomZone(source);
-                }
-                else if (type === 'edge')
-                {
-                    var quantity = GetFastValue(zone, 'quantity', 1);
-                    var stepRate = GetFastValue(zone, 'stepRate', 0);
-                    var yoyo = GetFastValue(zone, 'yoyo', false);
-                    var seamless = GetFastValue(zone, 'seamless', true);
-                    var total = GetFastValue(zone, 'total', -1);
+                    var type = GetFastValue(zone, 'type', 'random');
 
-                    zone = new EdgeZone(source, quantity, stepRate, yoyo, seamless, total);
-                }
+                    if (type === 'random' && typeof source.getRandomPoint === 'function')
+                    {
+                        zone = new RandomZone(source);
 
-                if (zone)
-                {
-                    emitZones.push(zone);
+                        output.push(zone);
+                    }
+                    else if (type === 'edge' && typeof source.getPoints === 'function')
+                    {
+                        var quantity = GetFastValue(zone, 'quantity', 1);
+                        var stepRate = GetFastValue(zone, 'stepRate', 0);
+                        var yoyo = GetFastValue(zone, 'yoyo', false);
+                        var seamless = GetFastValue(zone, 'seamless', true);
+                        var total = GetFastValue(zone, 'total', -1);
+
+                        zone = new EdgeZone(source, quantity, stepRate, yoyo, seamless, total);
+
+                        output.push(zone);
+                    }
                 }
             }
-
-            output.push(zone);
         }
+
+        this.emitZones = this.emitZones.concat(output);
 
         return output;
     },
@@ -2559,7 +2563,7 @@ var ParticleEmitter = new Class({
      * @param {number} [x=this.x] - The x coordinate to emit the Particles from.
      * @param {number} [y=this.x] - The y coordinate to emit the Particles from.
      *
-     * @return {Phaser.GameObjects.Particles.Particle} The most recently emitted Particle.
+     * @return {(Phaser.GameObjects.Particles.Particle|undefined)} The most recently emitted Particle, or `undefined` if the emitter is at its limit.
      */
     explode: function (count, x, y)
     {
@@ -2585,7 +2589,7 @@ var ParticleEmitter = new Class({
      * @param {number} [y=this.x] - The y coordinate to emit the Particles from.
      * @param {number} [count=this.quantity] - The number of Particles to emit.
      *
-     * @return {Phaser.GameObjects.Particles.Particle} The most recently emitted Particle.
+     * @return {(Phaser.GameObjects.Particles.Particle|undefined)} The most recently emitted Particle, or `undefined` if the emitter is at its limit.
      */
     emitParticleAt: function (x, y, count)
     {
@@ -2602,7 +2606,7 @@ var ParticleEmitter = new Class({
      * @param {number} [x=this.x] - The x coordinate to emit the Particles from.
      * @param {number} [y=this.x] - The y coordinate to emit the Particles from.
      *
-     * @return {Phaser.GameObjects.Particles.Particle} The most recently emitted Particle.
+     * @return {(Phaser.GameObjects.Particles.Particle|undefined)} The most recently emitted Particle, or `undefined` if the emitter is at its limit.
      *
      * @see Phaser.GameObjects.Particles.Particle#fire
      */

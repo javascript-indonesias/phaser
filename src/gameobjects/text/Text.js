@@ -144,7 +144,7 @@ var Text = new Class({
          * @type {CanvasRenderingContext2D}
          * @since 3.0.0
          */
-        this.context = this.canvas.getContext('2d', { willReadFrequently: true });
+        this.context;
 
         /**
          * The Text Style object.
@@ -245,16 +245,6 @@ var Text = new Class({
          */
         this.letterSpacing = 0;
 
-        /**
-         * Whether the text or its settings have changed and need updating.
-         *
-         * @name Phaser.GameObjects.Text#dirty
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
-         */
-        this.dirty = false;
-
         //  If resolution wasn't set, force it to 1
         if (this.style.resolution === 0)
         {
@@ -273,6 +263,9 @@ var Text = new Class({
 
         //  Create a Texture for this Text object
         this.texture = scene.sys.textures.addCanvas(null, this.canvas, true);
+
+        //  Set the context to be the CanvasTexture context
+        this.context = this.texture.context;
 
         //  Get the frame
         this.frame = this.texture.get();
@@ -832,7 +825,7 @@ var Text = new Class({
      * @method Phaser.GameObjects.Text#setFill
      * @since 3.0.0
      *
-     * @param {(string|any)} color - The text fill style. Can be any valid CanvasRenderingContext `fillStyle` value.
+     * @param {(string|CanvasGradient|CanvasPattern)} color - The text fill style. Can be any valid CanvasRenderingContext `fillStyle` value.
      *
      * @return {this} This Text object.
      */
@@ -847,7 +840,7 @@ var Text = new Class({
      * @method Phaser.GameObjects.Text#setColor
      * @since 3.0.0
      *
-     * @param {string} color - The text fill color.
+     * @param {(string|CanvasGradient|CanvasPattern)} color - The text fill color.
      *
      * @return {this} This Text object.
      */
@@ -862,7 +855,7 @@ var Text = new Class({
      * @method Phaser.GameObjects.Text#setStroke
      * @since 3.0.0
      *
-     * @param {string} color - The stroke color.
+     * @param {(string|CanvasGradient|CanvasPattern)} color - The stroke color.
      * @param {number} thickness - The stroke thickness.
      *
      * @return {this} This Text object.
@@ -1026,9 +1019,6 @@ var Text = new Class({
 
     /**
      * Set the resolution used by this Text object.
-     *
-     * By default it will be set to match the resolution set in the Game Config,
-     * but you can override it via this method, or by specifying it in the Text style configuration object.
      *
      * It allows for much clearer text on High DPI devices, at the cost of memory because it uses larger
      * internal Canvas textures for the Text.
@@ -1440,8 +1430,6 @@ var Text = new Class({
                 this.frame.glTexture.__SPECTOR_Metadata = { textureKey: 'Text Game Object' };
             }
         }
-
-        this.dirty = true;
 
         var input = this.input;
 
