@@ -189,6 +189,12 @@ var TextureManager = new Class({
         this.addBase64('__WHITE', config.whiteImage);
 
         this.game.events.once(GameEvents.DESTROY, this.destroy, this);
+
+        this.game.events.once(GameEvents.SYSTEM_READY, function (scene)
+        {
+            this.stamp = new ImageGameObject(scene).setOrigin(0);
+
+        }, this);
     },
 
     /**
@@ -208,8 +214,6 @@ var TextureManager = new Class({
             this.off(Events.ERROR);
 
             this.emit(Events.READY);
-
-            this.stamp = new ImageGameObject(this.game.scene.systemScene).setOrigin(0);
         }
     },
 
@@ -1148,9 +1152,9 @@ var TextureManager = new Class({
      * @since 3.0.0
      *
      * @param {string} key - The unique string-based key of the Texture.
-     * @param {HTMLImageElement} source - The source Image element.
-     * @param {number} width - The width of the Texture.
-     * @param {number} height - The height of the Texture.
+     * @param {(HTMLImageElement|HTMLCanvasElement|HTMLImageElement[]|HTMLCanvasElement[])} source - An array of sources that are used to create the texture. Usually Images, but can also be a Canvas.
+     * @param {number} [width] - The width of the Texture. This is optional and automatically derived from the source images.
+     * @param {number} [height] - The height of the Texture. This is optional and automatically derived from the source images.
      *
      * @return {?Phaser.Textures.Texture} The Texture that was created, or `null` if the key is already in use.
      */

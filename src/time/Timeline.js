@@ -81,12 +81,13 @@ var Events = require('./events');
  * {@link Phaser.Types.Time.TimelineEventConfig} typedef for more details.
  *
  * @class Timeline
+ * @extends Phaser.Events.EventEmitter
  * @memberof Phaser.Time
  * @constructor
  * @since 3.60.0
  *
  * @param {Phaser.Scene} scene - The Scene which owns this Timeline.
- * @param {Phaser.Types.Time.TimelineEventConfig|Phaser.Types.Time.TimelineEventConfig[]} config - The configuration object for this Timeline Event, or an array of them.
+ * @param {Phaser.Types.Time.TimelineEventConfig|Phaser.Types.Time.TimelineEventConfig[]} [config] - The configuration object for this Timeline Event, or an array of them.
  */
 var Timeline = new Class({
 
@@ -383,6 +384,8 @@ var Timeline = new Class({
      * If the Timeline is paused while processing the current game step, then it
      * will carry on with all events that are due to run during that step and pause
      * from the next game step.
+     *
+     * Note that if any Tweens have been started prior to calling this method, they will **not** be paused as well.
      *
      * @method Phaser.Time.Timeline#pause
      * @since 3.60.0
