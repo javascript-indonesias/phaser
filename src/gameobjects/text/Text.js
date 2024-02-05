@@ -1431,14 +1431,18 @@ var Text = new Class({
 
         if (this.renderer && this.renderer.gl)
         {
-            this.frame.source.glTexture = this.renderer.canvasToTexture(canvas, this.frame.source.glTexture, true);
-
-            this.frame.glTexture = this.frame.source.glTexture;
+            if (this.frame.source.glTexture)
+            {
+                this.frame.source.glTexture.update(canvas, canvas.width, canvas.height, false);
+            }
+            else
+            {
+                this.frame.source.glTexture = this.renderer.canvasToTexture(canvas, this.frame.source.glTexture, true);
+            }
 
             if (typeof WEBGL_DEBUG)
             {
-                // eslint-disable-next-line camelcase
-                this.frame.glTexture.__SPECTOR_Metadata = { textureKey: 'Text Game Object' };
+                this.frame.glTexture.spectorMetadata = { textureKey: 'Text Game Object' };
             }
         }
 
