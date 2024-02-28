@@ -818,6 +818,9 @@ var WebGLRenderer = new Class({
             gl.disable(gl.DEPTH_TEST);
             gl.enable(gl.CULL_FACE);
 
+            // Re-enable compressed texture formats.
+            _this.compression = _this.getCompressedTextures();
+
             // Restore wrapped GL objects.
             // Order matters, as some wrappers depend on others.
             var wrapperCreateResource = function (wrapper)
@@ -2949,13 +2952,37 @@ var WebGLRenderer = new Class({
         if (noRepeat === undefined) { noRepeat = false; }
         if (flipY === undefined) { flipY = false; }
 
+        var gl = this.gl;
+        var minFilter = gl.NEAREST;
+        var magFilter = gl.NEAREST;
+
+        var width = srcCanvas.width;
+        var height = srcCanvas.height;
+
+        var wrapping = gl.CLAMP_TO_EDGE;
+
+        var pow = IsSizePowerOfTwo(width, height);
+
+        if (!noRepeat && pow)
+        {
+            wrapping = gl.REPEAT;
+        }
+
+        if (this.config.antialias)
+        {
+            minFilter = (pow && this.mipmapFilter) ? this.mipmapFilter : gl.LINEAR;
+            magFilter = gl.LINEAR;
+        }
+
         if (!dstTexture)
         {
-            return this.createCanvasTexture(srcCanvas, noRepeat, flipY);
+            return this.createTexture2D(0, minFilter, magFilter, wrapping, wrapping, gl.RGBA, srcCanvas, width, height, true, false, flipY);
         }
         else
         {
-            return this.updateCanvasTexture(srcCanvas, dstTexture, flipY);
+            dstTexture.update(srcCanvas, width, height, flipY, wrapping, wrapping, minFilter, magFilter, dstTexture.format);
+
+            return dstTexture;
         }
     },
 
@@ -2976,29 +3003,7 @@ var WebGLRenderer = new Class({
         if (noRepeat === undefined) { noRepeat = false; }
         if (flipY === undefined) { flipY = false; }
 
-        var gl = this.gl;
-        var minFilter = gl.NEAREST;
-        var magFilter = gl.NEAREST;
-
-        var width = srcCanvas.width;
-        var height = srcCanvas.height;
-
-        var wrapping = gl.CLAMP_TO_EDGE;
-
-        var pow = IsSizePowerOfTwo(width, height);
-
-        if (!noRepeat && pow)
-        {
-            wrapping = gl.REPEAT;
-        }
-
-        if (this.config.antialias)
-        {
-            minFilter = (pow && this.mipmapFilter) ? this.mipmapFilter : gl.LINEAR;
-            magFilter = gl.LINEAR;
-        }
-
-        return this.createTexture2D(0, minFilter, magFilter, wrapping, wrapping, gl.RGBA, srcCanvas, width, height, true, false, flipY);
+        return this.canvasToTexture(srcCanvas, null, noRepeat, flipY);
     },
 
     /**
@@ -3010,34 +3015,34 @@ var WebGLRenderer = new Class({
      * @param {HTMLCanvasElement} srcCanvas - The Canvas to update the WebGL Texture from.
      * @param {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper} dstTexture - The destination WebGLTextureWrapper to update.
      * @param {boolean} [flipY=false] - Should the WebGL Texture set `UNPACK_MULTIPLY_FLIP_Y`?
+     * @param {boolean} [noRepeat=false] - Should this canvas be allowed to set `REPEAT` (such as for Text objects?)
      *
      * @return {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper} The updated WebGLTextureWrapper. This is the same wrapper object as `dstTexture`.
      */
-    updateCanvasTexture: function (srcCanvas, dstTexture, flipY)
+    updateCanvasTexture: function (srcCanvas, dstTexture, flipY, noRepeat)
     {
         if (flipY === undefined) { flipY = false; }
+        if (noRepeat === undefined) { noRepeat = false; }
 
-        var width = srcCanvas.width;
-        var height = srcCanvas.height;
-
-        dstTexture.update(srcCanvas, width, height, flipY);
-
-        return dstTexture;
+        return this.canvasToTexture(srcCanvas, dstTexture, noRepeat, flipY);
     },
 
     /**
-     * Creates a new WebGL Texture based on the given HTML Video Element.
+     * Creates or updates a WebGL Texture based on the given HTML Video Element.
      *
-     * @method Phaser.Renderer.WebGL.WebGLRenderer#createVideoTexture
-     * @since 3.20.0
+     * If the `dstTexture` parameter is given, the WebGL Texture is updated, rather than created fresh.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#videoToTexture
+     * @since 3.90.0
      *
      * @param {HTMLVideoElement} srcVideo - The Video to create the WebGL Texture from
+     * @param {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper} [dstTexture] - The destination WebGLTextureWrapper to set.
      * @param {boolean} [noRepeat=false] - Should this canvas be allowed to set `REPEAT`?
      * @param {boolean} [flipY=false] - Should the WebGL Texture set `UNPACK_MULTIPLY_FLIP_Y`?
      *
-     * @return {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper} The newly created WebGLTextureWrapper.
+     * @return {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper} The newly created, or updated, WebGLTextureWrapper.
      */
-    createVideoTexture: function (srcVideo, noRepeat, flipY)
+    videoToTexture: function (srcVideo, dstTexture, noRepeat, flipY)
     {
         if (noRepeat === undefined) { noRepeat = false; }
         if (flipY === undefined) { flipY = false; }
@@ -3064,7 +3069,36 @@ var WebGLRenderer = new Class({
             magFilter = gl.LINEAR;
         }
 
-        return this.createTexture2D(0, minFilter, magFilter, wrapping, wrapping, gl.RGBA, srcVideo, width, height, true, true, flipY);
+        if (!dstTexture)
+        {
+            return this.createTexture2D(0, minFilter, magFilter, wrapping, wrapping, gl.RGBA, srcVideo, width, height, true, true, flipY);
+        }
+        else
+        {
+            dstTexture.update(srcVideo, width, height, flipY, wrapping, wrapping, minFilter, magFilter, dstTexture.format);
+
+            return dstTexture;
+        }
+    },
+
+    /**
+     * Creates a new WebGL Texture based on the given HTML Video Element.
+     *
+     * @method Phaser.Renderer.WebGL.WebGLRenderer#createVideoTexture
+     * @since 3.20.0
+     *
+     * @param {HTMLVideoElement} srcVideo - The Video to create the WebGL Texture from
+     * @param {boolean} [noRepeat=false] - Should this canvas be allowed to set `REPEAT`?
+     * @param {boolean} [flipY=false] - Should the WebGL Texture set `UNPACK_MULTIPLY_FLIP_Y`?
+     *
+     * @return {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper} The newly created WebGLTextureWrapper.
+     */
+    createVideoTexture: function (srcVideo, noRepeat, flipY)
+    {
+        if (noRepeat === undefined) { noRepeat = false; }
+        if (flipY === undefined) { flipY = false; }
+
+        return this.videoToTexture(srcVideo, null, noRepeat, flipY);
     },
 
     /**
@@ -3076,19 +3110,16 @@ var WebGLRenderer = new Class({
      * @param {HTMLVideoElement} srcVideo - The Video to update the WebGL Texture with.
      * @param {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper} dstTexture - The destination WebGLTextureWrapper to update.
      * @param {boolean} [flipY=false] - Should the WebGL Texture set `UNPACK_MULTIPLY_FLIP_Y`?
+     * @param {boolean} [noRepeat=false] - Should this canvas be allowed to set `REPEAT`?
      *
      * @return {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper} The updated WebGLTextureWrapper. This is the same wrapper object as `dstTexture`.
      */
-    updateVideoTexture: function (srcVideo, dstTexture, flipY)
+    updateVideoTexture: function (srcVideo, dstTexture, flipY, noRepeat)
     {
         if (flipY === undefined) { flipY = false; }
+        if (noRepeat === undefined) { noRepeat = false; }
 
-        var width = srcVideo.videoWidth;
-        var height = srcVideo.videoHeight;
-
-        dstTexture.update(srcVideo, width, height, flipY);
-
-        return dstTexture;
+        return this.videoToTexture(srcVideo, dstTexture, noRepeat, flipY);
     },
 
     /**

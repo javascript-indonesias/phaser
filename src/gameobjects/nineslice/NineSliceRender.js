@@ -13,11 +13,6 @@ if (typeof WEBGL_RENDERER)
     renderWebGL = require('./NineSliceWebGLRenderer');
 }
 
-if (typeof CANVAS_RENDERER)
-{
-    // renderCanvas = require('./MeshCanvasRenderer');
-}
-
 module.exports = {
 
     renderWebGL: renderWebGL,
