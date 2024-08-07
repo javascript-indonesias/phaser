@@ -1084,6 +1084,9 @@ var ScaleManager = new Class({
         }
         else if (this.scaleMode === CONST.SCALE_MODE.EXPAND)
         {
+            var baseWidth = this.game.config.width;
+            var baseHeight = this.game.config.height;
+
             //  Resize to match parent, like RESIZE mode
 
             //  This will constrain using min/max
@@ -1104,18 +1107,20 @@ var ScaleManager = new Class({
 
             // Expand canvas size to fit game size's width or height
 
-            var scaleX = this.parentSize.width / this.gameSize.width;
+            var scaleX = this.parentSize.width / baseWidth;
 
-            var scaleY = this.parentSize.height / this.gameSize.height;
+            var scaleY = this.parentSize.height / baseHeight;
 
             if (scaleX < scaleY)
             {
-                this.baseSize.setSize(this.gameSize.width, this.parentSize.height / scaleX);
+                this.baseSize.setSize(baseWidth, this.parentSize.height / scaleX);
             }
             else
             {
-                this.baseSize.setSize(this.displaySize.width / scaleY, this.gameSize.height);
+                this.baseSize.setSize(this.displaySize.width / scaleY, baseHeight);
             }
+
+            this.gameSize.setSize(this.baseSize.width, this.baseSize.height);
 
             styleWidth = this.baseSize.width;
             styleHeight = this.baseSize.height;
@@ -1523,7 +1528,14 @@ var ScaleManager = new Class({
         };
 
         //  Only dispatched on mobile devices
-        window.addEventListener('orientationchange', listeners.orientationChange, false);
+        if (screen.orientation && screen.orientation.addEventListener)
+        {
+            screen.orientation.addEventListener('change', listeners.orientationChange, false);
+        }
+        else
+        {
+            window.addEventListener('orientationchange', listeners.orientationChange, false);
+        }
 
         window.addEventListener('resize', listeners.windowResize, false);
 
@@ -1692,7 +1704,15 @@ var ScaleManager = new Class({
     {
         var listeners = this.domlisteners;
 
-        window.removeEventListener('orientationchange', listeners.orientationChange, false);
+        if (screen.orientation && screen.orientation.addEventListener)
+        {
+            screen.orientation.removeEventListener('change', listeners.orientationChange, false);
+        }
+        else
+        {
+            window.removeEventListener('orientationchange', listeners.orientationChange, false);
+        }
+        
         window.removeEventListener('resize', listeners.windowResize, false);
 
         var vendors = [ 'webkit', 'moz', '' ];

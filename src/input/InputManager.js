@@ -177,11 +177,6 @@ var InputManager = new Class({
          */
         this.pointersTotal = config.inputActivePointers;
 
-        if (config.inputTouch && this.pointersTotal === 1)
-        {
-            this.pointersTotal = 2;
-        }
-
         for (var i = 0; i <= this.pointersTotal; i++)
         {
             var pointer = new Pointer(this, i);
@@ -570,7 +565,7 @@ var InputManager = new Class({
         {
             var changedTouch = event.changedTouches[c];
 
-            for (var i = 1; i < this.pointersTotal; i++)
+            for (var i = 1; i < pointers.length; i++)
             {
                 var pointer = pointers[i];
 
@@ -608,7 +603,7 @@ var InputManager = new Class({
         {
             var changedTouch = event.changedTouches[c];
 
-            for (var i = 1; i < this.pointersTotal; i++)
+            for (var i = 1; i < pointers.length; i++)
             {
                 var pointer = pointers[i];
 
@@ -665,7 +660,7 @@ var InputManager = new Class({
         {
             var changedTouch = event.changedTouches[c];
 
-            for (var i = 1; i < this.pointersTotal; i++)
+            for (var i = 1; i < pointers.length; i++)
             {
                 var pointer = pointers[i];
 
@@ -701,7 +696,7 @@ var InputManager = new Class({
         {
             var changedTouch = event.changedTouches[c];
 
-            for (var i = 1; i < this.pointersTotal; i++)
+            for (var i = 1; i < pointers.length; i++)
             {
                 var pointer = pointers[i];
 

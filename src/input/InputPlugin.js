@@ -573,9 +573,8 @@ var InputPlugin = new Class({
         var manager = this.manager;
 
         var pointers = manager.pointers;
-        var pointersTotal = manager.pointersTotal;
 
-        for (i = 0; i < pointersTotal; i++)
+        for (i = 0; i < pointers.length; i++)
         {
             pointers[i].updateMotion();
         }
@@ -611,7 +610,7 @@ var InputPlugin = new Class({
         //  We got this far? Then we should poll for movement
         var captured = false;
 
-        for (i = 0; i < pointersTotal; i++)
+        for (i = 0; i < pointers.length; i++)
         {
             var total = 0;
 
@@ -678,10 +677,9 @@ var InputPlugin = new Class({
             return false;
         }
 
-        var pointersTotal = pointers.length;
         var captured = false;
 
-        for (var i = 0; i < pointersTotal; i++)
+        for (var i = 0; i < pointers.length; i++)
         {
             var total = 0;
             var pointer = pointers[i];
@@ -838,7 +836,7 @@ var InputPlugin = new Class({
         var over = this._over;
         var manager = this.manager;
 
-        for (var i = 0, index; i < manager.pointersTotal; i++)
+        for (var i = 0, index; i < manager.pointers.length; i++)
         {
             index = drag[i].indexOf(gameObject);
 
@@ -1139,6 +1137,11 @@ var InputPlugin = new Class({
 
         var list = this._drag[pointer.id];
 
+        if (list.length > 1)
+        {
+            list = list.slice(0);
+        }
+
         for (var i = 0; i < list.length; i++)
         {
             var gameObject = list[i];
@@ -1152,6 +1155,8 @@ var InputPlugin = new Class({
 
             input.dragStartXGlobal = pointer.worldX;
             input.dragStartYGlobal = pointer.worldY;
+
+            input.dragStartCamera = pointer.camera;
 
             input.dragX = input.dragStartXGlobal - input.dragStartX;
             input.dragY = input.dragStartYGlobal - input.dragStartY;
@@ -1276,6 +1281,11 @@ var InputPlugin = new Class({
 
         var list = this._drag[pointer.id];
 
+        if (list.length > 1)
+        {
+            list = list.slice(0);
+        }
+
         for (var i = 0; i < list.length; i++)
         {
             var gameObject = list[i];
@@ -1352,15 +1362,17 @@ var InputPlugin = new Class({
             var dragX;
             var dragY;
 
+            var dragWorldXY = pointer.positionToCamera(input.dragStartCamera);
+
             if (!gameObject.parentContainer)
             {
-                dragX = pointer.worldX - input.dragX;
-                dragY = pointer.worldY - input.dragY;
+                dragX = dragWorldXY.x - input.dragX;
+                dragY = dragWorldXY.y - input.dragY;
             }
             else
             {
-                var dx = pointer.worldX - input.dragStartXGlobal;
-                var dy = pointer.worldY - input.dragStartYGlobal;
+                var dx = dragWorldXY.x - input.dragStartXGlobal;
+                var dy = dragWorldXY.y - input.dragStartYGlobal;
 
                 var rotation = gameObject.getParentRotation();
 
@@ -1403,6 +1415,11 @@ var InputPlugin = new Class({
         //  5 = Pointer was actively dragging but has been released, notify draglist
         var list = this._drag[pointer.id];
 
+        if (list.length > 1)
+        {
+            list = list.slice(0);
+        }
+
         for (var i = 0; i < list.length; i++)
         {
             var gameObject = list[i];
@@ -1415,6 +1432,8 @@ var InputPlugin = new Class({
 
                 input.dragX = input.localX - gameObject.displayOriginX;
                 input.dragY = input.localY - gameObject.displayOriginY;
+
+                input.dragStartCamera = null;
 
                 var dropped = false;
 

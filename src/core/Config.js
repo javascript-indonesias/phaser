@@ -176,7 +176,7 @@ var Config = new Class({
         /**
          * @const {string} Phaser.Core.Config#gameURL - The URL of the game.
          */
-        this.gameURL = GetValue(config, 'url', 'https://phaser.io');
+        this.gameURL = GetValue(config, 'url', 'https://phaser.io/v385/');
 
         /**
          * @const {string} Phaser.Core.Config#gameVersion - The version of the game.
@@ -312,7 +312,7 @@ var Config = new Class({
         //  If you do: { banner: false } it won't display any banner at all
 
         /**
-         * @const {boolean} Phaser.Core.Config#hideBanner - Don't write the banner line to the console.log.
+         * @const {boolean} Phaser.Core.Config#hideBanner - Don't write the banner line to the console.log. See `Phaser.TYpes.Core.BannerConfig` for details of this object.
          */
         this.hideBanner = (GetValue(config, 'banner', null) === false);
 
@@ -393,7 +393,7 @@ var Config = new Class({
         /**
          * @const {boolean} Phaser.Core.Config#roundPixels - Draw texture-based Game Objects at only whole-integer positions. Game Objects without textures, like Graphics, ignore this property.
          */
-        this.roundPixels = GetValue(renderConfig, 'roundPixels', true, config);
+        this.roundPixels = GetValue(renderConfig, 'roundPixels', false, config);
 
         /**
          * @const {boolean} Phaser.Core.Config#pixelArt - Prevent pixel art from becoming blurred when scaled. It will remain crisp (tells the WebGL renderer to automatically create textures using a linear filter mode).
