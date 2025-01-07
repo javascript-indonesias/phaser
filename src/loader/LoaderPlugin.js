@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@phaser.io>
- * @copyright    2013-2024 Phaser Studio Inc.
+ * @copyright    2013-2025 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -705,7 +705,7 @@ var LoaderPlugin = new Class({
      * If the Pack includes another Pack, its resources will be removed too.
      *
      * @method Phaser.Loader.LoaderPlugin#removePack
-     * @since 3.90.0
+     * @since 3.85.0
      *
      * @param {(string|object)} packKey - The key of an Asset Pack in the JSON cache, or a Pack File data.
      * @param {string} [dataKey] - A key in the Pack data, if you want to process only a section of it.

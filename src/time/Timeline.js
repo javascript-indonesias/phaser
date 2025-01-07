@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@phaser.io>
- * @copyright    2013-2024 Phaser Studio Inc.
+ * @copyright    2013-2025 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -145,7 +145,7 @@ var Timeline = new Class({
          * @name Phaser.Time.Timeline#timeScale
          * @type {number}
          * @default
-         * @since 3.90.0
+         * @since 3.85.0
          */
         this.timeScale = 1;
 
@@ -599,7 +599,7 @@ var Timeline = new Class({
             }
 
             if (event.tweenInstance)
-            {  
+            {
                 event.tweenInstance.stop();
             }
         }

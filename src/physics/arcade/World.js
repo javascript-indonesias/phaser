@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@phaser.io>
- * @copyright    2013-2024 Phaser Studio Inc.
+ * @copyright    2013-2025 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -1395,7 +1395,7 @@ var World = new Class({
         }
 
         //  They overlap. Is there a custom process callback? If it returns true then we can carry on, otherwise we should abort.
-        if (processCallback && processCallback.call(callbackContext, body1.gameObject, body2.gameObject) === false)
+        if (processCallback && processCallback.call(callbackContext, (body1.gameObject || body1), (body2.gameObject || body2)) === false)
         {
             return result;
         }
@@ -1641,7 +1641,8 @@ var World = new Class({
 
                 body1.updateCenter();
             }
-            else if (!body2Immovable || body2.pushable || deadlock)
+            
+            if (!body2Immovable || body2.pushable || deadlock)
             {
                 body2.x += overlapX;
                 body2.y += overlapY;
@@ -1664,7 +1665,8 @@ var World = new Class({
 
                 body1.updateCenter();
             }
-            else if (!body2Immovable || body2.pushable || deadlock)
+
+            if (!body2Immovable || body2.pushable || deadlock)
             {
                 body2.x += overlapX;
                 body2.y += overlapY;

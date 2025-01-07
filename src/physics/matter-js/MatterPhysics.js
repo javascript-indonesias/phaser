@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey <rich@phaser.io>
- * @copyright    2013-2024 Phaser Studio Inc.
+ * @copyright    2013-2025 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -21,11 +21,9 @@ var DistanceBetween = require('../../math/distance/DistanceBetween');
 var Factory = require('./Factory');
 var GetFastValue = require('../../utils/object/GetFastValue');
 var GetValue = require('../../utils/object/GetValue');
-var MatterLib = require('./lib/core/Matter');
 var Merge = require('../../utils/object/Merge');
 var Pair = require('./lib/collision/Pair');
 var Pairs = require('./lib/collision/Pairs');
-var Plugin = require('./lib/core/Plugin');
 var PluginCache = require('../../plugins/PluginCache');
 var Query = require('./lib/collision/Query');
 var Resolver = require('./lib/collision/Resolver');
